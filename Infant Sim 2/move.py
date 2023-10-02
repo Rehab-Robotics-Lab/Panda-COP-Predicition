@@ -328,7 +328,7 @@ while 1:
     # move(motors,goal)
 
     prev_motor=angle_to_PWM(np.ones([len(motors)]).astype(int)*180)
-    rotation(motors,90,0,prev_motor)
+    side_bending(motors,90,0,prev_motor)
     read(motors,goal)   
 
     # Change goal position
