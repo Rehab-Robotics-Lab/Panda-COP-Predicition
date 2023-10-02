@@ -168,6 +168,11 @@ def home(DXL_ID):
     home_positions=np.zeros([len(DXL_ID)]).astype(int)
     move(DXL_ID,home_positions)
 
+def home_differential(DXL_ID):
+    
+    home_positions=np.ones([len(DXL_ID)]).astype(int)*180
+    move(DXL_ID,home_positions)
+
 def read(DXL_ID,dxl_goal_position):
     break_flag=False
     while break_flag==False:
@@ -183,14 +188,6 @@ def read(DXL_ID,dxl_goal_position):
                 print("[ID:%03d] groupBulkRead getdata failed" % ID)
                 quit()
 
-       
-
-        # Get present position value
-        # dxl1_present_position = groupBulkRead.getData(motors[0], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
-        # dxl2_present_position = groupBulkRead.getData(motors[1], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
-
-
-        # print("[ID:%03d] Present Position : %d \t [ID:%03d] LED Value: %d" % (motors[0], dxl1_present_position, motors[1], dxl2_present_position))
         
         for i in range(len(DXL_ID)):
             dxl_present_position = groupBulkRead.getData(motors[i], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
@@ -199,8 +196,33 @@ def read(DXL_ID,dxl_goal_position):
             if not (abs(dxl_goal_position[i] - dxl_present_position) > DXL_MOVING_STATUS_THRESHOLD):
                 break_flag=True
                 break  
-        # if break_flag:
-        #     break
+        # while 1:
+    #     # Bulkread present position and LED status
+    #     dxl_comm_result = groupBulkRead.txRxPacket()
+    #     if dxl_comm_result != COMM_SUCCESS:
+    #         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+
+    #     for ID in motors:
+    #         # Check if groupbulkread data of Dynamixel#1 is available
+    #         dxl_getdata_result = groupBulkRead.isAvailable(ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
+    #         if dxl_getdata_result != True:
+    #             print("[ID:%03d] groupBulkRead getdata failed" % ID)
+    #             quit()
+
+       
+
+    #     # Get present position value
+    #     dxl1_present_position = groupBulkRead.getData(motors[0], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
+    #     dxl2_present_position = groupBulkRead.getData(motors[1], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
+
+        
+
+    #     print("[ID:%03d] Present Position : %d \t [ID:%03d] LED Value: %d" % (motors[0], dxl1_present_position, motors[1], dxl2_present_position))
+
+    #     if not (abs(dxl_goal_position1[index] - dxl1_present_position) > DXL_MOVING_STATUS_THRESHOLD):
+    #         break
+    #     if not (abs(dxl_goal_position2[index] - dxl2_present_position) > DXL_MOVING_STATUS_THRESHOLD):
+    #         break
 
 
 
@@ -268,36 +290,7 @@ while 1:
 
     goal=dxl_goal_positions[:,index]
     move(motors,goal)
-    read(motors,goal)
-
-
-    # while 1:
-    #     # Bulkread present position and LED status
-    #     dxl_comm_result = groupBulkRead.txRxPacket()
-    #     if dxl_comm_result != COMM_SUCCESS:
-    #         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-
-    #     for ID in motors:
-    #         # Check if groupbulkread data of Dynamixel#1 is available
-    #         dxl_getdata_result = groupBulkRead.isAvailable(ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
-    #         if dxl_getdata_result != True:
-    #             print("[ID:%03d] groupBulkRead getdata failed" % ID)
-    #             quit()
-
-       
-
-    #     # Get present position value
-    #     dxl1_present_position = groupBulkRead.getData(motors[0], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
-    #     dxl2_present_position = groupBulkRead.getData(motors[1], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
-
-        
-
-    #     print("[ID:%03d] Present Position : %d \t [ID:%03d] LED Value: %d" % (motors[0], dxl1_present_position, motors[1], dxl2_present_position))
-
-    #     if not (abs(dxl_goal_position1[index] - dxl1_present_position) > DXL_MOVING_STATUS_THRESHOLD):
-    #         break
-    #     if not (abs(dxl_goal_position2[index] - dxl2_present_position) > DXL_MOVING_STATUS_THRESHOLD):
-    #         break
+    read(motors,goal)   
 
     # Change goal position
     if index == 3:
