@@ -109,8 +109,13 @@ motors=[65,66]
 # Use the actual port assigned to the U2D2.
 # ex) Windows: "COM*", Linux: "/dev/ttyUSB*", Mac: "/dev/tty.usbserial-*"
 
-def angle(theta):
-    return int(theta * (DXL_MAXIMUM_POSITION_VALUE - DXL_MINIMUM_POSITION_VALUE) /360)
+def angle_to_PWM(theta):
+    PWM=(theta * (DXL_MAXIMUM_POSITION_VALUE*np.ones_like(theta) - DXL_MINIMUM_POSITION_VALUE) /360).astype(int)
+    return PWM
+
+def PWM_to_angle(PWM):
+    angle=(PWM*360/(DXL_MAXIMUM_POSITION_VALUE*np.ones_like(PWM) - DXL_MINIMUM_POSITION_VALUE)).astype(int)
+    return angle
 
 def enable_torque(DXL_ID):
     # Enable Dynamixel Torque
@@ -128,6 +133,7 @@ def enable_torque(DXL_ID):
         if dxl_addparam_result != True:
             print("[ID:%03d] groupBulkRead addparam failed" % ID)
             quit()
+
 def disable_torque(DXL_ID):
     # Disable Dynamixel Torque
     for ID in DXL_ID:
@@ -163,16 +169,6 @@ def move(DXL_ID,dxl_goal_position):
     # Clear bulkwrite parameter storage
     groupBulkWrite.clearParam()
 
-def home(DXL_ID):
-    
-    home_positions=np.zeros([len(DXL_ID)]).astype(int)
-    move(DXL_ID,home_positions)
-
-def home_differential(DXL_ID):
-    
-    home_positions=np.ones([len(DXL_ID)]).astype(int)*180
-    move(DXL_ID,home_positions)
-
 def read(DXL_ID,dxl_goal_position):
     break_flag=False
     while break_flag==False:
@@ -192,7 +188,8 @@ def read(DXL_ID,dxl_goal_position):
         for i in range(len(DXL_ID)):
             dxl_present_position = groupBulkRead.getData(motors[i], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
             # print("[ID:%03d] Present Position : %d \t [ID:%03d] LED Value: %d" % (DXL_ID[i], dxl_present_position))
-            print(dxl_goal_position[i] ,dxl_present_position,abs(dxl_goal_position[i] - dxl_present_position))
+            # print(dxl_goal_position[i] ,dxl_present_position,abs(dxl_goal_position[i] - dxl_present_position))
+            print(i+1,PWM_to_angle(dxl_present_position))
             if not (abs(dxl_goal_position[i] - dxl_present_position) > DXL_MOVING_STATUS_THRESHOLD):
                 break_flag=True
                 break  
@@ -224,8 +221,47 @@ def read(DXL_ID,dxl_goal_position):
     #     if not (abs(dxl_goal_position2[index] - dxl2_present_position) > DXL_MOVING_STATUS_THRESHOLD):
     #         break
 
+def home(DXL_ID):
+    
+    home_positions=np.zeros([len(DXL_ID)]).astype(int)
+    move(DXL_ID,home_positions)
+
+def home_differential(DXL_ID):
+    
+    home_positions=angle_to_PWM(np.ones([len(DXL_ID)]).astype(int)*180)
+    move(DXL_ID,home_positions) 
+
+def side_bending(DXL_ID,goal_angle,previous_angle,previous_motor_angle):
+    gear_ratio=30/20
+
+    previous_angle=previous_angle*gear_ratio
+    goal_angle=goal_angle*gear_ratio
+
+    dxl1_present_position = previous_motor_angle[0]
+    dxl2_present_position = previous_motor_angle[1]
 
 
+    angle1=dxl1_present_position+angle_to_PWM(abs(previous_angle-goal_angle))
+    angle2=dxl2_present_position-angle_to_PWM(abs(previous_angle-goal_angle))
+
+    goal=[angle1,angle2]
+    move(DXL_ID,goal)
+
+def rotation(DXL_ID,goal_angle,previous_angle,previous_motor_angle):
+    gear_ratio=30/20
+
+    previous_angle=previous_angle*gear_ratio
+    goal_angle=goal_angle*gear_ratio
+    
+    dxl1_present_position = previous_motor_angle[0]
+    dxl2_present_position = previous_motor_angle[1]
+
+
+    angle1=dxl1_present_position+angle_to_PWM(abs(previous_angle-goal_angle))
+    angle2=dxl2_present_position+angle_to_PWM(abs(previous_angle-goal_angle))
+
+    goal=[angle1,angle2]
+    move(DXL_ID,goal)
 
 DEVICENAME                  = 'com4'
 
@@ -234,9 +270,9 @@ TORQUE_DISABLE              = 0                 # Value for disabling the torque
 DXL_MOVING_STATUS_THRESHOLD = 20                # Dynamixel moving status threshold
 
 index = 0
-dxl_goal_position1 = [angle(0), angle(180),angle(90), angle(0)]        # Goal position 1
+dxl_goal_position1 = angle_to_PWM([0,180,90,0])        # Goal position 1
 # dxl_goal_position2 = [DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE] 
-dxl_goal_position2 = [angle(180), angle(0),angle(90), angle(0)]        # Goal position 2
+dxl_goal_position2 = angle_to_PWM([180, 0,90,0])        # Goal position 2
 
 dxl_goal_positions = np.array([dxl_goal_position1, dxl_goal_position2 ])
 
@@ -280,7 +316,7 @@ else:
 
 
 enable_torque(motors)
-home(motors)
+home_differential(motors)
 
 while 1:
     print("Press any key to continue! (or press ESC to quit!)")
@@ -289,7 +325,10 @@ while 1:
 
 
     goal=dxl_goal_positions[:,index]
-    move(motors,goal)
+    # move(motors,goal)
+
+    prev_motor=angle_to_PWM(np.ones([len(motors)]).astype(int)*180)
+    rotation(motors,90,0,prev_motor)
     read(motors,goal)   
 
     # Change goal position
@@ -305,3 +344,4 @@ disable_torque(DXL_ID)
 
 # Close port
 portHandler.closePort()
+ 
