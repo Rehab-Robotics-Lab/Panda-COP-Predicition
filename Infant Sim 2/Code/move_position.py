@@ -67,51 +67,51 @@ MY_DXL = "MX_SERIES"  # X330 (5.0 V recommended), X430, X540, 2X430
 # MY_DXL = 'P_SERIES'     # PH54, PH42, PM54
 
 # Control table address
-if MY_DXL == "X_SERIES" or MY_DXL == "MX_SERIES":
-    ADDR_TORQUE_ENABLE = 64
-    ADDR_LED_RED = 65
-    LEN_LED_RED = 1  # Data Byte Length
-    ADDR_GOAL_POSITION = 116
-    LEN_GOAL_POSITION = 4  # Data Byte Length
-    ADDR_PRESENT_POSITION = 132
-    LEN_PRESENT_POSITION = 4  # Data Byte Length
-    DXL_MINIMUM_POSITION_VALUE = (
-        0  # Refer to the Minimum Position Limit of product eManual
-    )
-    DXL_MAXIMUM_POSITION_VALUE = (
-        4095  # Refer to the Maximum Position Limit of product eManual
-    )
-    BAUDRATE = 57600
-elif MY_DXL == "PRO_SERIES":
-    ADDR_TORQUE_ENABLE = 562  # Control table address is different in DYNAMIXEL model
-    ADDR_LED_RED = 563  # R.G.B Address: 563 (red), 564 (green), 565 (blue)
-    LEN_LED_RED = 1  # Data Byte Length
-    ADDR_GOAL_POSITION = 596
-    LEN_GOAL_POSITION = 4
-    ADDR_PRESENT_POSITION = 611
-    LEN_PRESENT_POSITION = 4
-    DXL_MINIMUM_POSITION_VALUE = (
-        -150000
-    )  # Refer to the Minimum Position Limit of product eManual
-    DXL_MAXIMUM_POSITION_VALUE = (
-        150000  # Refer to the Maximum Position Limit of product eManual
-    )
-    BAUDRATE = 57600
-elif MY_DXL == "P_SERIES" or MY_DXL == "PRO_A_SERIES":
-    ADDR_TORQUE_ENABLE = 512  # Control table address is different in DYNAMIXEL model
-    ADDR_LED_RED = 513  # R.G.B Address: 513 (red), 544 (green), 515 (blue)
-    LEN_LED_RED = 1  # Data Byte Length
-    ADDR_GOAL_POSITION = 564
-    LEN_GOAL_POSITION = 4  # Data Byte Length
-    ADDR_PRESENT_POSITION = 580
-    LEN_PRESENT_POSITION = 4  # Data Byte Length
-    DXL_MINIMUM_POSITION_VALUE = (
-        -150000
-    )  # Refer to the Minimum Position Limit of product eManual
-    DXL_MAXIMUM_POSITION_VALUE = (
-        150000  # Refer to the Maximum Position Limit of product eManual
-    )
-    BAUDRATE = 57600
+# if MY_DXL == "X_SERIES" or MY_DXL == "MX_SERIES":
+ADDR_TORQUE_ENABLE = 64
+ADDR_LED_RED = 65
+LEN_LED_RED = 1  # Data Byte Length
+ADDR_GOAL_POSITION = 116
+LEN_GOAL_POSITION = 4  # Data Byte Length
+ADDR_PRESENT_POSITION = 132
+LEN_PRESENT_POSITION = 4  # Data Byte Length
+DXL_MINIMUM_POSITION_VALUE = 0  # Refer to the Minimum Position Limit of product eManual
+DXL_MAXIMUM_POSITION_VALUE = (
+    4095  # Refer to the Maximum Position Limit of product eManual
+)
+ADDR_PROFILE_VELOCITY = 112
+LEN_GOAL_VELOCITY = 4
+BAUDRATE = 57600
+# elif MY_DXL == "PRO_SERIES":
+#     ADDR_TORQUE_ENABLE = 562  # Control table address is different in DYNAMIXEL model
+#     ADDR_LED_RED = 563  # R.G.B Address: 563 (red), 564 (green), 565 (blue)
+#     LEN_LED_RED = 1  # Data Byte Length
+#     ADDR_GOAL_POSITION = 596
+#     LEN_GOAL_POSITION = 4
+#     ADDR_PRESENT_POSITION = 611
+#     LEN_PRESENT_POSITION = 4
+#     DXL_MINIMUM_POSITION_VALUE = (
+#         -150000
+#     )  # Refer to the Minimum Position Limit of product eManual
+#     DXL_MAXIMUM_POSITION_VALUE = (
+#         150000  # Refer to the Maximum Position Limit of product eManual
+#     )
+#     BAUDRATE = 57600
+# elif MY_DXL == "P_SERIES" or MY_DXL == "PRO_A_SERIES":
+#     ADDR_TORQUE_ENABLE = 512  # Control table address is different in DYNAMIXEL model
+#     ADDR_LED_RED = 513  # R.G.B Address: 513 (red), 544 (green), 515 (blue)
+#     LEN_LED_RED = 1  # Data Byte Length
+#     ADDR_GOAL_POSITION = 564
+#     LEN_GOAL_POSITION = 4  # Data Byte Length
+#     ADDR_PRESENT_POSITION = 580
+#     LEN_PRESENT_POSITION = 4  # Data Byte Length
+#     DXL_MINIMUM_POSITION_VALUE = (
+#         -150000
+#     )  # Refer to the Minimum Position Limit of product eManual
+#     DXL_MAXIMUM_POSITION_VALUE = (
+#         150000  # Refer to the Maximum Position Limit of product eManual
+#     )
+#     BAUDRATE = 57600
 
 # DYNAMIXEL Protocol Version (1.0 / 2.0)
 # https://emanual.robotis.com/docs/en/dxl/protocol2/
@@ -194,6 +194,14 @@ def move(DXL_ID, dxl_goal_position):
     ]
 
     for j in range(len(motors) - 1):
+        # print(
+        #     [
+        #         DXL_LOBYTE(DXL_LOWORD(dxl_goal_position[j + 1])),
+        #         DXL_HIBYTE(DXL_LOWORD(dxl_goal_position[j + 1])),
+        #         DXL_LOBYTE(DXL_HIWORD(dxl_goal_position[j + 1])),
+        #         DXL_HIBYTE(DXL_HIWORD(dxl_goal_position[j + 1])),
+        #     ]
+        # )
         param_goal_position.append(
             [
                 DXL_LOBYTE(DXL_LOWORD(dxl_goal_position[j + 1])),
@@ -206,7 +214,7 @@ def move(DXL_ID, dxl_goal_position):
     for i in range(len(motors)):
         # Add Dynamixel#1 goal position value to the Bulkwrite parameter storage
         ID = motors[i]
-
+        print(ID, param_goal_position[i])
         dxl_addparam_result = groupBulkWrite.addParam(
             ID, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position[i]
         )
@@ -301,6 +309,7 @@ def side_bending(DXL_ID, goal_angle, previous_angle, previous_motor_angle):
     angle2 = dxl2_present_position - angle_to_PWM(abs(previous_angle - goal_angle))
 
     goal = [angle1, angle2]
+    print("293: ", goal)
     move(DXL_ID, goal)
 
 
@@ -384,7 +393,8 @@ while 1:
     # move(motors,goal)
 
     prev_motor = angle_to_PWM(np.ones([len(motors)]).astype(int) * 180)
-    side_bending(motors, 90, 0, prev_motor)
+    print("PP ", prev_motor)
+    side_bending(motors, 180, 0, prev_motor)
     read(motors, goal)
 
     # Change goal position
@@ -396,7 +406,7 @@ while 1:
 # Clear bulkread parameter storage
 groupBulkRead.clearParam()
 
-disable_torque(DXL_ID)
+disable_torque(motors)
 
 # Close port
 portHandler.closePort()

@@ -151,11 +151,11 @@ def itemReadMultiple(ids, address, length):
 ### @param commands - list of commands to write to each respective motor
 ### @param length - size of register in bytes
 ### @return <bool> - true if data was successfully written; false otherwise
-def syncWrite(groupSyncWrite, ids, commands, length=4):
-    groupSyncWrite.clearParam()
-    print(commands)
+def syncWrite(ids, commands, length):
+    groupSyncWrite.clearParam
     for id, cmd in zip(ids, commands):
         param = []
+        # print("command ", cmd)
         if length == 4:
             param.append(DXL_LOBYTE(DXL_LOWORD(cmd)))
             param.append(DXL_HIBYTE(DXL_LOWORD(cmd)))
@@ -167,9 +167,11 @@ def syncWrite(groupSyncWrite, ids, commands, length=4):
         else:
             param.append(cmd)
 
+        print(id, param)
         dxl_addparam_result = groupSyncWrite.addParam(id, param)
 
         if dxl_addparam_result != True:
+
             print("ID:%03d groupSyncWrite addparam failed" % id)
             return False
 
@@ -180,6 +182,47 @@ def syncWrite(groupSyncWrite, ids, commands, length=4):
     return True
 
 
+def bulkWrite(ids, commands):
+    # print(dxl_goal_position)
+    param_goal_position = [
+        [
+            DXL_LOBYTE(DXL_LOWORD(commands[0])),
+            DXL_HIBYTE(DXL_LOWORD(commands[0])),
+            DXL_LOBYTE(DXL_HIWORD(commands[0])),
+            DXL_HIBYTE(DXL_HIWORD(commands[0])),
+        ]
+    ]
+
+    for j in range(len(ids) - 1):
+        param_goal_position.append(
+            [
+                DXL_LOBYTE(DXL_LOWORD(commands[j + 1])),
+                DXL_HIBYTE(DXL_LOWORD(commands[j + 1])),
+                DXL_LOBYTE(DXL_HIWORD(commands[j + 1])),
+                DXL_HIBYTE(DXL_HIWORD(commands[j + 1])),
+            ]
+        )
+
+    for i in range(len(ids)):
+        # Add Dynamixel#1 goal position value to the Bulkwrite parameter storage
+        ID = ids[i]
+
+        dxl_addparam_result = groupBulkWrite.addParam(
+            ID, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position[i]
+        )
+        if dxl_addparam_result != True:
+            print("[ID:%03d] groupBulkWrite addparam failed" % ID)
+            quit()
+
+    # Bulkwrite goal position and LED value
+    dxl_comm_result = groupBulkWrite.txPacket()
+    if dxl_comm_result != COMM_SUCCESS:
+        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+
+    # Clear bulkwrite parameter storage
+    groupBulkWrite.clearParam()
+
+
 ### @brief Reads data from a group of motors synchronously
 ### @param groupSyncRead - groupSyncRead object
 ### @param ids - list of Dynamixel IDs to read from
@@ -188,7 +231,7 @@ def syncWrite(groupSyncWrite, ids, commands, length=4):
 ### @return states - list to store the requested data
 ### @return <bool> - true if data was successfully retrieved; false otherwise
 ### @details - DynamixelSDK uses 2's complement so we need to check to see if 'state' should be negative (hex numbers)
-def syncRead(groupSyncRead, ids, address, length=4):
+def syncRead(ids, address, length=4):
     groupSyncRead.clearParam()
     for id in ids:
         dxl_addparam_result = groupSyncRead.addParam(id)
@@ -251,59 +294,71 @@ def ping(ids):
 
 
 def angle2PWM(theta):
-    PWM = theta * int((DXL_MAXIMUM_POSITION_VALUE - DXL_MINIMUM_POSITION_VALUE) / 360)
-    return PWM
+    conversion = (DXL_MAXIMUM_POSITION_VALUE - DXL_MINIMUM_POSITION_VALUE) / 360
+    PWM = (np.asarray(theta) * conversion).astype(int)
+    return PWM.tolist()
 
 
 def PWM2angle(PWM):
-    angle = int(PWM * 360 / (DXL_MAXIMUM_POSITION_VALUE - DXL_MINIMUM_POSITION_VALUE))
-    return angle
+    conversion = 360 / (DXL_MAXIMUM_POSITION_VALUE - DXL_MINIMUM_POSITION_VALUE)
+    angle = (np.asarray(PWM) * conversion).astype(int)
+    return angle.tolist()
 
 
-def home_limbs(groupSyncWrite, ids):
-    home_positions = ([0] * len(ids)).astype(int)
-    syncWrite(groupSyncWrite, ids, home_positions)
+def home_limbs(ids):
+    # home_positions = np.zeros_like(ids)
+    home_positions = angle2PWM([0] * len(ids))
+    syncWrite(ids, home_positions, 4)
 
 
-def home_trunk(groupSyncWrite, ids):
+def home_trunk(ids):
+    # home_positions = angle2PWM(180 * np.ones_like(ids))
     home_positions = angle2PWM([180] * len(ids))
-    syncWrite(groupSyncWrite, ids, home_positions)
+    # syncWrite(ids, home_positions, 4)
+    bulkWrite(ids, home_positions)
 
 
-def side_bending(groupSyncRead, groupSyncWrite, ids, goal_angle, previous_angle):
+def side_bending(ids, goal_angle, previous_angle):
     gear_ratio = 30 / 20
 
-    previous_angle = np.asarray(previous_angle) * gear_ratio
-    goal_angle = np.asarray(goal_angle) * gear_ratio
+    previous_angle = previous_angle * gear_ratio
+    goal_angle = goal_angle * gear_ratio
 
-    present_position, success = syncRead(
-        groupSyncRead, ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
-    )
+    present_position = angle2PWM(np.ones([len(ids)]).astype(int) * 180)
+    # present_position, success = syncRead(
+    #     groupSyncRead, ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
+    # )
+    print("PP ", present_position)
 
-    angle1 = present_position[0] + angle2PWM(abs(previous_angle[0] - goal_angle))
-    angle2 = present_position[1] - angle2PWM(abs(previous_angle[1] - goal_angle))
+    angle1 = present_position[0] + angle2PWM(abs(previous_angle - goal_angle))
+    angle2 = present_position[1] - angle2PWM(abs(previous_angle - goal_angle))
 
     goal = [angle1, angle2]
-    syncWrite(groupSyncWrite, ids, goal)
+    print("293: ", goal)
+
+    # syncWrite(ids, goal, 4)
+    bulkWrite(ids, goal)
 
     return goal_angle
 
 
-def rotation(groupSyncRead, groupSyncWrite, ids, goal_angle, previous_angle):
+def rotation(ids, goal_angle, previous_angle):
     gear_ratio = 30 / 20
 
-    previous_angle = np.asarray(previous_angle) * gear_ratio
-    goal_angle = np.asarray(goal_angle) * gear_ratio
+    previous_angle = previous_angle * gear_ratio
+    goal_angle = goal_angle * gear_ratio
 
-    present_position, success = syncRead(
-        groupSyncRead, ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
-    )
+    # present_position, success = syncRead(
+    #     groupSyncRead, ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
+    # )
+    present_position = angle2PWM(np.ones([len(ids)]).astype(int) * 180)
 
     angle1 = present_position[0] + angle2PWM(abs(previous_angle - goal_angle))
     angle2 = present_position[1] + angle2PWM(abs(previous_angle - goal_angle))
 
     goal = [angle1, angle2]
-    syncWrite(groupSyncWrite, ids, goal)
+
+    syncWrite(ids, goal, 4)
 
     return goal_angle
 
@@ -315,11 +370,11 @@ def main():
 
     ## WX200 ARM EEPROM CONFIGS
     # all_ids = [1, 2, 3, 4, 65, 66]
-    all_ids = diff_id
-    drive_modes = [4] * len(all_ids)
+    all_ids = [65, 66]
+    drive_modes = [4, 4]
 
     # Initial value for differential
-    previous_angle = [180, 180]
+    previous_angle = 0
 
     ## Initialize the port, ping the motors, and create syncWrite and syncRead objects
     ## It's faster and better design to read/write motors with the 'sync' objects than to command each motor sequentially
@@ -333,12 +388,24 @@ def main():
     if not ping(all_ids):
         portHandler.closePort()
         return
+
+    # Initializing synch read/write
+    global groupSyncWrite
+    global groupSyncRead
+
     groupSyncWrite = GroupSyncWrite(
         portHandler, packetHandler, ADDR_GOAL_POSITION, LEN_GOAL_POSITION
     )
     groupSyncRead = GroupSyncRead(
         portHandler, packetHandler, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
     )
+
+    # Initializing bulk read/write
+    global groupBulkWrite
+    global groupBulkRead
+
+    groupBulkWrite = GroupBulkWrite(portHandler, packetHandler)
+    groupBulkRead = GroupBulkRead(portHandler, packetHandler)
 
     ## Initialize register values
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
@@ -348,32 +415,30 @@ def main():
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 1, LEN_TORQUE_ENABLE)
 
     ## Read current arm joint positions
-    positions, success = syncRead(
-        groupSyncRead, all_ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
-    )
-    speeds, success = syncRead(
-        groupSyncRead, all_ids, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY
-    )
-    print(positions, " ", speeds)
+    positions, success = syncRead(all_ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
+    speeds, success = syncRead(all_ids, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY)
 
     ## Home all motors at the start
     # home_limbs(groupSyncWrite, limb_ids)
-    home_trunk(groupSyncWrite, diff_id)
-    time.sleep(2)
+    home_trunk(diff_id)
+    time.sleep(7)
 
     # Test angles for differential
-    angles = [90, -90, 45, -45]
+    # angles = [90, -90, 45, -45]
+    rotation(diff_id, 40, previous_angle)
 
-    for theta in angles:
-        print("previous angle= ", previous_angle)
-        side_bending(groupSyncRead, groupSyncWrite, diff_id, theta, previous_angle)
+    # for theta in angles:
+    #     print("side bended to ", theta)
+    #     side_bending(groupSyncRead, groupSyncWrite, diff_id, theta, previous_angle)
+    #     time.sleep(2)
+    # side_bending(groupSyncRead, groupSyncWrite, diff_id, 90, previous_angle)
 
-    home_trunk(groupSyncWrite, diff_id)
+    # home_trunk(groupSyncWrite, diff_id)
 
-    for theta in angles:
-        previous_angle = rotation(
-            groupSyncRead, groupSyncWrite, diff_id, theta, previous_angle
-        )
+    # for theta in angles:
+    #     previous_angle = rotation(
+    #         groupSyncRead, groupSyncWrite, diff_id, theta, previous_angle
+    #     )
 
     ## Command the gripper to open for 2 seconds, then close for 2 seconds
     # itemWrite(gripper_id, ADDR_GOAL_PWM, 350, LEN_GOAL_PWM)
