@@ -255,6 +255,30 @@ def syncRead(ids, address, length=4):
     return states, True
 
 
+def bulkRead(ids, address, length):
+    groupBulkRead.clearParam()
+    for id in ids:
+        dxl_addparam_result = groupBulkRead.addParam(id, address, length)
+        if dxl_addparam_result != True:
+            print("ID:%03d groupBulkRead addparam failed", id)
+            return [], False
+
+    dxl_comm_result = groupBulkRead.txRxPacket()
+    if dxl_comm_result != COMM_SUCCESS:
+        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+        return [], False
+
+    states = []
+    for id in ids:
+        state = groupBulkRead.getData(id, address, length)
+        if length == 2 and state > 0x7FFF:
+            state = state - 65536
+        elif length == 4 and state > 0x7FFFFFFF:
+            state = state - 4294967296
+        states.append(state)
+    return states, True
+
+
 ### @brief Initializes the port that the U2D2 is connected to
 ### @param port_name - name of the port
 ### @baudrate - desired baudrate in bps (should be the same as the motors)
@@ -306,72 +330,94 @@ def PWM2angle(PWM):
 
 
 def home_limbs(ids):
-    # home_positions = np.zeros_like(ids)
     home_positions = angle2PWM([0] * len(ids))
-    syncWrite(ids, home_positions, 4)
-
-
-def home_trunk(ids):
-    # home_positions = angle2PWM(180 * np.ones_like(ids))
-    home_positions = angle2PWM([180] * len(ids))
-    # syncWrite(ids, home_positions, 4)
+    print("Homing Limbs")
     bulkWrite(ids, home_positions)
 
 
-def side_bending(ids, goal_angle, previous_angle):
-    gear_ratio = 30 / 20
+def home_trunk(ids):
+    home_positions = angle2PWM([180] * len(ids))
+    print("Homing Trunk")
+    bulkWrite(ids, home_positions)
 
-    previous_angle = previous_angle * gear_ratio
-    goal_angle = goal_angle * gear_ratio
 
-    present_position = angle2PWM(np.ones([len(ids)]).astype(int) * 180)
-    # present_position, success = syncRead(
-    #     groupSyncRead, ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
-    # )
-    print("PP ", present_position)
-
-    angle1 = present_position[0] + angle2PWM(abs(previous_angle - goal_angle))
-    angle2 = present_position[1] - angle2PWM(abs(previous_angle - goal_angle))
-
-    goal = [angle1, angle2]
-    print("293: ", goal)
-
-    # syncWrite(ids, goal, 4)
+def move_limbs(ids, goal_angle):
+    goal = angle2PWM(goal_angle)
     bulkWrite(ids, goal)
 
-    return goal_angle
 
-
-def rotation(ids, goal_angle, previous_angle):
+def side_bending(ids, goal_angle):
     gear_ratio = 30 / 20
 
-    previous_angle = previous_angle * gear_ratio
     goal_angle = goal_angle * gear_ratio
 
-    # present_position, success = syncRead(
-    #     groupSyncRead, ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
-    # )
-    present_position = angle2PWM(np.ones([len(ids)]).astype(int) * 180)
-
-    angle1 = present_position[0] + angle2PWM(abs(previous_angle - goal_angle))
-    angle2 = present_position[1] + angle2PWM(abs(previous_angle - goal_angle))
+    angle1 = angle2PWM(180) - angle2PWM(goal_angle)
+    angle2 = angle2PWM(180) + angle2PWM(goal_angle)
 
     goal = [angle1, angle2]
 
-    syncWrite(ids, goal, 4)
+    bulkWrite(ids, goal)
 
-    return goal_angle
+    # return goal_angle
+
+
+def rotation(ids, goal_angle):
+    gear_ratio = 30 / 20
+
+    goal_angle = goal_angle * gear_ratio
+
+    present_position = angle2PWM(np.ones([len(ids)]).astype(int) * 180)
+
+    angle1 = angle2PWM(180) - angle2PWM(goal_angle)
+    angle2 = angle2PWM(180) - angle2PWM(goal_angle)
+
+    goal = [angle1, angle2]
+
+    bulkWrite(ids, goal)
+
+    # return goal_angle
+
+
+def side_rot(ids, side_angle, rot_angle):
+    gear_ratio = 30 / 20
+
+    side_angle = side_angle * gear_ratio
+    rot_angle = rot_angle * gear_ratio
+
+    # present_position, success = bulkRead(
+    #     ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
+    # )
+    present_position = angle2PWM(np.ones([len(ids)]).astype(int) * 180)
+
+    angle1 = angle2PWM(180 - side_angle - rot_angle)
+    angle2 = angle2PWM(180 + side_angle - rot_angle)
+
+    goal = [angle1, angle2]
+    print("goal ", goal)
+
+    bulkWrite(ids, goal)
 
 
 def main():
     ## Motor IDs
-    limb_ids = [1, 2, 4, 5]
-    diff_id = [65, 66]
+    r_leg = 4
+    l_leg = 3
+    r_arm = 2
+    l_arm = 1
 
-    ## WX200 ARM EEPROM CONFIGS
-    # all_ids = [1, 2, 3, 4, 65, 66]
-    all_ids = [65, 66]
-    drive_modes = [4, 4]
+    # IDs for differential motors and drive modes
+    diff_id = [65, 66]
+    diff_modes = [4, 4]
+
+    # IDs for limb motors and drive modes
+    # limb_ids = [l_arm, r_arm, l_leg, r_leg]
+    # limb_modes=[5,4,5,4]
+    limb_ids = [l_arm, r_arm]
+    limb_modes = [5, 4]
+
+    # Drive modes
+    all_ids = limb_ids + diff_id
+    drive_modes = limb_modes + diff_modes
 
     # Initial value for differential
     previous_angle = 0
@@ -407,11 +453,17 @@ def main():
     groupBulkWrite = GroupBulkWrite(portHandler, packetHandler)
     groupBulkRead = GroupBulkRead(portHandler, packetHandler)
 
+    ## setting profile velocity and acceleration
+    # calauclate (t1+t3) for each movement and profile accelartion/velocity is calculated
+    t = 3
+    pV = int(t * 0.5 * 1000)
+    pA = int(pV * 0.5)
+
     ## Initialize register values
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     itemWriteMultiple(all_ids, ADDR_DRIVE_MODE, drive_modes, LEN_DRIVE_MODE)
-    itemWriteMultiple(all_ids, ADDR_PROFILE_VELOCITY, 1500, LEN_PROFILE_VELOCITY)
-    itemWriteMultiple(all_ids, ADDR_PROFILE_ACCELERATION, 750, LEN_PROFILE_ACCELERATION)
+    itemWriteMultiple(all_ids, ADDR_PROFILE_VELOCITY, pV, LEN_PROFILE_VELOCITY)
+    itemWriteMultiple(all_ids, ADDR_PROFILE_ACCELERATION, pA, LEN_PROFILE_ACCELERATION)
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 1, LEN_TORQUE_ENABLE)
 
     ## Read current arm joint positions
@@ -419,26 +471,23 @@ def main():
     speeds, success = syncRead(all_ids, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY)
 
     ## Home all motors at the start
-    # home_limbs(groupSyncWrite, limb_ids)
+    home_limbs([l_arm, r_arm])
     home_trunk(diff_id)
-    time.sleep(7)
+
+    time.sleep(5)
+
+    # side_bending(diff_id, 45, previous_angle)
 
     # Test angles for differential
-    # angles = [90, -90, 45, -45]
-    rotation(diff_id, 40, previous_angle)
-
-    # for theta in angles:
-    #     print("side bended to ", theta)
-    #     side_bending(groupSyncRead, groupSyncWrite, diff_id, theta, previous_angle)
-    #     time.sleep(2)
-    # side_bending(groupSyncRead, groupSyncWrite, diff_id, 90, previous_angle)
-
-    # home_trunk(groupSyncWrite, diff_id)
-
-    # for theta in angles:
-    #     previous_angle = rotation(
-    #         groupSyncRead, groupSyncWrite, diff_id, theta, previous_angle
-    #     )
+    # bulkRead(all_ids)
+    angles = [-45, 40, -45, 45]
+    for theta in angles:
+        move_limbs(limb_ids, [theta, theta])
+        side_rot(diff_id, theta, theta)
+        # side_bending(diff_id, theta)
+        # bulkWrite([l_arm, r_arm], [angle2PWM(theta), angle2PWM(theta)])
+        print(theta)
+        time.sleep(2)
 
     ## Command the gripper to open for 2 seconds, then close for 2 seconds
     # itemWrite(gripper_id, ADDR_GOAL_PWM, 350, LEN_GOAL_PWM)
