@@ -2,13 +2,11 @@
 
 import time
 import numpy as np
+import pandas as pd
 from dynamixel_sdk import *
 
 ADDR_DRIVE_MODE = 10
 LEN_DRIVE_MODE = 1
-
-# ADDR_OPERATING_MODE = 11
-# LEN_OPERATING_MODE = 1
 
 ADDR_TORQUE_ENABLE = 64
 LEN_TORQUE_ENABLE = 1
@@ -33,6 +31,9 @@ LEN_PRESENT_VELOCITY = 4
 
 ADDR_PRESENT_TEMP = 146
 LEN_PRESENT_TEMP = 1
+
+MOVING = 122
+LEN_MOVING = 1
 
 PI = 3.14159265
 
@@ -145,43 +146,6 @@ def itemReadMultiple(ids, address, length):
     return states, True
 
 
-### @brief Writes data to a group of motors synchronously
-### @param groupSyncWrite - groupSyncWrite object
-### @param ids - list of Dynamixel IDs to write to
-### @param commands - list of commands to write to each respective motor
-### @param length - size of register in bytes
-### @return <bool> - true if data was successfully written; false otherwise
-def syncWrite(ids, commands, length):
-    groupSyncWrite.clearParam
-    for id, cmd in zip(ids, commands):
-        param = []
-        # print("command ", cmd)
-        if length == 4:
-            param.append(DXL_LOBYTE(DXL_LOWORD(cmd)))
-            param.append(DXL_HIBYTE(DXL_LOWORD(cmd)))
-            param.append(DXL_LOBYTE(DXL_HIWORD(cmd)))
-            param.append(DXL_HIBYTE(DXL_HIWORD(cmd)))
-        elif length == 2:
-            param.append(DXL_LOBYTE(cmd))
-            param.append(DXL_HIBYTE(cmd))
-        else:
-            param.append(cmd)
-
-        print(id, param)
-        dxl_addparam_result = groupSyncWrite.addParam(id, param)
-
-        if dxl_addparam_result != True:
-
-            print("ID:%03d groupSyncWrite addparam failed" % id)
-            return False
-
-    dxl_comm_result = groupSyncWrite.txPacket()
-    if dxl_comm_result != COMM_SUCCESS:
-        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-        return False
-    return True
-
-
 def bulkWrite(ids, commands):
     # print(dxl_goal_position)
     param_goal_position = [
@@ -206,7 +170,6 @@ def bulkWrite(ids, commands):
     for i in range(len(ids)):
         # Add Dynamixel#1 goal position value to the Bulkwrite parameter storage
         ID = ids[i]
-
         dxl_addparam_result = groupBulkWrite.addParam(
             ID, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position[i]
         )
@@ -221,38 +184,6 @@ def bulkWrite(ids, commands):
 
     # Clear bulkwrite parameter storage
     groupBulkWrite.clearParam()
-
-
-### @brief Reads data from a group of motors synchronously
-### @param groupSyncRead - groupSyncRead object
-### @param ids - list of Dynamixel IDs to read from
-### @param address - register number
-### @param length - size of register in bytes
-### @return states - list to store the requested data
-### @return <bool> - true if data was successfully retrieved; false otherwise
-### @details - DynamixelSDK uses 2's complement so we need to check to see if 'state' should be negative (hex numbers)
-def syncRead(ids, address, length=4):
-    groupSyncRead.clearParam()
-    for id in ids:
-        dxl_addparam_result = groupSyncRead.addParam(id)
-        if dxl_addparam_result != True:
-            print("ID:%03d groupSyncRead addparam failed", id)
-            return [], False
-
-    dxl_comm_result = groupSyncRead.txRxPacket()
-    if dxl_comm_result != COMM_SUCCESS:
-        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-        return [], False
-
-    states = []
-    for id in ids:
-        state = groupSyncRead.getData(id, address, length)
-        if length == 2 and state > 0x7FFF:
-            state = state - 65536
-        elif length == 4 and state > 0x7FFFFFFF:
-            state = state - 4294967296
-        states.append(state)
-    return states, True
 
 
 def bulkRead(ids, address, length):
@@ -393,9 +324,22 @@ def side_rot(ids, side_angle, rot_angle):
     angle2 = angle2PWM(180 + side_angle - rot_angle)
 
     goal = [angle1, angle2]
-    print("goal ", goal)
 
     bulkWrite(ids, goal)
+
+
+def moving_status(ids):
+    status, success = bulkRead(ids, MOVING, LEN_MOVING)
+
+    return any(status)
+
+
+def position_status(ids):
+    ## Read current arm joint positions
+    positions, success = bulkRead(ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
+    velocity, success = bulkRead(ids, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY)
+
+    return positions, velocity
 
 
 def main():
@@ -435,18 +379,6 @@ def main():
         portHandler.closePort()
         return
 
-    # Initializing synch read/write
-    global groupSyncWrite
-    global groupSyncRead
-
-    groupSyncWrite = GroupSyncWrite(
-        portHandler, packetHandler, ADDR_GOAL_POSITION, LEN_GOAL_POSITION
-    )
-    groupSyncRead = GroupSyncRead(
-        portHandler, packetHandler, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
-    )
-
-    # Initializing bulk read/write
     global groupBulkWrite
     global groupBulkRead
 
@@ -466,44 +398,74 @@ def main():
     itemWriteMultiple(all_ids, ADDR_PROFILE_ACCELERATION, pA, LEN_PROFILE_ACCELERATION)
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 1, LEN_TORQUE_ENABLE)
 
-    ## Read current arm joint positions
-    positions, success = syncRead(all_ids, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
-    speeds, success = syncRead(all_ids, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY)
-
     ## Home all motors at the start
     home_limbs([l_arm, r_arm])
     home_trunk(diff_id)
 
     time.sleep(5)
 
-    # side_bending(diff_id, 45, previous_angle)
+    # output = []
+    # angles = [-45, 40, -45, 45]
+    # start_time = time.time()
 
-    # Test angles for differential
-    # bulkRead(all_ids)
-    angles = [-45, 40, -45, 45]
-    for theta in angles:
-        move_limbs(limb_ids, [theta, theta])
-        side_rot(diff_id, theta, theta)
-        # side_bending(diff_id, theta)
-        # bulkWrite([l_arm, r_arm], [angle2PWM(theta), angle2PWM(theta)])
-        print(theta)
-        time.sleep(2)
+    # theta = 0
 
-    ## Command the gripper to open for 2 seconds, then close for 2 seconds
-    # itemWrite(gripper_id, ADDR_GOAL_PWM, 350, LEN_GOAL_PWM)
-    # time.sleep(2)
-    # itemWrite(gripper_id, ADDR_GOAL_PWM, -350, LEN_GOAL_PWM)
-    # time.sleep(2)
-    # itemWrite(gripper_id, ADDR_GOAL_PWM, 0, LEN_GOAL_PWM)
+    # # while moving==0 and theta==
+    # print("Starting")
+    # for theta in angles:
+    #     move_limbs(limb_ids, [theta, theta])
+    #     side_rot(diff_id, theta, theta)
+    #     # side_bending(diff_id, theta)
 
-    # ## Read the present temperature of all the motors
-    # temps, success = itemReadMultiple(all_ids, ADDR_PRESENT_TEMP, LEN_PRESENT_TEMP)
-    # for id, temp in zip(all_ids, temps):
-    #     print("ID: %03d Temperature is: %d degrees Celsius." % (id, temp))
+    #     print("Angle= ", theta)
 
-    # ## Read the present loads/currents of all motors
-    # loads, success = itemReadMultiple(all_ids, ADDR_PRESENT_LOAD, LEN_PRESENT_LOAD)
-    # print(loads)
+    #     for i in range(20):
+    #         limb_pos, limb_vel = position_status(limb_ids)
+    #         trunk_pos, trunk_vel = position_status(diff_id)
+    #         limb_status = moving_status(limb_ids)
+    #         trunk_status = moving_status(diff_id)
+    #         current = [
+    #             theta,
+    #             time.time() - start_time,
+    #             limb_pos[0],
+    #             limb_pos[1],
+    #             trunk_pos[0],
+    #             trunk_pos[1],
+    #             limb_vel[0],
+    #             limb_vel[1],
+    #             trunk_vel[0],
+    #             trunk_vel[1],
+    #             int(limb_status),
+    #             int(trunk_status),
+    #         ]
+
+    #         # print(len(now))
+
+    #         output.append(current)
+
+    #     time.sleep(2)
+
+    # output = np.asarray(output)
+
+    # Head = [
+    #     "angle",
+    #     "time",
+    #     "limb 1 psoition",
+    #     "limb 2 psoition",
+    #     "trunk 1 psoition",
+    #     "trunk 2 psoition",
+    #     "limb 1 velcoity",
+    #     "limb 2 velcoity",
+    #     "trunk 1 velcoity",
+    #     "trunk 2 velcoity",
+    #     "limb moving",
+    #     "trunk moving",
+    # ]
+
+    # DF = pd.DataFrame(output, columns=Head)
+    # # print(DF)
+    # # path=r'C:\Users\franc\Documents\Infant_Sim_data\'
+    # DF.to_csv(r"C:\Users\franc\Documents\Infant_Sim_data\test.csv")
 
     portHandler.closePort()
 
