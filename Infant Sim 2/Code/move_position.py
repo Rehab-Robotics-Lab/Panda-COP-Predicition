@@ -394,7 +394,7 @@ while 1:
 
     prev_motor = angle_to_PWM(np.ones([len(motors)]).astype(int) * 180)
     print("PP ", prev_motor)
-    rotation(motors, 45, 0, prev_motor)
+    rotation (motors, 45, 0, prev_motor)
     read(motors, goal)
 
     # Change goal position

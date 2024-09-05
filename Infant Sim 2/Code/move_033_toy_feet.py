@@ -361,9 +361,6 @@ def main():
     all_ids = limb_ids + diff_id
     drive_modes = limb_modes + diff_modes
 
-    # Initial value for differential
-    previous_angle = 0
-
     ## Initialize the port, ping the motors, and create syncWrite and syncRead objects
     ## It's faster and better design to read/write motors with the 'sync' objects than to command each motor sequentially
     ## Commanding each motor sequentially should only be done for 'non-realtime sensitive' registers - like torquing on/off, setting EEPROM registers, etc...
@@ -377,11 +374,11 @@ def main():
         portHandler.closePort()
         return
 
-    global groupBulkWrite
-    global groupBulkRead
+    # global groupBulkWrite
+    # global groupBulkRead
 
-    groupBulkWrite = GroupBulkWrite(portHandler, packetHandler)
-    groupBulkRead = GroupBulkRead(portHandler, packetHandler)
+    # groupBulkWrite = GroupBulkWrite(portHandler, packetHandler)
+    # groupBulkRead = GroupBulkRead(portHandler, packetHandler)
 
     ## setting profile velocity and acceleration
     # calauclate (t1+t3) for each movement and profile accelartion/velocity is calculated
@@ -419,229 +416,136 @@ def main():
 
     # 0-5s
     print("0-5s")
-    move_limbs(home_pos, limb_ids, [180, 180, 0, 0])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [0, 0, 120, 0])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [0, 0, 120, 0])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [0, 0, 120, 0])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
-    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [10, 180, 60, 120])
+    side_bending(diff_id, -35)
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [0, 180, 0, 0])
+    time.sleep(2)
 
     # 6-10s
     print("6-10s")
-    move_limbs(home_pos, limb_ids, [90, 0, 0, 0])
-    time.sleep(4)
-    move_limbs(home_pos, limb_ids, [0, 90, 0, 0])
-    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [0, 90, 60, 60])
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [180, 180, 60, 60])
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [90, 90, 60, 60])
+    time.sleep(1)
 
     # 11-15s
     print("11-15s")
-    move_limbs(home_pos, limb_ids, [0, 0, 60, 60])
-    time.sleep(4)
+    move_limbs(home_pos, limb_ids, [0, 0, 0, 0])
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [180, 180, 0, 0])
+    time.sleep(2)
 
     # 15-20s
     print("16-20s")
-    move_limbs(home_pos, limb_ids, [0, 0, 0, 60])
+    move_limbs(home_pos, limb_ids, [0, 180, 0, 0])
     time.sleep(2)
-    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
+    move_limbs(home_pos, limb_ids, [90, 180, 0, 0])
     time.sleep(2)
-    move_limbs(home_pos, limb_ids, [0, 0, 0, 0])
+    move_limbs(home_pos, limb_ids, [0, 90, 60, 60])
     time.sleep(1)
 
     # 21-25s
     print("21-25s")
-    # side_bending(diff_id, 35)
-    time.sleep(0.7)
-    # rotation(diff_id, 45)
-    move_limbs(home_pos, limb_ids, [180, 180, 10, 10])
-    time.sleep(2)
-    move_limbs(home_pos, limb_ids, [180, 180, 120, 120])
-    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [90, 90, 120, 0])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [0, 180, 0, 0])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [0, 90, 0, 60])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [0, 90, 120, 120])
+    side_bending(diff_id, 35)
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [0, 90, 0, 120])
 
     # 25-30s
     print("25-30s")
-    move_limbs(home_pos, limb_ids, [90, 90, 120, 120])
+    move_limbs(home_pos, limb_ids, [0, 90, 0, 60])
     time.sleep(2)
-    # side_bending(diff_id, 0)
-    time.sleep(0.7)
-    # rotation(diff_id, 0)
+    move_limbs(home_pos, limb_ids, [0, 90, 120, 120])
+    side_bending(diff_id, 0)
     time.sleep(2)
 
     # 30-35s
     print("31-35s")
-    move_limbs(home_pos, limb_ids, [0, 0, 60, 60])
-    # side_bending(diff_id, -35)
+    move_limbs(home_pos, limb_ids, [0, 180, 120, 0])
+    side_bending(diff_id, -35)
     time.sleep(2)
-    move_limbs(home_pos, limb_ids, [90, 90, 0, 0])
-    # side_bending(diff_id, 0)
+    move_limbs(home_pos, limb_ids, [0, 180, 60, 60])
     time.sleep(2)
+    move_limbs(home_pos, limb_ids, [0, 180, 0, 0])
+    side_bending(diff_id, 0)
+    time.sleep(1)
 
     # 35-40s
     print("36-40s")
-    move_limbs(home_pos, limb_ids, [0, 0, 60, 60])
-    time.sleep(3)
-    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
-    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [90, 180, 0, 0])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [180, 180, 0, 0])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [90, 90, 60, 60])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [180, 180, 0, 60])
+    rotation(-45)
+    time.sleep(1)
 
     # 41-45s
     print("41-45s")
-    move_limbs(home_pos, limb_ids, [90, 90, 0, 0])
-    time.sleep(2)
-    move_limbs(home_pos, limb_ids, [90, 90, 120, 120])
-    # side_bending(diff_id, 35)
-    time.sleep(0.7)
-    # rotation(diff_id, 45)
+    move_limbs(home_pos, limb_ids, [180, 180, 120, 120])
+    rotation(diff_id, 0)
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [180, 180, 60, 120])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [180, 180, 120, 120])
+    rotation(diff_id, 45)
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [180, 180, 60, 60])
+    rotation(diff_id, 0)
     time.sleep(1)
 
     # 46-50s
     print("46-50s")
-    # side_bending(diff_id, 0)
-    time.sleep(0.7)
-    # rotation(diff_id, 0)
     move_limbs(home_pos, limb_ids, [180, 180, 0, 0])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [90, 180, 120, 120])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [90, 90, 60, 60])
-    time.sleep(0.7)
-    move_limbs(home_pos, limb_ids, [90, 90, 60, 120])
-    time.sleep(0.7)
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [180, 180, 120, 120])
+    side_bending(-35)
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [180, 180, 0, 120])
+    time.sleep(2)
 
     # 50-55s
     print("51-55s")
-    move_limbs(home_pos, limb_ids, [90, 0, 60, 0])
-    time.sleep(1)
-    move_limbs(home_pos, limb_ids, [90, 0, 60, 120])
-    # side_bending(diff_id, -35)
-    time.sleep(0.7)
-    # rotation(diff_id, -45)
-    time.sleep(1)
-    # side_bending(diff_id, 0)
-    time.sleep(0.7)
-    # rotation(diff_id, 0)
-    move_limbs(home_pos, limb_ids, [0, 90, 60, 60])
-    time.sleep(1)
+    time.sleep(3)
+    move_limbs(home_pos, limb_ids, [90, 90, 0, 60])
+    time.sleep(2)
 
     # 56-60s
     print("56-60s")
-    move_limbs(home_pos, limb_ids, [0, 90, 0, 0])
-    # side_bending(diff_id, 35)
-    time.sleep(2)
-    # side_bending(diff_id, 0)
-    time.sleep(2)
-
-    # 61-66s
-    print("61-66s")
-    move_limbs(home_pos, limb_ids, [90, 90, 120, 120])
+    move_limbs(home_pos, limb_ids, [90, 180, 60, 60])
     time.sleep(1)
-    move_limbs(home_pos, limb_ids, [90, 180, 0, 60])
+    move_limbs(home_pos, limb_ids, [90, 90, 60, 0])
+    side_bending(diff_id, 0)
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [0, 180, 0, 120])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [0, 90, 0, 120])
+    side_bending(diff_id, -35)
+    time.sleep(1)
+
+    # 61-67s
+    print("61-67s")
+    move_limbs(home_pos, limb_ids, [0, 90, 0, 60])
     time.sleep(2)
-    move_limbs(home_pos, limb_ids, [90, 90, 120, 120])
+    move_limbs(home_pos, limb_ids, [90, 90, 60, 60])
+    side_bending(0)
     time.sleep(2)
+    move_limbs(home_pos, limb_ids, [0, 90, 60, 60])
+    side_bending(-35)
+    time.sleep(1)
 
     print("done")
-
-    # for i in range(10):
-
-    #     ##limbs
-    #     rotation(diff_id, -45)
-    #     time.sleep(0.5)
-    #     rotation(diff_id, 0)
-    #     time.sleep(0.5)
-    #     rotation(diff_id, 45)
-    #     time.sleep(0.5)
-    #     rotation(diff_id, 0)
-    #     time.sleep(0.5)
-
-    ##trunk
-
-    # move_limbs(home_pos, limb_ids, [0, 0, 0, 0])
-    # time.sleep(0.7)
-    # move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
-
-    ## limbs + trunk
-    # side_bending(diff_id, -35)
-    # move_limbs(home_pos, limb_ids, [120, 120, 120, 0])
-    # time.sleep(1)
-    # side_bending(diff_id, 0)
-    # move_limbs(home_pos, limb_ids, [50, 50, 50, 0])
-    # time.sleep(1)
-    # side_bending(diff_id, 35)
-    # time.sleep(1)
-    # side_bending(diff_id, 0)
-    # time.sleep(0.5)
-
-    # print(i + 1)
-
-    # for j in range(20):
-    #     limb_pos, limb_pos_success = position_status(limb_ids)
-    #     # limb_pos = home_pos
-    #     # limb_pos_success = True
-    #     # print(limb_pos)
-    #     trunk_pos, trunk_pos_success = position_status(diff_id)
-    #     # limb_status,limb_status_success = moving_status(limb_ids)
-    #     # trunk_status,tunk_status_success = moving_status(diff_id)
-    #     if all([limb_pos_success, trunk_pos_success]):
-    #         current = [
-    #             # 120,
-    #             time.time() - start_time,
-    #             limb_pos[0] - home_pos[0],
-    #             limb_pos[1] - home_pos[1],
-    #             limb_pos[2] - home_pos[2],
-    #             limb_pos[3] - home_pos[3],
-    #             trunk_pos[0],
-    #             trunk_pos[1],
-    #             # limb_vel[0],
-    #             # limb_vel[1],
-    #             # limb_vel[2],
-    #             # limb_vel[3],
-    #             # trunk_vel[0],
-    #             # trunk_vel[1],
-    #             # int(limb_status),
-    #             # int(trunk_status),
-    #         ]
-
-    #         # print(len(now))
-
-    #         output.append(current)
-
-    # time.sleep(2)
-
-    # output = np.asarray(output)
-
-    # Head = [
-    #     # "angle",
-    #     "time",
-    #     "limb 1 psoition",
-    #     "limb 2 psoition",
-    #     "limb 3 psoition",
-    #     "limb 4 psoition",
-    #     "trunk 1 psoition",
-    #     "trunk 2 psoition",
-    #     # "limb 1 velcoity",
-    #     # "limb 2 velcoity",
-    #     # "limb 3 velcoity",
-    #     # "limb 4 velcoity",
-    #     # "trunk 1 velcoity",
-    #     # "trunk 2 velcoity",
-    #     # "limb moving",
-    #     # "trunk moving",
-    # ]
-
-    # DF = pd.DataFrame(output, columns=Head)
-    # # print(DF)
-    # # path=r'C:\Users\franc\Documents\Infant_Sim_data\'
-    # print(DF)
-    # DF.to_csv(r"C:\Users\franc\Documents\Infant_Sim_data\motor\rotation_45_x10_2s.csv")
 
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     portHandler.closePort()
