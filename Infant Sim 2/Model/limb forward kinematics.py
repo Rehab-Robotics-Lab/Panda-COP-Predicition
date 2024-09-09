@@ -201,8 +201,8 @@ tm.add_transform("k", "0", T_k0)
 tm.add_transform("0", "1", T_01)
 tm.add_transform("1", "2", T_12)
 tm.add_transform("2", "3", T_23)
-tm.add_transform("3", "4", T_34)
-tm.add_transform("4", "e", T_4e)
+# tm.add_transform("3", "4", T_34)
+# tm.add_transform("4", "e", T_4e)
 
 # tm.add_transform("k", "e", T_ke)
 
