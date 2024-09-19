@@ -23,18 +23,20 @@ def I(l, m, r):
 
 
 # infant parameters
-uarm_len = 0.10
+uarm_len = 1
 uarm_m = 1
 uarm_r = 0.20
 uarm_Ix, uarm_Iy, uarm_Iz = I(uarm_len, uarm_m, uarm_r)
+# print(I(uarm_len, uarm_m, uarm_r))
 
 Uarm = np.array([uarm_len, uarm_m, uarm_Ix, uarm_Iy, uarm_Iz])
 
 # forarm/lower arm length 80mm
-larm_len = 0.080
+larm_len = 0.80
 larm_m = 1
 larm_r = 0.20
 larm_Ix, larm_Iy, larm_Iz = I(larm_len, larm_m, larm_r)
+# print(I(larm_len, larm_m, larm_r))
 
 Larm = np.array([larm_len, larm_m, larm_Ix, larm_Iy, larm_Iz])
 
@@ -46,7 +48,7 @@ arms = np.matrix([Uarm, Larm])
 uleg_len = 0.110
 uleg_m = 1
 uleg_r = 0.25
-uleg_Ix, uleg_Iy, uleg_Iz = (uleg_len, uleg_m, uleg_r)
+uleg_Ix, uleg_Iy, uleg_Iz = I(uleg_len, uleg_m, uleg_r)
 
 Uleg = np.array([uleg_len, uleg_m, uleg_Ix, uleg_Iy, uleg_Iz])
 
@@ -54,17 +56,19 @@ Uleg = np.array([uleg_len, uleg_m, uleg_Ix, uleg_Iy, uleg_Iz])
 lleg_len = 0.10
 lleg_m = 1
 lleg_r = 0.30
-lleg_Ix, lleg_Iy, lleg_Iz = (lleg_len, lleg_m, lleg_r)
+lleg_Ix, lleg_Iy, lleg_Iz = I(lleg_len, lleg_m, lleg_r)
 
 Lleg = np.array([lleg_len, lleg_m, lleg_Ix, lleg_Iy, lleg_Iz])
 
 # upper and lower leg paramters [2x5]
-legs = np.matrix([Uarm, Larm])
+legs = np.matrix([Uleg, Lleg])
 
 
-left_arm = sim_to_theta(np.array([0, 10, 20, 30, 40, 50, 60]))
+left_arm = sim_to_theta(np.array([50, 50, 20, 30, 40, 50, 60]))
+print(left_arm)
 all_limbs = np.tile(left_arm[..., None], 4)
 
 
 test = infant_sim2(all_limbs, arms, legs)
 test.inv_dynamics(arms, "larm")
+test.vis_FK()

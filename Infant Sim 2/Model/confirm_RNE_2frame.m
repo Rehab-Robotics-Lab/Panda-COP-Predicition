@@ -1,0 +1,127 @@
+
+
+l0=0;
+l1=0;
+l2=1;
+le=.8;
+
+theta1=0;
+theta2=deg2rad(50);
+theta3=0;
+theta4=deg2rad(30);
+
+% dhparams = [l1, 0,      0,  theta1; %01
+%             0,  pi/2,   0,	theta2;%12
+%             0,  theta3,	0,	0; %23
+%             l2, 0,  	0,  theta4; %34
+%             le, 0,      0,  0]; %4e
+
+
+%alpha0, ai, di, thetai
+
+%DH Parameters
+T01 = Ti(0, l1, 0, theta1);
+T12 = Ti(pi/2, 0, 0, theta2);
+T23 = Ti(theta3, 0, 0, 0);
+%all shoulder transforms
+T03 = T01 * T12 * T23;
+
+
+T34 = Ti(0, l2, 0, theta4)
+
+
+T4e = Ti(0, le, 0, 0);
+
+
+%making robot
+robot = rigidBodyTree('DataFormat','row');
+
+% %upper arm
+% uarm = rigidBody('body1');
+% uarm_jnt = rigidBodyJoint('jnt1','revolute');
+% setFixedTransform(uarm_jnt,T03);
+% 
+% uarm.Joint = uarm_jnt;
+% uarm.Mass = 1;
+% uarm.CenterOfMass = [l2/2, 0, 0];
+% uarm.Inertia = [0.02, 0.0933, 0.0933, 0, 0, 0];
+% 
+% addBody(robot,uarm,'base')
+% 
+% %lower arm
+% larm = rigidBody('body2');
+% larm_jnt = rigidBodyJoint('jnt2','revolute');
+% setFixedTransform(larm_jnt,T34);
+% 
+% larm.Joint = larm_jnt;
+% larm.Mass = 1;
+% larm.CenterOfMass = [le/2, 0, 0];
+% larm.Inertia = [0.02, 0.0767, 0.0767, 0, 0, 0];
+% 
+% addBody(robot,larm,'body1')
+% 
+% %hand
+% hand = rigidBody('body3');
+% hand_jnt = rigidBodyJoint('jnt3','fixed');
+% setFixedTransform(hand_jnt,T4e);
+% hand.Joint = hand_jnt;
+% hand.Mass = 0;
+% 
+% addBody(robot,hand,'body2')
+
+%upper arm
+uarm = rigidBody('body1');
+uarm_jnt = rigidBodyJoint('jnt1','revolute');
+setFixedTransform(uarm_jnt,T03);
+
+uarm.Joint = uarm_jnt;
+uarm.Mass = 1;
+uarm.CenterOfMass = [l2/2, 0, 0];
+uarm.Inertia = [0.02, 0.0933, 0.0933, 0, 0, 0];
+
+addBody(robot,uarm,'base')
+
+%lower arm
+larm = rigidBody('body2');
+larm_jnt = rigidBodyJoint('jnt2','revolute');
+setFixedTransform(larm_jnt,T34);
+
+larm.Joint = larm_jnt;
+larm.Mass = 1;
+larm.CenterOfMass = [le/2, 0, 0];
+larm.Inertia = [0.02, 0.0767, 0.0767, 0, 0, 0];
+
+addBody(robot,larm,'body1')
+
+%hand
+hand = rigidBody('body3');
+hand_jnt = rigidBodyJoint('jnt3','fixed');
+setFixedTransform(hand_jnt,T4e);
+hand.Joint = hand_jnt;
+hand.Mass = 0;
+
+addBody(robot,hand,'body2')
+
+
+%show robot details
+showdetails(robot)
+
+%orientation
+q = [0,0];
+vel=[0,0];
+acc=[0,0];
+
+robot.Gravity=[0 0 -9.80665];
+
+inverseDynamics(robot,q,vel,acc)
+
+show(robot);
+
+function T=Ti(alpha0, ai, di, thetai)
+    T=[cos(thetai), -sin(thetai), 0, ai;
+       sin(thetai)*cos(alpha0), cos(thetai)*cos(alpha0), -sin(alpha0), -sin(alpha0)*di;
+       sin(thetai)*sin(alpha0), cos(thetai)*sin(alpha0),  cos(alpha0), cos(alpha0)*di;
+       0,0,0,1];
+end
+
+

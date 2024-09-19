@@ -1,7 +1,10 @@
 import numpy as np
 import math
 from numpy import radians as radians
+import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
+from pytransform3d.plot_utils import make_3d_axis
+from pytransform3d.transform_manager import TransformManager
 
 
 class infant_sim2:
@@ -12,9 +15,9 @@ class infant_sim2:
         dt = 0.5
 
         # angular velocity (will probably need to specify axis later)
-        self.theta_d = np.gradient(theta, dt, edge_order=1, axis=1)
+        self.theta_d = np.gradient(self.theta, dt, edge_order=1, axis=1)
         # angular acceleration
-        self.theta_dd = np.gradient(theta, dt, edge_order=2, axis=1)
+        self.theta_dd = np.gradient(self.theta_d, dt, edge_order=1, axis=1)
 
         ##CONSTANTS
         # axis of rotation (always like this b/c axis of rot is always Z)
@@ -26,6 +29,21 @@ class infant_sim2:
         self.arm = arm
         # upper and lower leg paramters [2x5]
         self.leg = leg
+
+        ## iteration ready version of interatia value
+        # Creating base matrix (3=>inertia paramteres, 4=>number of iterations, 2=>arms and legs)
+        I = np.ones((3, 4, 2))
+        # upper arm
+        I[:, [2], 0] = np.matrix([[arm[0, 2]], [arm[0, 3]], [arm[0, 4]]])
+        # lower arm
+        I[:, [3], 0] = np.matrix([[arm[1, 2]], [arm[1, 3]], [arm[1, 4]]])
+
+        # upper leg
+        I[:, [2], 1] = np.matrix([[leg[0, 2]], [leg[0, 3]], [leg[0, 4]]])
+        # lower leg
+        I[:, [3], 1] = np.matrix([[leg[1, 2]], [leg[1, 3]], [leg[1, 4]]])
+
+        self.I = I
 
         # dictionary corresponding limb names to index
         self.limb_dict = {"larm": 0, "rarm": 1, "lleg": 2, "rleg": 3}
@@ -56,8 +74,8 @@ class infant_sim2:
 
     # forward kinematics input iteration and limb angle
     def FK(self, i, limb, DOF):
-        R = np.zeros((3, 3, 3))
-        P = np.zeros((3, 3))
+        R = np.zeros((3, 3, 5))
+        P = np.zeros((3, 5))
 
         # T_k0 = Ti(0, 0, l0, 0)
         # T_k0[0:3, 0:3] = R.from_matrix(T_k0[0:3, 0:3]).as_matrix()
@@ -71,44 +89,78 @@ class infant_sim2:
         idx = self.limb_dict[DOF]
         thet = self.theta[:, :, idx]
 
-        T01 = self.Ti(0, l1, 0, thet[0, i])
+        self.T01 = self.Ti(0, l1, 0, thet[0, i])
+        R[:, :, 0] = self.T01[0:3, 0:3]
+        P[:, [0]] = self.T01[0:3, 3]
         # T_01[0:3, 0:3] = R.from_matrix(T_01[0:3, 0:3]).as_matrix()
 
-        T12 = self.Ti(np.pi / 2, 0, 0, thet[1, i])
+        self.T12 = self.Ti(np.pi / 2, 0, 0, thet[1, i])
+        R[:, :, 1] = self.T12[0:3, 0:3]
+        P[:, [1]] = self.T12[0:3, 3]
         # T_12[0:3, 0:3] = R.from_matrix(T_12[0:3, 0:3]).as_matrix()
 
-        T23 = self.Ti(thet[2, i], 0, 0, 0)
+        self.T23 = self.Ti(thet[2, i], 0, 0, 0)
+        R[:, :, 2] = self.T23[0:3, 0:3]
+        P[:, [2]] = self.T23[0:3, 3]
         # T_23[0:3, 0:3] = R.from_matrix(T_23[0:3, 0:3]).as_matrix()
-        # transfromation matrix from base with all shoulder angles
-        T03 = T01 @ T12 @ T23
-        R[:, :, 0] = T03[0:3, 0:3]
-        P[:, [0]] = T03[0:3, 3]
 
-        T34 = self.Ti(0, l2, 0, thet[3, i])
+        # # transfromation matrix from base with all shoulder angles
+        # self.T03 = self.T01 @ self.T12 @ self.T23
+        # R[:, :, 0] = self.T03[0:3, 0:3]
+        # P[:, [0]] = self.T03[0:3, 3]
+
+        self.T34 = self.Ti(0, l2, 0, thet[3, i])
         # T_34[0:3, 0:3] = R.from_matrix(T_34[0:3, 0:3]).as_matrix()
-        R[:, :, 1] = T34[0:3, 0:3]
-        P[:, [1]] = T34[0:3, 3]
+        R[:, :, 3] = self.T34[0:3, 0:3]
+        P[:, [3]] = self.T34[0:3, 3]
 
-        T4e = self.Ti(0, le, 0, 0)
+        self.T4e = self.Ti(0, le, 0, 0)
         # T_4e[0:3, 0:3] = R.from_matrix(T_4e[0:3, 0:3]).as_matrix()
-        R[:, :, 2] = T4e[0:3, 0:3]
-        P[:, [2]] = T4e[0:3, 3]
+        R[:, :, 4] = self.T4e[0:3, 0:3]
+        P[:, [4]] = self.T4e[0:3, 3]
 
-        # return 3 R and P matrices
-        # print(R)
-        # print(P)
-
-        # # return 5 R and P matrices
-        # R = np.ndarray(
-        #     [T01[0:3, 0:3], T12[0:3, 0:3], T23[0:3, 0:3], T34[0:3, 0:3], T4e[0:3, 0:3]]
-        # )
-        # P = np.ndarray(
-        #     [T01[0:3, 3], T12[0:3, 3], T23[0:3, 3], T34[0:3, 3], T4e[0:3, 3]]
-        # )
+        # for j in range(5):
+        #     print("frame: ", j)
+        #     print(R[:, :, j])
+        #     print(P[:, j])
 
         return R, P
 
-    def forward(self, R, P, limb, vel, accel):
+    def vis_FK(self):
+        T01 = self.T01
+        T01[0:3, 0:3] = R.from_matrix(T01[0:3, 0:3]).as_matrix()
+        T12 = self.T12
+        T12[0:3, 0:3] = R.from_matrix(T12[0:3, 0:3]).as_matrix()
+        T23 = self.T23
+        T23[0:3, 0:3] = R.from_matrix(T23[0:3, 0:3]).as_matrix()
+        T34 = self.T34
+        print(T34)
+        T34[0:3, 0:3] = R.from_matrix(T34[0:3, 0:3]).as_matrix()
+        T4e = self.T4e
+        T4e[0:3, 0:3] = R.from_matrix(T4e[0:3, 0:3]).as_matrix()
+
+        # T03 = self.T03
+        # T03[0:3, 0:3] = R.from_matrix(T03[0:3, 0:3]).as_matrix()
+
+        tm = TransformManager()
+        tm.add_transform("0", "1", T01)
+        tm.add_transform("1", "2", T12)
+        tm.add_transform("2", "3", T23)
+
+        # tm.add_transform("0", "3", T03)
+
+        tm.add_transform("3", "4", T34)
+        tm.add_transform("4", "e", T4e)
+
+        plt.figure(figsize=(8, 12))
+
+        ax = make_3d_axis(2, 121)
+        ax = tm.plot_frames_in("0", ax=ax, alpha=0.6)
+        ax.view_init(30, 20)
+
+        plt.show()
+
+    def forward(self, R, P, limb, thet_d, thet_dd):
         # Iterate over limbs (3 or 2)
         # initialize w0,w0_d, v_0d
         w0 = np.zeros([3, 1])
@@ -116,7 +168,9 @@ class infant_sim2:
         v0_d = np.zeros([3, 1])
         v0_d[2] = -9.81
 
-        iters = 2
+        z0 = np.matrix([[0], [0], [1]])
+
+        iters = 4
         F = np.zeros((3, iters))
         N = np.zeros((3, iters))
 
@@ -127,22 +181,30 @@ class infant_sim2:
         # r1 = np.matrix([[0], [0], [0]])
         # # inertia tensor(might be wrong)
         # I = np.diag((1, 1, 1))
+        m = np.array([0, 0, limb[0, 1], limb[1, 1]])
+
+        if np.all(limb == self.arm):
+            idx = 0
+        elif np.all(limb == self.leg):
+            idx = 1
 
         for i in range(iters):
+            # R and P for given iteration
+            R1 = R[:, :, i]
+            P1 = P[:, i]
+            # needed to find r1/p1c
+            P2c = P[:, i + 1] / 2
+
             # limb mass
-            m1 = limb[i, 1]
+            m1 = m[i]
             # finding r to COM as half of limb length
-            r1 = np.matrix([[limb[i, 0] / 2], [0], [0]])
+            r1 = P1 + P2c
             # inertia tensor
-            I = np.diag((limb[i, 2], limb[i, 3], limb[i, 4]))
+            I = np.diag((self.I[:, i, idx]))
 
             # thetas
-            theta1_d = vel[:, i]
-            theta1_dd = accel[:, i]
-
-            # R and P for given iteration
-            R1 = R[i, :, :]
-            P1 = P[i, :]
+            theta1_d = thet_d[i] * z0
+            theta1_dd = thet_dd[i] * z0
 
             ## ANGULAR
             # angular velocity
@@ -183,17 +245,24 @@ class infant_sim2:
         return F, N
 
     def backward(self, R, P, limb, F, N):
-        iters = 2
+        iters = 4
 
         # initializing f1 and n1
         f1 = np.zeros([3, 1])
         n1 = np.zeros([3, 1])
+
+        P2c = np.zeros((3, 1))
+
         for i in range(iters):
             j = -1 - i
 
             F0 = F[:, [j]]
-            P1 = P[j]
+            P1 = P[:, [j]]
             N0 = N[:, [j]]
+
+            P2c = P[:, i + 1] / 2
+            # finding r to COM as half of limb length
+            r1 = P1 + P2c
 
             r0 = np.matrix([[limb[j, 0] / 2], [0], [0]])
 
@@ -209,6 +278,7 @@ class infant_sim2:
             # # torque at joint
             # T0 = n0
 
+            # reassigning f1 and n1 for next iteration
             f1 = f0
             n1 = n0
 
@@ -223,36 +293,20 @@ class infant_sim2:
         for i in range(1):
 
             # theta dot and theta double dot at shoulder
-            theta1_d = np.matrix(
-                [
-                    [self.theta_d[0, i, idx]],
-                    [self.theta_d[1, i, idx]],
-                    [self.theta_d[2, i, idx]],
-                ]
-            )
-            theta1_dd = np.matrix(
-                [
-                    [self.theta_dd[0, i, idx]],
-                    [self.theta_dd[1, i, idx]],
-                    [self.theta_dd[2, i, idx]],
-                ]
-            )
-
-            # theta dot and theta double dot at elbow
-            theta2_d = np.matrix([[0], [0], [self.theta_d[3, i, idx]]])
-            theta2_dd = np.matrix([[0], [0], [self.theta_dd[3, i, idx]]])
-
-            # theta dot and theta double dot at wrist (all zero because we assume no rotation at wrist)
-            theta3_d = np.matrix([[0], [0], [0]])
-            theta3_dd = np.matrix([[0], [0], [0]])
-
-            ang_vel = np.hstack((theta1_d, theta2_d, theta3_d))
-            ang_accel = np.hstack((theta1_dd, theta2_dd, theta3_dd))
+            thet_d = self.theta_d[:, i, idx]
+            thet_dd = self.theta_dd[:, i, idx]
 
             # Forward kinematics
             R, P = self.FK(i, limb, DOF)
+
+            self.vis_FK()
+
+            quit()
+
             # foward iteration
-            F, N = self.forward(R, P, limb, ang_vel, ang_accel)
+            F, N = self.forward(R, P, limb, thet_d, thet_dd)
+
+            quit
             self.backward(R, P, limb, F, N)
 
 
