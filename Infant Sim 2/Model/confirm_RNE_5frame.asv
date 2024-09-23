@@ -21,9 +21,9 @@ I4=I(le,m4,r4);
 
 %thetas
 theta1=deg2rad([0,0,0,0,0,0,0]);
-theta2=deg2rad([50,40,20,30,40,50,60]);
+theta2=deg2rad([0,0,20,30,40,50,60]);
 theta3=deg2rad([0,0,0,0,0,0,0]);
-t4=30;
+t4=0;
 theta4=deg2rad([1,1,1,1,1,1,1]*t4);
 
 dt=0.5;
@@ -103,10 +103,14 @@ for i=1
     v3_d=transpose(R23)*(cross(w2_d,P23)+cross(w2,cross(w2,P23))+v2_d);
     v4_d=transpose(R34)*(cross(w3_d,P34)+cross(w3,cross(w3,P34))+v3_d);
     %center acceleration
-    vc1_d=cross(w1_d,P12/2)+cross(w1,cross(w1,P12/2))+v1_d;
-    vc2_d=cross(w2_d,P23/2)+cross(w2,cross(w2,P23/2))+v2_d;
-    vc3_d=cross(w3_d,P34/2)+cross(w3,cross(w3,P34/2))+v3_d;
-    vc4_d=cross(w4_d,P4e/2)+cross(w4,cross(w4,P4e/2))+v4_d;
+    vc1_d=cross(w1_d,P12/2)+cross(w1,cross(w1,P12/2))+v1_d
+    P12/2
+    vc2_d=cross(w2_d,P23/2)+cross(w2,cross(w2,P23/2))+v2_d
+    P23/2
+    vc3_d=cross(w3_d,P34/2)+cross(w3,cross(w3,P34/2))+v3_d
+    P34/2
+    vc4_d=cross(w4_d,P4e/2)+cross(w4,cross(w4,P4e/2))+v4_d
+    
     %joint forces
     F1=m1*vc1_d;
     F2=m2*vc2_d;
@@ -133,10 +137,10 @@ for i=1
     n2=N2+R23*n3+cross((P23/2),F2)+cross(P23,R23*f3);
     n1=N1+R12*n2+cross((P12/2),F1)+cross(P12,R12*f1);
 
-    T4=transpose(n4)*zo
-    T3=transpose(n3)*zo
-    T2=transpose(n2)*zo
-    T1=transpose(n1)*zo
+    T4=transpose(n4)*zo;
+    T3=transpose(n3)*zo;
+    T2=transpose(n2)*zo;
+    T1=transpose(n1)*zo;
 
 
 

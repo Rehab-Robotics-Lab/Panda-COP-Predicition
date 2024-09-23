@@ -64,11 +64,11 @@ Lleg = np.array([lleg_len, lleg_m, lleg_Ix, lleg_Iy, lleg_Iz])
 legs = np.matrix([Uleg, Lleg])
 
 
-left_arm = sim_to_theta(np.array([50, 50, 20, 30, 40, 50, 60]))
-print(left_arm)
+left_arm = sim_to_theta(np.array([50, 40, 20, 30, 40, 50, 60]))
+
 all_limbs = np.tile(left_arm[..., None], 4)
 
 
 test = infant_sim2(all_limbs, arms, legs)
 test.inv_dynamics(arms, "larm")
-test.vis_FK()
+# test.vis_FK()

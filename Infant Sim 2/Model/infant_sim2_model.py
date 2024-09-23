@@ -15,13 +15,9 @@ class infant_sim2:
         dt = 0.5
 
         # angular velocity (will probably need to specify axis later)
-        self.theta_d = np.gradient(self.theta, dt, edge_order=1, axis=1)
+        self.theta_d = np.gradient(self.theta, dt, axis=1)
         # angular acceleration
-        self.theta_dd = np.gradient(self.theta_d, dt, edge_order=1, axis=1)
-
-        ##CONSTANTS
-        # axis of rotation (always like this b/c axis of rot is always Z)
-        # self.z0 = np.matix([[0], [0], [1]])
+        self.theta_dd = np.gradient(self.theta_d, dt, axis=1)
 
         ##INFANT PARAMETERS
         # fromat =[length,mass, Ix,Iy,Iz]
@@ -134,7 +130,6 @@ class infant_sim2:
         T23 = self.T23
         T23[0:3, 0:3] = R.from_matrix(T23[0:3, 0:3]).as_matrix()
         T34 = self.T34
-        print(T34)
         T34[0:3, 0:3] = R.from_matrix(T34[0:3, 0:3]).as_matrix()
         T4e = self.T4e
         T4e[0:3, 0:3] = R.from_matrix(T4e[0:3, 0:3]).as_matrix()
@@ -192,13 +187,16 @@ class infant_sim2:
             # R and P for given iteration
             R1 = R[:, :, i]
             P1 = P[:, i]
-            # needed to find r1/p1c
-            P2c = P[:, i + 1] / 2
+
+            # # needed to find r1/p1c
+            # P2c = P[:, i + 1] / 2
+            # # finding r to COM as half of limb length
+            # r1 = P1 + P2c
+            r1 = P[:, i + 1] / 2
 
             # limb mass
             m1 = m[i]
-            # finding r to COM as half of limb length
-            r1 = P1 + P2c
+
             # inertia tensor
             I = np.diag((self.I[:, i, idx]))
 
@@ -209,6 +207,7 @@ class infant_sim2:
             ## ANGULAR
             # angular velocity
             w1 = R1.T @ w0 + (theta1_d)
+
             # angular accelearation
             w1_d = R1.T @ w0_d + np.cross((R1.T @ w0), theta1_d, axis=0) + theta1_dd
 
@@ -219,9 +218,10 @@ class infant_sim2:
                 + np.cross(w0, np.cross(w0, P1, axis=0), axis=0)
                 + v0_d
             )
+
             # linear acceleration relative to COM
             vc1_d = (
-                np.cross(w1, r1, axis=0)
+                np.cross(w1_d, r1, axis=0)
                 + np.cross(w1, np.cross(w1, r1, axis=0), axis=0)
                 + v1_d
             )
@@ -239,13 +239,15 @@ class infant_sim2:
             w0_d = w1_d
             v0_d = v1_d
 
-        print("F= ", F)
-        print("N= ", N)
+        # print("F= ", F)
+        # print("N= ", N)
 
         return F, N
 
     def backward(self, R, P, limb, F, N):
         iters = 4
+
+        z1 = np.matrix([[0], [0], [1]])
 
         # initializing f1 and n1
         f1 = np.zeros([3, 1])
@@ -260,30 +262,33 @@ class infant_sim2:
             P1 = P[:, [j]]
             N0 = N[:, [j]]
 
-            P2c = P[:, i + 1] / 2
-            # finding r to COM as half of limb length
-            r1 = P1 + P2c
+            r0 = P[:, [j]] / 2
 
-            r0 = np.matrix([[limb[j, 0] / 2], [0], [0]])
+            R1 = R[:, :, j]
 
             # force propagation
-            f0 = R[j] @ f1 + F0
+            f0 = R1 @ f1 + F0
+
             # accumlatve torque at joints
             n0 = (
                 N0
-                + R[j] @ n1
+                + R1 @ n1
                 + np.cross(r0, F0, axis=0)
-                + np.cross(P1, (R[j] @ f1), axis=0)
+                + np.cross(P1, (R1 @ f1), axis=0)
             )
-            # # torque at joint
-            # T0 = n0
+
+            # torque at joint
+
+            T0 = n0.T @ z1
+            print("t ", i, " ", T0)
 
             # reassigning f1 and n1 for next iteration
             f1 = f0
             n1 = n0
 
-        print("f= ", f0)
-        print("T= ", n0)
+        # print("f= ", f0)
+        # print("n= ", n0)
+        # print("T= ", T0)
         # return f, T
 
     # iterates through time
@@ -299,14 +304,11 @@ class infant_sim2:
             # Forward kinematics
             R, P = self.FK(i, limb, DOF)
 
-            self.vis_FK()
-
-            quit()
+            # self.vis_FK()
 
             # foward iteration
             F, N = self.forward(R, P, limb, thet_d, thet_dd)
 
-            quit
             self.backward(R, P, limb, F, N)
 
 

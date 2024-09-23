@@ -6,9 +6,9 @@ l2=1;
 le=.8;
 
 theta1=0;
-theta2=deg2rad(50);
+theta2=deg2rad(0);
 theta3=0;
-theta4=deg2rad(30);
+theta4=deg2rad(0);
 
 % dhparams = [l1, 0,      0,  theta1; %01
 %             0,  pi/2,   0,	theta2;%12
