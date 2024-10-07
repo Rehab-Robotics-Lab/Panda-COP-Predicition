@@ -8,11 +8,9 @@ from pytransform3d.transform_manager import TransformManager
 
 
 class infant_sim2:
-    def __init__(self, theta, arm, leg):
+    def __init__(self, theta, arm, leg, dt):
         ##INPUT
         self.theta = radians(theta)
-        # time step between input angles
-        dt = 0.5
 
         # angular velocity (will probably need to specify axis later)
         self.theta_d = np.gradient(self.theta, dt, axis=1)
@@ -255,6 +253,9 @@ class infant_sim2:
 
         P2c = np.zeros((3, 1))
 
+        T = np.zeros([iters])
+        F = np.zeros([3, iters])
+
         for i in range(iters):
             j = -1 - i
 
@@ -278,24 +279,26 @@ class infant_sim2:
             )
 
             # torque at joint
-
             T0 = n0.T @ z1
-            print("t ", i, " ", T0)
+
+            T[i] = T0.item()
+            F[:, [i]] = f0
 
             # reassigning f1 and n1 for next iteration
             f1 = f0
             n1 = n0
 
-        # print("f= ", f0)
-        # print("n= ", n0)
-        # print("T= ", T0)
-        # return f, T
+        return T, F
 
     # iterates through time
     def inv_dynamics(self, limb, DOF):
         idx = self.limb_dict[DOF]
-        # limb = np.vstack((limb, np.zeros((1, 5))))
-        for i in range(1):
+
+        a, n, b = np.shape(self.theta)
+
+        T = np.zeros([n])
+
+        for i in range(n):
 
             # theta dot and theta double dot at shoulder
             thet_d = self.theta_d[:, i, idx]
@@ -304,12 +307,14 @@ class infant_sim2:
             # Forward kinematics
             R, P = self.FK(i, limb, DOF)
 
-            # self.vis_FK()
-
             # foward iteration
             F, N = self.forward(R, P, limb, thet_d, thet_dd)
 
-            self.backward(R, P, limb, F, N)
+            t, f = self.backward(R, P, limb, F, N)
+
+            T[i] = t[2]
+
+        return T
 
 
 # test angles for arm
