@@ -69,17 +69,11 @@ def checkError(dxl_comm_result, dxl_error):
 ### @return <bool> - true if data was successfully written; false otherwise
 def itemWrite(id, address, data, length):
     if length == 1:
-        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
-            portHandler, id, address, data
-        )
+        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, id, address, data)
     elif length == 2:
-        dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
-            portHandler, id, address, data
-        )
+        dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, id, address, data)
     elif length == 4:
-        dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(
-            portHandler, id, address, data
-        )
+        dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, id, address, data)
     else:
         print("Invalid data length...")
         return False
@@ -115,19 +109,13 @@ def itemWriteMultiple(ids, address, data, length):
 ### @details - DynamixelSDK uses 2's complement so we need to check to see if 'state' should be negative (hex numbers)
 def itemRead(id, address, length):
     if length == 1:
-        state, dxl_comm_result, dxl_error = packetHandler.read1ByteTxRx(
-            portHandler, id, address
-        )
+        state, dxl_comm_result, dxl_error = packetHandler.read1ByteTxRx(portHandler, id, address)
     elif length == 2:
-        state, dxl_comm_result, dxl_error = packetHandler.read2ByteTxRx(
-            portHandler, id, address
-        )
+        state, dxl_comm_result, dxl_error = packetHandler.read2ByteTxRx(portHandler, id, address)
         if state > 0x7FFF:
             state = state - 65536
     elif length == 4:
-        state, dxl_comm_result, dxl_error = packetHandler.read4ByteTxRx(
-            portHandler, id, address
-        )
+        state, dxl_comm_result, dxl_error = packetHandler.read4ByteTxRx(portHandler, id, address)
         if state > 0x7FFFFFFF:
             state = state - 4294967296
     else:
@@ -176,9 +164,7 @@ def bulkWrite(ids, commands):
     for i in range(len(ids)):
         # Add Dynamixel#1 goal position value to the Bulkwrite parameter storage
         ID = ids[i]
-        dxl_addparam_result = groupBulkWrite.addParam(
-            ID, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position[i]
-        )
+        dxl_addparam_result = groupBulkWrite.addParam(ID, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position[i])
         if dxl_addparam_result != True:
             print("[ID:%03d] groupBulkWrite addparam failed" % ID)
             quit()
@@ -346,6 +332,13 @@ def position_status(ids):
     return positions, success
 
 
+def velocity_status(ids):
+    ## Read current arm joint positions
+    velocity, success = bulkRead(ids, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY)
+
+    return velocity, success
+
+
 def load_status(ids):
     ## Read current arm joint positions
     load, success = bulkRead(ids, ADDR_PRESENT_LOAD, LEN_PRESENT_LOAD)
@@ -420,41 +413,73 @@ def main():
     time.sleep(2)
 
     output = []
+
+    print("start recording")
     start_time = time.time()
+    time.sleep(2)
 
     # itemWriteMultiple([limb_ids], ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     print("Starting")
-    angles = [0, 20, 30, 40, 60, 80, 100, 120]
+    angles = [
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+        10,
+        170,
+    ]
 
     for i in range(len(angles)):
 
         ##limbs
         move_limbs(home_pos, limb_ids, [angles[i]])
-        time.sleep(0.2)
+        # time.sleep(0.2)
 
-        for j in range(20):
+        for j in range(60):
+            # while limb_pos != angle2PWM(angles[i]):
             limb_pos, limb_pos_success = position_status(limb_ids)
-            # limb_curr, limb_trq, limb_load_success = load_status(limb_ids)
+            limb_vel, limb_vel_success = velocity_status(limb_ids)
             limb_load, limb_load_success = load_status(limb_ids)
             # limb_pos = home_pos
             # limb_pos_success = True
             # print(limb_pos)
+            print(limb_vel)
 
             # limb_status,limb_status_success = moving_status(limb_ids)
             # trunk_status,tunk_status_success = moving_status(diff_id)
-            if all([limb_pos_success, limb_load_success]):
+            if all([limb_pos_success, limb_load_success, limb_vel_success]):
                 current = [
                     # 120,
                     time.time() - start_time,
                     limb_pos[0] - home_pos[0],
                     PWM2angle(limb_pos[0] - home_pos[0]) - 45,
                     limb_load,
-                    # limb_trq,
+                    limb_vel[0],
                 ]
 
                 # print(len(now))
 
                 output.append(current)
+
+        time.sleep(1)
 
     time.sleep(2)
 
@@ -463,9 +488,10 @@ def main():
     Head = [
         # "angle",
         "time",
-        "arm 1 PWM",
-        "arm 1 angle",
-        "arm 1 load",
+        "PWM",
+        "angle",
+        "load",
+        "vel",
         # "arm 1 torque",
         # "limb moving",
         # "trunk moving",
@@ -475,7 +501,7 @@ def main():
     # print(DF)
     # path=r'C:\Users\franc\Documents\Infant_Sim_data\'
     print(DF)
-    # DF.to_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\larm_3.csv")
+    DF.to_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\larm_104.csv")
 
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     portHandler.closePort()

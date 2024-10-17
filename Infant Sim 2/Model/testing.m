@@ -1,77 +1,40 @@
-arm=readtable('larm_6.csv');
-dt=0.14;
-dt_min=dt/60;
-
-t=arm.time/1000;
-mean(diff(t));
-
-% anglef=medfilt1(arm.arm1Angle,5);
-% angle=arm.arm1Angle;
-% load=arm.arm1Load;
-% 
-% dt=diff(t);
-% find(dt>0.045);
-% tbool=dt>0.045;
-% % stops=t(tbool);
-% 
-% plot(t,load)
-% hold on
-% plot(t(tbool),load(tbool),'.')
-
-
-pwm=arm.position;
-angle=deg2rad(((pwm-1835)/4095)*360);
-d_angle=gradient(angle,dt);
-dd_angle=gradient(d_angle,dt)*573;
-
-spd=arm.velocity*.229;
-accel=gradient(spd,dt_min);
-hold on
-plot(t,accel)
-% hold on
-plot(t,dd_angle)
-legend('Grnd Trth','Grad')
-% plot(t(tbool),load(tbool),'.')
-
-%% sk
 %%parameters
 %mass
-m1=.377;
-m2=.377;
-m3=.377;
-m4=.3;
+
+m3=.5;
+m4=.677-m3;
 %length
-l0=.1;
-l1=.1;
+
 l2=.1;
 le=.08;
 %
 r3=.02;
 r4=.015;
 %intertia
-I1=I(l2,m3,r3);
-I2=I(l2,m3,r3);
+
 I3=I(l2,m3,r3);
 I4=I(le,m4,r4);
 
-arm=readtable('larm_8.csv');
+arm=readtable('larm_101.csv');
+COP=ProcessCOP('cop_101.csv',60);
 
 [n,b]=size(arm);
 
-range=1:n;
 
-arm_ang=(((arm.position-1835)/4095)*360)-45;
+% arm_ang=(((arm.PWM)/4095)*360)-45;
+arm_ang=arm.angle;
 % arm_ang = filtfilt(b,a,arm_ang);
 
-theta2=transpose(deg2rad(arm_ang(range)));
+theta2=transpose(deg2rad(arm_ang));
+% theta2=transpose(deg2rad(arm.angle));
 theta1=zeros(length(theta2));
-t3=0;
+t3=20;
 theta3=deg2rad(ones(length(theta2))*t3);
 t4=70;
 theta4=deg2rad(ones(length(theta2))*t4);
 
 
-dt=0.14;
+dt=0.045;
 
 %theta dot
 theta_d1=gradient(theta1,dt);
@@ -95,7 +58,16 @@ f4=[0;0;0];
 n4=[0;0;0];
 
 T=zeros('like',theta2);
+F=zeros('like',theta2);
+
+X_calc=zeros('like',theta2);
+Y_calc=zeros('like',theta2);
+
 check=zeros('like',theta2);
+
+l = 0.13;
+w = 0.2;
+M = 2.312 - 0.677;
 
 for i=1:length(theta2)
 % for i=n
@@ -183,7 +155,7 @@ for i=1:length(theta2)
 
     %%backward
     f4=F4;
-    f3=R34*F3;
+    f3=R34*f4+F3;
     % f2=R12*f3;
     % f1=R01*f2;
 
@@ -195,32 +167,64 @@ for i=1:length(theta2)
     % T3=transpose(n2)*zo;
     % T2=transpose(n1)*zo;
     % T1=transpose(n0)*zo ;
+    
+    tt=R23*n3;
+    T(i)=tt(3);
+    ff=R01 * R12 * R34 * f3;
+    F(i)=ff(3);
 
-    T(i)=n3(2);
+    X_calc(i) = (F(i) * 0.5 * w) / (F(i) + 9.81 * M);
+    Y_calc(i) = ((F(i) * l / 2) - T(i)) / (F(i) + 9.81 * M);
 
-    if thet2<deg2rad(-40)
-        T(i)=0;
-        check(i)=0;
-    else
-        T(i)=n3(2);
-    end
+    % if thet2<deg2rad(-40)
+    %     T(i)=0;
+    %     check(i)=0;
+    % else
+    %     T(i)=n3(2);
+    % end
 
     
 
 end
 
 
-t=arm.time(range)/1000;
-load=arm.load(range);
+t=arm.time;
+load=arm.load;
 
 Ld=load*1.4/1000;
 
 
-plot(t,(Ld))
+% plot(t,(Ld))
+% hold on
+% plot(t,(T))
+% % plot(t,(check))
+% legend('robot','model')
+
+x=COP.X;
+y=COP.Y;
+
+tc=(0:length(x)-1)/60;
+
+
+X_calc=X_calc*1000;
+Y_calc=Y_calc*1000;
+
+subplot(2,1,1);
+plot(tc+t(1),(x-mean(x)))
 hold on
-plot(t,(T))
-plot(t,check)
-legend('robot','model','check')
+plot(t,(X_calc-mean(X_calc)))
+title('X')
+legend('GrndTrth','Model')
+
+
+subplot(2,1,2);
+plot(tc+t(1),(y-mean(y)))
+hold on
+plot(t,(Y_calc-mean(Y_calc)))
+title('Y')
+legend('GrndTrth','Model')
+
+
 
 function i=I(l, m, r)
     I1=1 / 2 * (m * r^2);
