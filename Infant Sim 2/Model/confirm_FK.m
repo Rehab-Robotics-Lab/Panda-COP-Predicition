@@ -1,9 +1,9 @@
 theta1=0;
-theta2=10;
+theta2=0;
 theta3=0;
 theta4=0;
 
-l_up=.1;
+l_up=.3;
 l_low=.6;
 
 

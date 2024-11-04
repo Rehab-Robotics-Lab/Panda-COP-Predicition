@@ -18,8 +18,7 @@ I2=eye(3);
 I3=I(l2,m3,r3);
 I4=I(le,m4,r4);
 
-arm=readtable(['larm_5' ...
-    '.csv']);
+arm=readtable(['larm_5.csv']);
 
 [a,b]=size(arm);
 

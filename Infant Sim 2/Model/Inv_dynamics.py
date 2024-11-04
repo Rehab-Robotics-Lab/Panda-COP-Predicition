@@ -213,9 +213,9 @@ class inv_dynamics:
         n3 = N3 + self.R34 @ n4 + np.cross(r3, F3, axis=0) + np.cross(self.P34, (self.R34 @ f4), axis=0)
 
         # torque from shoulder flextion/extension
-        T = (self.R23 @ n3)[2]
+        T = self.R01 @ self.R12 @ self.R23 @ n3
         # forces transformed to base frame
-        F = (self.R01 @ self.R12 @ self.R34 @ f3)[2]
+        F = self.R01 @ self.R12 @ self.R23 @ f3
 
         return T, F
 
@@ -223,15 +223,15 @@ class inv_dynamics:
     def calc(self):
         a, n = np.shape(self.theta)
 
-        T = np.zeros([n])
-        F = np.zeros([n])
+        T = np.zeros((3, n))
+        F = np.zeros((3, n))
 
         for i in range(n):
             # Forward kinematics
             self.FK(i)
 
             # inverse dynamics
-            T[i], F[i] = self.ID(i)
+            T[:, [i]], F[:, [i]] = self.ID(i)
 
         return T, F
 

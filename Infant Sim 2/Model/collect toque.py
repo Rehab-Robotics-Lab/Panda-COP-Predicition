@@ -276,7 +276,7 @@ def home_trunk(ids):
 
 
 def move_limbs(home, ids, goal_angle):
-    goal = [0]
+    goal = [0, 0, 0, 0]
     print(len(ids))
 
     for i in range(len(ids)):
@@ -343,13 +343,13 @@ def load_status(ids):
     ## Read current arm joint positions
     load, success = bulkRead(ids, ADDR_PRESENT_LOAD, LEN_PRESENT_LOAD)
     # velocity, success = bulkRead(ids, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY)
-    max_curr = 1.3
-    min_curr = 0.04
+    # max_curr = 1.3
+    # min_curr = 0.04
 
-    curr = ((load[0] / 1000) * (max_curr - min_curr)) + min_curr
-    torque = (load[0] - 0.12) * 0.12
+    # curr = ((load[0] / 1000) * (max_curr - min_curr)) + min_curr
+    # torque = (load[0] - 0.12) * 0.12
 
-    return load[0], success
+    return load, success
 
 
 def main():
@@ -359,16 +359,18 @@ def main():
     r_arm = 2
     l_arm = 1
 
+    # IDs for differential motors and drive modes
+    diff_id = [65, 66]
+    diff_modes = [4, 4]
+
     # IDs for limb motors and drive modes
-    # limb_ids = [l_arm, r_arm, r_leg, l_leg]
-    # limb_modes = [5, 4, 4, 5]
-    limb_ids = [l_arm]
-    limb_modes = [5]
-    limb_op_modes = [4]
+    limb_ids = [l_arm, r_arm, l_leg, r_leg]
+    limb_modes = [5, 4, 5, 4]
+    limb_op_modes = [4, 4, 4, 4]
 
     # Drive modes
-    all_ids = limb_ids
-    drive_modes = limb_modes
+    all_ids = limb_ids + diff_id
+    drive_modes = limb_modes + diff_modes
 
     ## Initialize the port, ping the motors, and create syncWrite and syncRead objects
     ## It's faster and better design to read/write motors with the 'sync' objects than to command each motor sequentially
@@ -410,47 +412,44 @@ def main():
     # itemWriteMultiple(diff_id, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     home_pos = home_limbs(limb_ids)
 
+    time.sleep(3)
+    print("start recording")
+
     time.sleep(2)
+    start_time = time.time()
 
     output = []
-
-    print("start recording")
-    start_time = time.time()
-    time.sleep(2)
 
     # itemWriteMultiple([limb_ids], ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     print("Starting")
     angles = [
         10,
-        170,
+        110,
         10,
-        170,
+        110,
         10,
-        170,
+        110,
         10,
-        170,
+        110,
         10,
-        170,
-        10,
-        170,
-        10,
-        170,
-        10,
-        170,
-        10,
-        170,
-        10,
-        170,
-        10,
-        170,
-        10,
-        170,
     ]
 
-    for i in range(len(angles)):
+    angle2 = [
+        110,
+        10,
+        110,
+        10,
+        110,
+        10,
+        110,
+        10,
+        110,
+    ]
 
-        ##limbs
-        move_limbs(home_pos, limb_ids, [angles[i]])
+    for k in range(len(angles)):
+
+        ## limb_ids = [l_arm, r_arm, l_leg, r_leg]
+        move_limbs(home_pos, limb_ids, [0, 0, 0, angles[k]])
         # time.sleep(0.2)
 
         for j in range(60):
@@ -460,10 +459,8 @@ def main():
             limb_load, limb_load_success = load_status(limb_ids)
             # limb_pos = home_pos
             # limb_pos_success = True
-            # print(limb_pos)
-            print(limb_vel)
+            # print(limb_load)
 
-            # limb_status,limb_status_success = moving_status(limb_ids)
             # trunk_status,tunk_status_success = moving_status(diff_id)
             if all([limb_pos_success, limb_load_success, limb_vel_success]):
                 current = [
@@ -471,8 +468,20 @@ def main():
                     time.time() - start_time,
                     limb_pos[0] - home_pos[0],
                     PWM2angle(limb_pos[0] - home_pos[0]) - 45,
-                    limb_load,
+                    limb_load[0],
                     limb_vel[0],
+                    limb_pos[1] - home_pos[1],
+                    PWM2angle(limb_pos[1] - home_pos[1]) - 45,
+                    limb_load[1],
+                    limb_vel[1],
+                    limb_pos[2] - home_pos[2],
+                    PWM2angle(limb_pos[2] - home_pos[2]) - 100,
+                    limb_load[2],
+                    limb_vel[2],
+                    limb_pos[3] - home_pos[3],
+                    PWM2angle(limb_pos[3] - home_pos[3]) - 100,
+                    limb_load[3],
+                    limb_vel[3],
                 ]
 
                 # print(len(now))
@@ -488,20 +497,31 @@ def main():
     Head = [
         # "angle",
         "time",
-        "PWM",
-        "angle",
-        "load",
-        "vel",
+        "larm_PWM",
+        "larm_angle",
+        "larm_load",
+        "larm_vel",
+        "rarm_PWM",
+        "rarm_angle",
+        "rarm_load",
+        "rarm_vel",
+        "lleg_PWM",
+        "lleg_angle",
+        "lleg_load",
+        "lleg_vel",
+        "rleg_PWM",
+        "rleg_angle",
+        "rleg_load",
+        "rleg_vel",
         # "arm 1 torque",
         # "limb moving",
         # "trunk moving",
     ]
 
     DF = pd.DataFrame(output, columns=Head)
-    # print(DF)
     # path=r'C:\Users\franc\Documents\Infant_Sim_data\'
     print(DF)
-    DF.to_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\larm_104.csv")
+    DF.to_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\rleg_101.csv")
 
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     portHandler.closePort()
