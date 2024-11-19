@@ -364,9 +364,9 @@ def main():
     diff_modes = [4, 4]
 
     # IDs for limb motors and drive modes
-    limb_ids = [l_arm, r_arm, l_leg, r_leg]
-    limb_modes = [5, 4, 5, 4]
-    limb_op_modes = [4, 4, 4, 4]
+    limb_ids = [l_arm, r_leg]
+    limb_modes = [5, 4]
+    limb_op_modes = [4, 4]
 
     # Drive modes
     all_ids = limb_ids + diff_id
@@ -470,12 +470,12 @@ def main():
         50,
     ]
 
-    name = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\lleg_104.csv"
+    name = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\lleg_204.csv"
 
     for k in range(len(angs_101)):
 
         ## limb_ids = [l_arm, r_arm, l_leg, r_leg]
-        move_limbs(home_pos, limb_ids, [0, 0, angs_104[k], 0])
+        move_limbs(home_pos, limb_ids, [0, angs_104[k]])
         # time.sleep(0.2)
 
         for j in range(60):
@@ -492,22 +492,22 @@ def main():
                 current = [
                     # 120,
                     time.time() - start_time,
+                    0,
+                    -45,
+                    0,
+                    0,
+                    0,
+                    -45,
+                    0,
+                    0,
                     limb_pos[0] - home_pos[0],
-                    PWM2angle(limb_pos[0] - home_pos[0]) - 45,
+                    PWM2angle(limb_pos[0] - home_pos[0]) - 30,
                     limb_load[0],
                     limb_vel[0],
                     limb_pos[1] - home_pos[1],
-                    PWM2angle(limb_pos[1] - home_pos[1]) - 45,
+                    PWM2angle(limb_pos[1] - home_pos[1]) - 100,
                     limb_load[1],
                     limb_vel[1],
-                    limb_pos[2] - home_pos[2],
-                    PWM2angle(limb_pos[2] - home_pos[2]) - 100,
-                    limb_load[2],
-                    limb_vel[2],
-                    limb_pos[3] - home_pos[3],
-                    PWM2angle(limb_pos[3] - home_pos[3]) - 100,
-                    limb_load[3],
-                    limb_vel[3],
                 ]
 
                 # print(len(now))

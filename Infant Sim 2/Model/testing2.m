@@ -1,21 +1,14 @@
 %%parameters
 %mass
-
-% m3=.4;
-% m4=.677-m3;
 m3=.15;
 m4=.373-m3;
 %length
-
 l2=.1;
 le=.08;
-% l2=.11;
-% le=.1;
-%
+%radius
 r3=.02;
 r4=.015;
-% r3=.065;
-% r4=.04;
+
 %intertia
 
 I3=I(l2,m3,r3);
@@ -37,13 +30,12 @@ arm_ang=arm.angle;
 
 theta2=-transpose(deg2rad(arm_ang));
 theta1=zeros(length(theta2));
-t3=0;
+t3=-30;
 theta3=deg2rad(ones(length(theta2))*t3);
 t4=90;
 theta4=deg2rad(ones(length(theta2))*t4);
 
-
-dt=mean(diff(arm.time(1:50)));
+dt=mean(diff(arm.time(1:30)));
 
 %theta dot
 theta_d1=gradient(theta1,dt);
@@ -57,9 +49,9 @@ theta_dd3=gradient(theta_d3,dt);
 theta_dd4=gradient(theta_d4,dt);
 
 
-wo=[0;0;0];
-vo_d=[0;0;-9.81];
-wo_d=[0;0;0];
+w0=[0;0;0];
+v0_d=[0;0;-9.81];
+w0_d=[0;0;0];
 
 zo=[0;0;1];
 
@@ -82,6 +74,8 @@ var=zeros('like',theta2);
 
 l = 0.13;
 w = 0.2;
+h = 0.1;
+g = 9.81;
 M = 2.9 - 0.677 - .701;
 
 for i=1:length(theta2)
@@ -102,7 +96,12 @@ for i=1:length(theta2)
     thet_dd4=theta_dd4(i);
     
     %simple calculation
-  
+    lev1=l2/2*cos(thet2);
+    lev2=((l2*cos(thet2))+(le/2*cos(thet2+thet4)));
+    
+    iner1=I3(2,2);
+    iner2=I4(2,2)+(m4*(.12^2));
+
     %T,R and P  
     T01 = TI(0 , pi/2, 0, thet1+pi/2);
     R01=T01(1:3,1:3);
@@ -125,44 +124,35 @@ for i=1:length(theta2)
     P03=T03(1:3,4);
     R03=T03(1:3,1:3);
 
+    T04=T01*T12*T23*T34;
+    P04=T04(1:3,4);
+    R04=T04(1:3,1:3);
+
+    thet=[thet1;thet2;thet3];
+    thet_d=[thet_d1;thet_d2;thet_d3];
+    thet_dd=[thet_dd1;thet_dd2;thet_dd3];
+
     %%forward
     %FRAME1
-    w1=zo*thet_d1;
-    w2=transpose(R12)*w1+zo*thet_d2;
-    w3=transpose(R23)*w2+zo*thet_d3;
+    w3=thet_d;
     w4=transpose(R34)*w3+zo*thet_d4;
 
-
-    w1_d=zo*thet_dd1;
-    w2_d=(transpose(R12)*w1_d)+cross(transpose(R12)*w1,zo*thet_d2)+(zo*thet_dd2);
-    w3_d=(transpose(R23)*w2_d)+cross(transpose(R23)*w2,zo*thet_d3)+(zo*thet_dd3);
+    w3_d=thet_dd;
     w4_d=(transpose(R34)*w3_d)+cross(transpose(R34)*w3,zo*thet_d4)+(zo*thet_dd4);
 
-    P24=R23*P34;
-    P14=R12*R23*P34;
-
-    % v1_d=transpose(R01)*(cross(wo_d,P03)+cross(wo,cross(wo,P03))+vo_d);
-    v1_d=transpose(R01)*(vo_d);
-    v2_d=transpose(R12)*(cross(w1_d,P14)+cross(w1,cross(w1,P14))+v1_d);
-    v3_d=transpose(R23)*(cross(w2_d,P24)+cross(w2,cross(w2,P24))+v2_d);
+    v3_d=transpose(R03)*+v0_d;
     v4_d=transpose(R34)*(cross(w3_d,P34)+cross(w3,cross(w3,P34))+v3_d);
 
-
-    r1=P14/2;
-    vc1_d=cross(w1_d,r1)+cross(w1,cross(w1,r1))+v1_d;
-    r2=P24/2;
-    vc2_d=cross(w2_d,r2)+cross(w2,cross(w2,r2))+v2_d;
     r3=P34/2;
     vc3_d=cross(w3_d,r3)+cross(w3,cross(w3,r3))+v3_d;
     r4=P45/2;
     vc4_d=cross(w4_d,r4)+cross(w4,cross(w4,r4))+v4_d;
 
     F3=m3*vc3_d;
-    N3=I3*w3_d+cross(w3,I3*w3);
-
     F4=m4*vc4_d;
-    N4=I4*w4_d+cross(w4,I4*w4);
 
+    N3=I3*w3_d+cross(w3,I3*w3);    
+    N4=I4*w4_d+cross(w4,I4*w4);
 
     %%backward
     f4=F4;
@@ -170,7 +160,7 @@ for i=1:length(theta2)
 
     n4=N4;
     n3=N3+R34*n4+cross((P34/2),F3)+cross(P34,R34*f4);
-    
+
     tt=R03 * n3;
     ff=R03 * f3;
 
@@ -193,26 +183,11 @@ for i=1:length(theta2)
     tx=Tx(i);
     ty=Ty(i);
 
-    X_calc_up = (ty + (- fx * h * 0.5) + (- fz * w * 0.5)) / (-fz + (g * M));
-    Y_calc_up = (- tx + (fz * l * 0.5) - (fy * h * 0.5)) / (fz - (g * M));    
+    X_calc(i) = (ty + (- fx * h * 0.5) + (- fz * w * 0.5)) / (-fz + (g * M));
+    Y_calc(i) = (- tx + (fz * l * 0.5) - (fy * h * 0.5)) / (fz - (g * M));
 
-    % Tt=-T(i)+(fz*w/2);
-    % 
-    % X_calc_low = Tt/(M*9.81);
-    % Y_calc_low = -((fz * l / 2) + T(i)) / (fz + 9.81 * M);
-
-
-    X_calc(i) = X_calc_up;
-    Y_calc(i) = Y_calc_up;
-
-    % if thet2<deg2rad(-40)
-    %     T(i)=0;
-    %     check(i)=0;
-    % else
-    %     T(i)=n3(2);
-    % end
-
-    
+    % X_calc(i) = (fz * 0.5 * w) / (fz + 9.81 * M);
+    % Y_calc(i) = ((-fz * l / 2) - tx) / (fz + 9.81 * M);
 
 end
 
@@ -258,17 +233,10 @@ function i=I(l, m, r)
     I1=1 / 2 * (m * r^2);
     I2=1 / 12 * (m*(3 * r^2 + l^2));
 
-    i=[I1, 0, 0;
+    i=[I2, 0, 0;
        0, I2, 0;
-       0,0,I2];
+       0,0,I1];
 end
-
-% function T=TI(alpha0, ai, di, thetai)
-%     T=[cos(thetai), -sin(thetai)*cos(alpha0), sin(thetai)*sin(alpha0), ai*cos(thetai);
-%        sin(thetai), cos(thetai)*cos(alpha0), -cos(thetai)*sin(alpha0), -ai*sin(thetai);
-%        0, sin(alpha0),  cos(alpha0), di;
-%        0,0,0,1];
-% end
 
 function T=TI(ai, alpha0, di, thetai)
     T=[cos(thetai), -sin(thetai), 0, ai;
@@ -277,7 +245,4 @@ function T=TI(ai, alpha0, di, thetai)
        0,0,0,1];
 end
 
-% function P=PI(ai, alpha0, di, thetai)
-%     P=[ai;-di*sin(thetai);di*cos(thetai)];
-% end
 

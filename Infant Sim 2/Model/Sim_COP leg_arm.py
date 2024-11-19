@@ -1,4 +1,4 @@
-from Inv_dynamics2 import inv_dynamics
+from Inv_dynamics import inv_dynamics
 from ProcessCOP import processCOP
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,9 +10,9 @@ class sim_COP:
     # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
     def __init__(self):
 
-        robofile = pd.read_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\lleg_102.csv")
+        robofile = pd.read_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\lleg_204.csv")
         # LOADING FILE WITH COP VALUES
-        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\cop_lleg_102.csv"
+        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\cop_lleg_204.csv"
         self.rate = 60
         # cop object
         self.COP = processCOP(cop_file, self.rate)
@@ -22,13 +22,13 @@ class sim_COP:
         self.utrunk_l = 0.13
         self.utrunk_w = 0.2
         self.utrunk_h = 0.1
-        self.utrunk_m = 2.312 - (0.373 + 0.345)
+        self.utrunk_m = 1.03
 
         # Lower Trunk parameters
         self.ltrunk_l = 0.11
         self.ltrunk_w = 0.18
         self.ltrunk_h = 0.1
-        self.ltrunk_m = 1.475
+        self.ltrunk_m = 1.6 - 0.373 - 0.783
 
         # Arm paramters
         # lengths
@@ -90,15 +90,15 @@ class sim_COP:
         self.robofile = robofile
 
         # left arm angles from robot file
-        arm_angle_l = robofile.larm_angle
-        arm_angle_r = robofile.rarm_angle
+        # arm_angle_l = robofile.larm_angle
+        # arm_angle_r = robofile.rarm_angle
         leg_angle_l = robofile.lleg_angle
         leg_angle_r = robofile.rleg_angle
 
         # putting angles from robot in fromat with angles from all limbs
-        self.left_arm_angles = self.sim_to_theta_arm(arm_angle_l.to_numpy())
-        self.right_arm_angles = self.sim_to_theta_arm(arm_angle_r.to_numpy())
-        self.left_leg_angles = self.sim_to_theta_leg(leg_angle_l.to_numpy() + 100)
+        # self.left_arm_angles = self.sim_to_theta_arm(arm_angle_l.to_numpy())
+        # self.right_arm_angles = self.sim_to_theta_arm(arm_angle_r.to_numpy())
+        self.left_leg_angles = self.sim_to_theta_arm(leg_angle_l.to_numpy() - 10)
         self.right_leg_angles = self.sim_to_theta_leg(leg_angle_r.to_numpy() + 100)
 
         self.robot_t = robofile.time.to_numpy()
@@ -107,14 +107,14 @@ class sim_COP:
         self.dt = np.mean(np.diff(self.robot_t[0:30]))
 
         # checking when left arm is in contact with the ground
-        self.larm_check = arm_angle_l == -45
-        self.rarm_check = arm_angle_r == -45
-        self.lleg_check = leg_angle_l == -100
+        # self.larm_check = arm_angle_l == -45
+        # self.rarm_check = arm_angle_r == -45
+        self.lleg_check = leg_angle_l == -30
         self.rleg_check = leg_angle_r == -100
 
-        self.larm_Ld = robofile.larm_load * 1.4 / 1000
-        self.rarm_Ld = robofile.rarm_load * 1.9 / 1000
-        self.lleg_Ld = robofile.lleg_load * 1.9 / 1000
+        # self.larm_Ld = robofile.larm_load * 1.4 / 1000
+        # self.rarm_Ld = robofile.rarm_load * 1.9 / 1000
+        self.lleg_Ld = robofile.lleg_load * 1.4 / 1000
         self.rleg_Ld = robofile.rleg_load * 1.9 / 1000
 
     # function converts angles from infant simulator to angles for RNE/FK
@@ -151,36 +151,36 @@ class sim_COP:
 
     def COP_upper(self):
         # right arm dynamics
-        rarm_dynamics = inv_dynamics(self.right_arm_angles, self.rarm_len, self.rarm_m, self.rarm_I, self.dt)
-        Trarm, Frarm = rarm_dynamics.calc()
-        Trarm[:, self.rarm_check] = 0
-        Frarm[:, self.rarm_check] = 0
+        # rarm_dynamics = inv_dynamics(self.right_arm_angles, self.rarm_len, self.rarm_m, self.rarm_I, self.dt)
+        # Trarm, Frarm = rarm_dynamics.calc()
+        # Trarm[:, self.rarm_check] = 0
+        # Frarm[:, self.rarm_check] = 0
 
-        # Wrinting dynamic terms for right arm
-        T1x = Trarm[0, :]
-        T1y = Trarm[1, :]
+        # # Wrinting dynamic terms for right arm
+        # T1x = Trarm[0, :]
+        # T1y = Trarm[1, :]
 
-        F1x = Frarm[0, :]
-        F1y = Frarm[1, :]
-        F1z = Frarm[2, :]
+        # F1x = Frarm[0, :]
+        # F1y = Frarm[1, :]
+        # F1z = Frarm[2, :]
 
-        # left arm dynamics
-        yflip = np.matrix([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        # # left arm dynamics
+        # yflip = np.matrix([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
-        larm_dynamics = inv_dynamics(self.left_arm_angles, self.larm_len, self.larm_m, self.larm_I, self.dt)
-        Tlarm, Flarm = larm_dynamics.calc()
-        Tlarm[:, self.larm_check] = 0
-        Flarm[:, self.larm_check] = 0
+        # larm_dynamics = inv_dynamics(self.left_arm_angles, self.larm_len, self.larm_m, self.larm_I, self.dt)
+        # Tlarm, Flarm = larm_dynamics.calc()
+        # Tlarm[:, self.larm_check] = 0
+        # Flarm[:, self.larm_check] = 0
 
-        Tlarm = yflip @ Tlarm
-        Flarm = yflip @ Flarm
-        # Wrinting dynamic terms for left arm
-        T2x = Tlarm[0, :]
-        T2y = Tlarm[1, :]
+        # Tlarm = yflip @ Tlarm
+        # Flarm = yflip @ Flarm
+        # # Wrinting dynamic terms for left arm
+        # T2x = Tlarm[0, :]
+        # T2y = Tlarm[1, :]
 
-        F2x = Flarm[0, :]
-        F2y = Flarm[1, :]
-        F2z = Flarm[2, :]
+        # F2x = Flarm[0, :]
+        # F2y = Flarm[1, :]
+        # F2z = Flarm[2, :]
 
         # Upper trunk parameters
         l = self.utrunk_l
@@ -197,8 +197,8 @@ class sim_COP:
         # X_calc = ((T1y - T2y - Tt) + ((F1x - F2x) * h * 0.5) + ((F2z - F1z) * w * 0.5)) / (F1z + F2z + (g * M))
         # Y_calc = (((F1z + F2z) * l * 0.5) - ((F1y + F2y) * h * 0.5) - (T1x + T2x)) / (F1z + F2z + (g * M))
 
-        X_calc = ((T1y + T2y + Tt) + ((F1x - F2x) * h * 0.5) + ((F1z - F2z) * w * 0.5)) / (-F1z - F2z + (g * M))
-        Y_calc = ((T1x - T2x) + ((F1z + F2z) * l * 0.5) - ((F1y + F2y) * h * 0.5)) / (F1z + F2z - (g * M))
+        X_calc = Tt / (g * M)
+        Y_calc = np.zeros_like(X_calc)
 
         # X_calc = ((T1y + T2y + Tt) + ((F1z - F2z) * w * 0.5)) / (-F1z - F2z + (g * M))
         # Y_calc = ((T1x - T2x) + ((F1z + F2z) * l * 0.5)) / (F1z + F2z - (g * M))
@@ -206,7 +206,7 @@ class sim_COP:
         X_calc = X_calc * 1000
         Y_calc = Y_calc * 1000
 
-        Fn = (g * M * np.ones_like(X_calc)) - F1z - F2z
+        Fn = g * M * np.ones_like(X_calc)
 
         # plt.plot(Fn.T)
         # plt.show()
@@ -242,7 +242,7 @@ class sim_COP:
         # rotating torque and force values by 30 degrees
         # Tlleg[0, :] = self.lleg_Ld
         # left leg dynamics
-        lleg_dynamics = inv_dynamics(self.left_leg_angles, self.lleg_len, self.lleg_m, self.lleg_I, self.dt)
+        lleg_dynamics = inv_dynamics(self.left_leg_angles, self.larm_len, self.larm_m, self.larm_I, self.dt)
         Tlleg, Flleg = lleg_dynamics.calc()
 
         # zeroing force and torque when leg is at rest
@@ -287,7 +287,6 @@ class sim_COP:
         Y_calc = Y_calc * 1000
 
         T = (T4y + T3y) + ((F3z - F4z) * w * 0.5) + ((F3x - F4x) * h * 0.5)
-        T = -T
 
         Fn = (g * M * np.ones_like(F3z)) - F3z - F4z
 
@@ -309,22 +308,8 @@ class sim_COP:
         # reshaping to make sure all dimenesions are [1,n]
         n = len(self.lleg_check)
 
-        larm_check = np.asarray(self.larm_check).reshape(1, n)
-        rarm_check = np.asarray(self.rarm_check).reshape(1, n)
         lleg_check = np.asarray(self.lleg_check).reshape(1, n)
         rleg_check = np.asarray(self.rleg_check).reshape(1, n)
-
-        # resting COP for arms
-        xarm = (self.utrunk_w / 2) + 0.06
-        yarm = (self.utrunk_l / 2) - 0.1
-
-        X_larm = xarm * larm_check
-        Y_larm = yarm * larm_check
-        Fn_larm = np.sum(self.larm_m) * 9.81 * larm_check
-
-        X_rarm = -xarm * rarm_check
-        Y_rarm = yarm * rarm_check
-        Fn_rarm = np.sum(self.rarm_m) * 9.81 * rarm_check
 
         # resting COP for legs
         xleg = (self.ltrunk_w / 2) + 0.02
@@ -343,20 +328,16 @@ class sim_COP:
         self.Xcalc = (
             np.multiply(X_low, Fn_low)
             + np.multiply(X_up, Fn_up)
-            + np.multiply(X_larm, Fn_larm)
-            + np.multiply(X_rarm, Fn_rarm)
             + np.multiply(X_lleg, Fn_lleg)
             + np.multiply(X_rleg, Fn_rleg)
-        ) / (Fn_larm + Fn_up + Fn_rarm + Fn_low + Fn_lleg + Fn_rleg)
+        ) / (Fn_up + Fn_low + Fn_lleg + Fn_rleg)
 
         self.Ycalc = (
             np.multiply(Y_low, Fn_low)
             + np.multiply(Y_up, Fn_up)
-            + np.multiply(Y_larm, Fn_larm)
-            + np.multiply(Y_rarm, Fn_rarm)
             + np.multiply(Y_lleg, Fn_lleg)
             + np.multiply(Y_rleg, Fn_rleg)
-        ) / (Fn_larm + Fn_up + Fn_rarm + Fn_low + Fn_lleg + Fn_rleg)
+        ) / (Fn_up + Fn_low + Fn_lleg + Fn_rleg)
 
     def compare_T(self):
         t = self.robot_t

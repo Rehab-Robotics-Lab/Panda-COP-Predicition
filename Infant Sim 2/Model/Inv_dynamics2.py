@@ -68,6 +68,7 @@ class inv_dynamics:
 
         self.T23 = self.Ti(0, -np.pi / 2, 0, np.pi + thet[2])
         self.R23 = self.Ri(self.T23)
+        self.P23 = self.Pi(self.T23)
 
         self.T34 = self.Ti(l1, np.pi / 2, 0, thet[3])
         self.R34 = self.Ri(self.T34)
@@ -81,6 +82,8 @@ class inv_dynamics:
         self.P24 = self.R23 @ self.P34
         self.P14 = self.R12 @ self.R23 @ self.P34
         self.P04 = self.R01 @ self.R12 @ self.R23 @ self.P34
+
+        self.P03 = self.R01 @ self.R12 @ self.P23
         # self.P14 = self.R12 @ self.P24
         # self.P04 = self.R01 @ self.P14
 
@@ -157,37 +160,30 @@ class inv_dynamics:
 
         ## ANGULAR
         # angular velocity
-        w1 = self.R01.T @ w0 + z0 * thet_d1
-        w2 = self.R12.T @ w1 + z0 * thet_d2
-        w3 = self.R23.T @ w2 + z0 * thet_d3
+        thet = np.matrix([[thet1], [thet2], [thet3]])
+        thet_d = np.matrix([[thet_d1], [thet_d2], [thet_d3]])
+        thet_dd = np.matrix([[thet_dd1], [thet_dd2], [thet_dd3]])
+
+        w3 = thet_d
         w4 = self.R34.T @ w3 + z0 * thet_d4
 
         # angular accelearation
-        w1_d = (self.R01.T @ w0_d) + np.cross(self.R01.T @ w0, z0 * thet_d1, axis=0) + (z0 * thet_dd1)
-        w2_d = (self.R12.T @ w1_d) + np.cross(self.R12.T @ w1, z0 * thet_d2, axis=0) + (z0 * thet_dd2)
-        w3_d = (self.R23.T @ w2_d) + np.cross(self.R23.T @ w2, z0 * thet_d3, axis=0) + (z0 * thet_dd3)
+        w3_d = thet_dd
         w4_d = (self.R34.T @ w3_d) + np.cross(self.R34.T @ w3, z0 * thet_d4, axis=0) + (z0 * thet_dd2)
         ## LINEAR
 
         # linear accelearation
-        v1_d = self.R01.T @ (
-            np.cross(w0_d, self.P04, axis=0) + np.cross(w0, np.cross(w0, self.P04, axis=0), axis=0) + v0_d
-        )
-        v2_d = self.R12.T @ (
-            np.cross(w1_d, self.P14, axis=0) + np.cross(w1, np.cross(w1, self.P14, axis=0), axis=0) + v1_d
-        )
-        v3_d = self.R23.T @ (
-            np.cross(w2_d, self.P24, axis=0) + np.cross(w2, np.cross(w2, self.P24, axis=0), axis=0) + v2_d
-        )
+        v3_d = (self.R01 @ self.R12 @ self.R23).T @ v0_d
+        # v3_d = (self.R01 @ self.R12 @ self.R23).T @ (
+        #     np.cross(w0_d, self.P04, axis=0) + np.cross(w0, np.cross(w0, self.P04, axis=0), axis=0) + v0_d
+        # )
         v4_d = self.R34.T @ (
             np.cross(w3_d, self.P34, axis=0) + np.cross(w3, np.cross(w4, self.P34, axis=0), axis=0) + v3_d
         )
 
+        # P14
+
         # linear acceleration relative to COM
-        r1 = self.P14 / 2
-        vc1_d = np.cross(w1_d, r1, axis=0) + np.cross(w1, np.cross(w1, r1, axis=0), axis=0) + v1_d
-        r2 = self.P24 / 2
-        vc2_d = np.cross(w2_d, r2, axis=0) + np.cross(w2, np.cross(w2, r2, axis=0), axis=0) + v2_d
         r3 = self.P34 / 2
         vc3_d = np.cross(w3_d, r3, axis=0) + np.cross(w3, np.cross(w3, r3, axis=0), axis=0) + v3_d
         r4 = self.P4e / 2

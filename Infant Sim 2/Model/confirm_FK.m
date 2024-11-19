@@ -1,10 +1,10 @@
 theta1=0;
 theta2=0;
-theta3=0;
-theta4=0;
+theta3=-60;
+theta4=-80;
 
-l_up=.3;
-l_low=.6;
+l_up=.2;
+l_low=.24;
 
 
 robot = rigidBodyTree;

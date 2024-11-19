@@ -270,9 +270,9 @@ def home_limbs(ids):
 
 
 def home_trunk(ids):
-    home_positions = angle2PWM([180] * len(ids))
-    print("Homing Trunk")
-    bulkWrite(ids, home_positions)
+    zero_positions, success = position_status(ids)
+
+    return zero_positions
 
 
 def move_limbs(home, ids, goal_angle):
@@ -286,13 +286,13 @@ def move_limbs(home, ids, goal_angle):
     bulkWrite(ids, goal)
 
 
-def side_bending(ids, goal_angle):
+def side_bending(home, ids, goal_angle):
     gear_ratio = 30 / 20
 
     goal_angle = goal_angle * gear_ratio
 
-    angle1 = angle2PWM(180) + angle2PWM(goal_angle)
-    angle2 = angle2PWM(180) - angle2PWM(goal_angle)
+    angle1 = home[0] + angle2PWM(goal_angle)
+    angle2 = home[1] - angle2PWM(goal_angle)
 
     goal = [angle1, angle2]
 
@@ -301,21 +301,45 @@ def side_bending(ids, goal_angle):
     # return goal_angle
 
 
-def rotation(ids, goal_angle):
+def rotation(home, ids, goal_angle):
     gear_ratio = 30 / 20
 
     goal_angle = goal_angle * gear_ratio
 
-    present_position = angle2PWM(np.ones([len(ids)]).astype(int) * 180)
-
-    angle1 = angle2PWM(180) + angle2PWM(goal_angle)
-    angle2 = angle2PWM(180) + angle2PWM(goal_angle)
+    angle1 = home[0] + angle2PWM(goal_angle)
+    angle2 = home[1] + angle2PWM(goal_angle)
 
     goal = [angle1, angle2]
 
     bulkWrite(ids, goal)
 
     # return goal_angle
+
+
+def trunk_angle_side(home, angle1, angle2):
+    gear_ratio = 30 / 20
+
+    ang1 = PWM2angle(angle1 - home[0]) / gear_ratio
+    ang2 = PWM2angle(angle2 + home[1]) / gear_ratio
+
+    # angle = (ang1 + ang2) / 2
+
+    # print(ang1, ang2, angle)
+
+    return ang1
+
+
+def trunk_angle_rot(home, angle1, angle2):
+    gear_ratio = 30 / 20
+
+    ang1 = PWM2angle(angle1 - home[0]) / gear_ratio
+    ang2 = PWM2angle(angle2 - home[1]) / gear_ratio
+
+    angle = (ang1 + ang2) / 2
+
+    # print(ang1, ang2, angle)
+
+    return angle
 
 
 def moving_status(ids):
@@ -362,15 +386,16 @@ def main():
     # IDs for differential motors and drive modes
     diff_id = [65, 66]
     diff_modes = [4, 4]
+    diff_op_modes = [4, 4]
 
     # IDs for limb motors and drive modes
-    limb_ids = [l_arm, r_arm, l_leg, r_leg]
-    limb_modes = [5, 4, 5, 4]
-    limb_op_modes = [4, 4, 4, 4]
+    # limb_ids = [l_arm, r_arm, l_leg, r_leg]
+    # limb_modes = [5, 4, 5, 4]
+    # limb_op_modes = [4, 4, 4, 4]
 
     # Drive modes
-    all_ids = limb_ids + diff_id
-    drive_modes = limb_modes + diff_modes
+    all_ids = diff_id
+    drive_modes = diff_modes
 
     ## Initialize the port, ping the motors, and create syncWrite and syncRead objects
     ## It's faster and better design to read/write motors with the 'sync' objects than to command each motor sequentially
@@ -401,7 +426,7 @@ def main():
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     print("zero the limbs")
     time.sleep(5)
-    itemWriteMultiple(limb_ids, ADDR_OPERATING_MODE, limb_op_modes, LEN_OPERATING_MODE)
+    itemWriteMultiple(diff_id, ADDR_OPERATING_MODE, diff_op_modes, LEN_OPERATING_MODE)
     itemWriteMultiple(all_ids, ADDR_DRIVE_MODE, drive_modes, LEN_DRIVE_MODE)
     itemWriteMultiple(all_ids, ADDR_PROFILE_VELOCITY, pV, LEN_PROFILE_VELOCITY)
     itemWriteMultiple(all_ids, ADDR_PROFILE_ACCELERATION, pA, LEN_PROFILE_ACCELERATION)
@@ -410,7 +435,7 @@ def main():
     ## Home all motors at the start
 
     # itemWriteMultiple(diff_id, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
-    home_pos = home_limbs(limb_ids)
+    home_pos = home_trunk(diff_id)
 
     time.sleep(3)
     print("start recording")
@@ -422,28 +447,29 @@ def main():
 
     # itemWriteMultiple([limb_ids], ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     print("Starting")
+    aa = 45
     angs_101 = [
-        10,
-        110,
-        10,
-        110,
-        10,
-        110,
-        10,
-        110,
-        10,
+        0,
+        20,
+        aa,
+        20,
+        0,
+        -20,
+        -aa,
+        -20,
+        0,
     ]
 
     angs_102 = [
-        10,
-        20,
-        40,
-        70,
-        110,
-        80,
-        60,
-        30,
-        5,
+        0,
+        aa,
+        0,
+        -aa,
+        0,
+        aa,
+        0,
+        -aa,
+        0,
     ]
 
     angs_103 = [
@@ -470,44 +496,35 @@ def main():
         50,
     ]
 
-    name = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\lleg_104.csv"
+    name = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\rot_402.csv"
 
-    for k in range(len(angs_101)):
+    for k in range(len(angs_102)):
 
         ## limb_ids = [l_arm, r_arm, l_leg, r_leg]
-        move_limbs(home_pos, limb_ids, [0, 0, angs_104[k], 0])
+        rotation(home_pos, diff_id, angs_102[k])
+        # side_bending(home_pos, diff_id, angs_102[k])
+        # print(angs_101[k])
         # time.sleep(0.2)
 
         for j in range(60):
             # while limb_pos != angle2PWM(angles[i]):
-            limb_pos, limb_pos_success = position_status(limb_ids)
-            limb_vel, limb_vel_success = velocity_status(limb_ids)
-            limb_load, limb_load_success = load_status(limb_ids)
+            trunk_pos, trunk_pos_success = position_status(diff_id)
+            trunk_vel, trunk_vel_success = velocity_status(diff_id)
+            trunk_load, trunk_load_success = load_status(diff_id)
             # limb_pos = home_pos
             # limb_pos_success = True
             # print(limb_load)
 
-            # trunk_status,tunk_status_success = moving_status(diff_id)
-            if all([limb_pos_success, limb_load_success, limb_vel_success]):
+            print(trunk_angle_side(home_pos, trunk_pos[0], trunk_pos[1]))
+
+            if all([trunk_pos_success, trunk_load_success, trunk_vel_success]):
                 current = [
                     # 120,
                     time.time() - start_time,
-                    limb_pos[0] - home_pos[0],
-                    PWM2angle(limb_pos[0] - home_pos[0]) - 45,
-                    limb_load[0],
-                    limb_vel[0],
-                    limb_pos[1] - home_pos[1],
-                    PWM2angle(limb_pos[1] - home_pos[1]) - 45,
-                    limb_load[1],
-                    limb_vel[1],
-                    limb_pos[2] - home_pos[2],
-                    PWM2angle(limb_pos[2] - home_pos[2]) - 100,
-                    limb_load[2],
-                    limb_vel[2],
-                    limb_pos[3] - home_pos[3],
-                    PWM2angle(limb_pos[3] - home_pos[3]) - 100,
-                    limb_load[3],
-                    limb_vel[3],
+                    trunk_angle_rot(home_pos, trunk_pos[0], trunk_pos[1]),
+                    -trunk_angle_side(home_pos, trunk_pos[0], trunk_pos[1]),
+                    trunk_load[0],
+                    trunk_load[1],
                 ]
 
                 # print(len(now))
@@ -523,25 +540,10 @@ def main():
     Head = [
         # "angle",
         "time",
-        "larm_PWM",
-        "larm_angle",
-        "larm_load",
-        "larm_vel",
-        "rarm_PWM",
-        "rarm_angle",
-        "rarm_load",
-        "rarm_vel",
-        "lleg_PWM",
-        "lleg_angle",
-        "lleg_load",
-        "lleg_vel",
-        "rleg_PWM",
-        "rleg_angle",
-        "rleg_load",
-        "rleg_vel",
-        # "arm 1 torque",
-        # "limb moving",
-        # "trunk moving",
+        "rotation",
+        "side_bend",
+        "load1",
+        "load2",
     ]
 
     DF = pd.DataFrame(output, columns=Head)
