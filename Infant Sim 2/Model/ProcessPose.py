@@ -260,8 +260,8 @@ class processPose:
     def plotskel_loop(self):
         fig = plt.figure()
         ani = animation.FuncAnimation(fig, self.plotskel, frames=self.frames - 210, interval=2)
-        ani.save(filename=r"C:\Users\franc\Documents\Infant_Sim_data\load tests\side_bend_35.gif", writer="pillow")
-        # plt.show()
+        # ani.save(filename=r"C:\Users\franc\Documents\Infant_Sim_data\load tests\side_bend_35.gif", writer="pillow")
+        plt.show()
 
 
 pp = processPose(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\side_bend_35.pkl")

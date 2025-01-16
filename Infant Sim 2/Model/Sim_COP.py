@@ -1,18 +1,19 @@
-from Inv_dynamics2 import inv_dynamics
+from Inv_dynamics import inv_dynamics
 from ProcessCOP import processCOP
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import constants
+from CompareCOP import compareCOP
 
 
 class sim_COP:
     # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
     def __init__(self):
 
-        robofile = pd.read_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\lleg_102.csv")
+        robofile = pd.read_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\rarm_larm_101.csv")
         # LOADING FILE WITH COP VALUES
-        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\cop_lleg_102.csv"
+        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\cop_rarm_larm_101.csv"
         self.rate = 60
         # cop object
         self.COP = processCOP(cop_file, self.rate)
@@ -287,7 +288,6 @@ class sim_COP:
         Y_calc = Y_calc * 1000
 
         T = (T4y + T3y) + ((F3z - F4z) * w * 0.5) + ((F3x - F4x) * h * 0.5)
-        T = -T
 
         Fn = (g * M * np.ones_like(F3z)) - F3z - F4z
 
@@ -401,31 +401,12 @@ class sim_COP:
         plt.show()
 
     def compare_COP(self):
-        n = len(self.robot_t)
-
-        t = np.asarray(self.robot_t).reshape(n, 1)
-
-        X, Y = self.COP.Xfilt, self.COP.Yfilt
-        t_c = np.linspace(0, (len(X) - 1) / self.rate, num=len(X))
-
-        # print(np.max(self.Xcalc) - np.min(self.Xcalc))
-        # print(np.max(self.Ycalc) - np.min(self.Ycalc))
-
-        Xcalc = self.Xcalc.reshape(n, 1)
-        Ycalc = self.Ycalc.reshape(n, 1)
-
-        plt.subplot(2, 1, 1)
-        plt.plot(t_c + t[0], X - np.mean(X))
-        plt.plot(t, Xcalc - np.mean(Xcalc))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("X COP")
-
-        plt.subplot(2, 1, 2)
-        plt.plot(t_c + t[0], Y - np.mean(Y))
-        plt.plot(t, Ycalc - np.mean(Ycalc))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("Y COP")
-        plt.show()
+        # print(np.shape(self.Xcalc[0, 5:-1]), np.shape(self.COP.Xfilt[5:-1]))
+        cc = compareCOP(self.Xcalc[0, 5:-1], self.Ycalc[0, 5:-1], self.COP.Xfilt[5:-1], self.COP.Yfilt[5:-1])
+        cc.comp_XY(self.robot_t[5:-1], -0.4)
+        # cc.comp_ellipse()
+        # print(cc.metrics())
+        # print(cc.diff_metric())
 
 
 test = sim_COP()

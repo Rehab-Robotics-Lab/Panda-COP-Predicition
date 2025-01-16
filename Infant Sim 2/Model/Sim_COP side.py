@@ -1,6 +1,7 @@
 from Inv_dynamics import inv_dynamics
 from ProcessCOP import processCOP
 from ProcessPose import processPose
+from CompareCOP import compareCOP
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -234,32 +235,15 @@ class sim_COP:
         plt.show()
 
     def compare_COP(self):
-        # n = len(self.robot_t)
+
         n = len(self.Pose.Xcom_lt)
         t = np.linspace(0, (n - 1) / 60, num=n)
-        # np.asarray(self.robot_t).reshape(n, 1)
 
-        X, Y = self.COP.Xfilt, self.COP.Yfilt
-        t_c = np.linspace(0, (len(X) - 1) / self.rate, num=len(X)) + 1.1
-
-        # print(np.max(self.Xcalc) - np.min(self.Xcalc))
-        # print(np.max(self.Ycalc) - np.min(self.Ycalc))
-
-        Xcalc = self.Xcalc
-        Ycalc = self.Ycalc
-
-        plt.subplot(2, 1, 1)
-        plt.plot(t_c + t[0], X - np.mean(X))
-        plt.plot(t, Xcalc - np.mean(Xcalc))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("X COP")
-
-        plt.subplot(2, 1, 2)
-        plt.plot(t_c + t[0], Y - np.mean(Y))
-        plt.plot(t, Ycalc - np.mean(Ycalc))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("Y COP")
-        plt.show()
+        cc = compareCOP(self.Xcalc.T[5:-1], self.Ycalc.T[5:-1], self.COP.Xfilt[5:-1], self.COP.Yfilt[5:-1])
+        # cc.comp_XY(t[5:-1], 1.25)
+        # cc.comp_ellipse()
+        # print(cc.metrics())
+        print(cc.diff_metric())
 
 
 test = sim_COP()

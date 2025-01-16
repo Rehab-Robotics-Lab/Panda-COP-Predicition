@@ -1,5 +1,6 @@
 from Inv_dynamics import inv_dynamics
 from ProcessCOP import processCOP
+from CompareCOP import compareCOP
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -10,9 +11,9 @@ class sim_COP:
     # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
     def __init__(self):
 
-        robofile = pd.read_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\rot_302.csv")
+        robofile = pd.read_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\rot_301.csv")
         # LOADING FILE WITH COP VALUES
-        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\cop_rot_302.csv"
+        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\cop_rot_301.csv"
         self.rate = 60
         # cop object
         self.COP = processCOP(cop_file, self.rate)
@@ -148,16 +149,16 @@ class sim_COP:
         X_calc = np.zeros_like(a)
         Y_calc = np.zeros_like(a)
 
-        ##side bending
-        # X_calc = l / 2 * np.sin(side)
-        # Y_calc = (l / 2 * np.cos(side)) - (l / 2)
+        # side bending
+        # X_calc = l / 2 * np.sin(side / 2)
+        # Y_calc = (l / 2 * np.cos(side / 2)) - (l / 2)
 
         X_calc = X_calc * 1000
         Y_calc = Y_calc * 1000
 
         Fn = g * M * np.ones_like(X_calc)
 
-        # plt.plot(Fn.T)
+        # plt.plot(Y_calc)
         # plt.show()
         # exit()
 
@@ -188,9 +189,9 @@ class sim_COP:
         X_calc = dx
         Y_calc = np.zeros_like(X_calc)
 
-        ##side bending
-        # X_calc = l / 2 * np.sin(side)
-        # Y_calc = (l / 2) - (l / 2 * np.cos(side))
+        # side bending
+        # X_calc = l / 2 * np.sin(side / 2)
+        # Y_calc = (l / 2) - (l / 2 * np.cos(side / 2))
 
         # print(T3x)
 
@@ -199,7 +200,7 @@ class sim_COP:
 
         Fn = g * M * np.ones_like(X_calc)
 
-        # plt.plot(Fn.T)
+        # plt.plot(Y_calc)
         # plt.show()
         # exit()
 
@@ -217,8 +218,8 @@ class sim_COP:
         # reshaping to make sure all dimenesions are [1,n]
         # self.Xcalc = X_up
         # self.Ycalc = Y_low
-        self.Xcalc = (np.multiply(X_low, Fn_low) + np.multiply(X_up, Fn_up)) / (Fn_up + Fn_low)
 
+        self.Xcalc = (np.multiply(X_low, Fn_low) + np.multiply(X_up, Fn_up)) / (Fn_up + Fn_low)
         self.Ycalc = (np.multiply(Y_low, Fn_low) + np.multiply(Y_up, Fn_up)) / (Fn_up + Fn_low)
 
     def compare_T(self):
@@ -264,31 +265,13 @@ class sim_COP:
         plt.show()
 
     def compare_COP(self):
-        n = len(self.robot_t)
-
-        t = np.asarray(self.robot_t).reshape(n, 1)
-
-        X, Y = self.COP.Xfilt, self.COP.Yfilt
-        t_c = np.linspace(0, (len(X) - 1) / self.rate, num=len(X))
-
-        # print(np.max(self.Xcalc) - np.min(self.Xcalc))
-        # print(np.max(self.Ycalc) - np.min(self.Ycalc))
-
-        Xcalc = self.Xcalc
-        Ycalc = self.Ycalc
-
-        plt.subplot(2, 1, 1)
-        plt.plot(t_c + t[0], X - np.mean(X))
-        plt.plot(t, Xcalc - np.mean(Xcalc))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("X COP")
-
-        plt.subplot(2, 1, 2)
-        plt.plot(t_c + t[0], Y - np.mean(Y))
-        plt.plot(t, Ycalc - np.mean(Ycalc))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("Y COP")
-        plt.show()
+        cc = compareCOP(
+            np.asarray(self.Xcalc[5:-1]), np.asarray(self.Ycalc[5:-1]), self.COP.Xfilt[5:-1], self.COP.Yfilt[5:-1]
+        )
+        cc.comp_XY(self.robot_t[5:-1])
+        # cc.comp_ellipse()
+        # print(cc.metrics())
+        print(cc.diff_metric())
 
 
 test = sim_COP()
