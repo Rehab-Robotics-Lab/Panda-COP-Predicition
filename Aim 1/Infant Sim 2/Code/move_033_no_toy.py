@@ -29,9 +29,6 @@ LEN_PRESENT_LOAD = 2
 ADDR_PRESENT_POSITION = 132
 LEN_PRESENT_POSITION = 4
 
-ADDR_PRESENT_LOAD = 126
-LEN_PRESENT_LOAD = 2
-
 ADDR_PRESENT_VELOCITY = 128
 LEN_PRESENT_VELOCITY = 4
 
@@ -69,11 +66,17 @@ def checkError(dxl_comm_result, dxl_error):
 ### @return <bool> - true if data was successfully written; false otherwise
 def itemWrite(id, address, data, length):
     if length == 1:
-        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, id, address, data)
+        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
+            portHandler, id, address, data
+        )
     elif length == 2:
-        dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, id, address, data)
+        dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
+            portHandler, id, address, data
+        )
     elif length == 4:
-        dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, id, address, data)
+        dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(
+            portHandler, id, address, data
+        )
     else:
         print("Invalid data length...")
         return False
@@ -109,13 +112,19 @@ def itemWriteMultiple(ids, address, data, length):
 ### @details - DynamixelSDK uses 2's complement so we need to check to see if 'state' should be negative (hex numbers)
 def itemRead(id, address, length):
     if length == 1:
-        state, dxl_comm_result, dxl_error = packetHandler.read1ByteTxRx(portHandler, id, address)
+        state, dxl_comm_result, dxl_error = packetHandler.read1ByteTxRx(
+            portHandler, id, address
+        )
     elif length == 2:
-        state, dxl_comm_result, dxl_error = packetHandler.read2ByteTxRx(portHandler, id, address)
+        state, dxl_comm_result, dxl_error = packetHandler.read2ByteTxRx(
+            portHandler, id, address
+        )
         if state > 0x7FFF:
             state = state - 65536
     elif length == 4:
-        state, dxl_comm_result, dxl_error = packetHandler.read4ByteTxRx(portHandler, id, address)
+        state, dxl_comm_result, dxl_error = packetHandler.read4ByteTxRx(
+            portHandler, id, address
+        )
         if state > 0x7FFFFFFF:
             state = state - 4294967296
     else:
@@ -164,7 +173,9 @@ def bulkWrite(ids, commands):
     for i in range(len(ids)):
         # Add Dynamixel#1 goal position value to the Bulkwrite parameter storage
         ID = ids[i]
-        dxl_addparam_result = groupBulkWrite.addParam(ID, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position[i])
+        dxl_addparam_result = groupBulkWrite.addParam(
+            ID, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position[i]
+        )
         if dxl_addparam_result != True:
             print("[ID:%03d] groupBulkWrite addparam failed" % ID)
             quit()
@@ -256,12 +267,12 @@ def home_limbs(ids):
     zero_positions, success = position_status(ids)
     # home_angles = PWM2angle(home_positions)
     # print("Homing Limbs")
-    air_positions = [0]
+    air_positions = [0, 0, 0, 0]
     # for pos in home_positions:
     #     pos = pos + angle2PWM(40)
     print("Homing Limbs")
-    goal = angle2PWM([20])
-    for i in range(len(goal)):
+    goal = angle2PWM([20, 20, 20, 20])
+    for i in range(4):
         air_positions[i] = zero_positions[i] + goal[i]
 
     # bulkWrite(ids, air_positions)
@@ -270,29 +281,25 @@ def home_limbs(ids):
 
 
 def home_trunk(ids):
-    zero_positions, success = position_status(ids)
-
-    return zero_positions
+    home_positions = angle2PWM([180] * len(ids))
+    print("Homing Trunk")
+    bulkWrite(ids, home_positions)
 
 
 def move_limbs(home, ids, goal_angle):
     goal = [0, 0, 0, 0]
-    print(len(ids))
-
     for i in range(len(ids)):
         goal[i] = angle2PWM(goal_angle[i]) + home[i]
-
-    # goal = angle2PWM(goal_angle) + home
     bulkWrite(ids, goal)
 
 
-def side_bending(home, ids, goal_angle):
+def side_bending(ids, goal_angle):
     gear_ratio = 30 / 20
 
     goal_angle = goal_angle * gear_ratio
 
-    angle1 = home[0] + angle2PWM(goal_angle)
-    angle2 = home[1] - angle2PWM(goal_angle)
+    angle1 = angle2PWM(180) + angle2PWM(goal_angle)
+    angle2 = angle2PWM(180) - angle2PWM(goal_angle)
 
     goal = [angle1, angle2]
 
@@ -301,45 +308,21 @@ def side_bending(home, ids, goal_angle):
     # return goal_angle
 
 
-def rotation(home, ids, goal_angle):
+def rotation(ids, goal_angle):
     gear_ratio = 30 / 20
 
     goal_angle = goal_angle * gear_ratio
 
-    angle1 = home[0] + angle2PWM(goal_angle)
-    angle2 = home[1] + angle2PWM(goal_angle)
+    present_position = angle2PWM(np.ones([len(ids)]).astype(int) * 180)
+
+    angle1 = angle2PWM(180) + angle2PWM(goal_angle)
+    angle2 = angle2PWM(180) + angle2PWM(goal_angle)
 
     goal = [angle1, angle2]
 
     bulkWrite(ids, goal)
 
     # return goal_angle
-
-
-def trunk_angle_side(home, angle1, angle2):
-    gear_ratio = 30 / 20
-
-    ang1 = PWM2angle(angle1 - home[0]) / gear_ratio
-    ang2 = PWM2angle(angle2 + home[1]) / gear_ratio
-
-    # angle = (ang1 + ang2) / 2
-
-    # print(ang1, ang2, angle)
-
-    return ang1
-
-
-def trunk_angle_rot(home, angle1, angle2):
-    gear_ratio = 30 / 20
-
-    ang1 = PWM2angle(angle1 - home[0]) / gear_ratio
-    ang2 = PWM2angle(angle2 - home[1]) / gear_ratio
-
-    angle = (ang1 + ang2) / 2
-
-    # print(ang1, ang2, angle)
-
-    return angle
 
 
 def moving_status(ids):
@@ -356,26 +339,6 @@ def position_status(ids):
     return positions, success
 
 
-def velocity_status(ids):
-    ## Read current arm joint positions
-    velocity, success = bulkRead(ids, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY)
-
-    return velocity, success
-
-
-def load_status(ids):
-    ## Read current arm joint positions
-    load, success = bulkRead(ids, ADDR_PRESENT_LOAD, LEN_PRESENT_LOAD)
-    # velocity, success = bulkRead(ids, ADDR_PRESENT_VELOCITY, LEN_PRESENT_VELOCITY)
-    # max_curr = 1.3
-    # min_curr = 0.04
-
-    # curr = ((load[0] / 1000) * (max_curr - min_curr)) + min_curr
-    # torque = (load[0] - 0.12) * 0.12
-
-    return load, success
-
-
 def main():
     ## Motor IDs
     r_leg = 4
@@ -386,16 +349,20 @@ def main():
     # IDs for differential motors and drive modes
     diff_id = [65, 66]
     diff_modes = [4, 4]
-    diff_op_modes = [4, 4]
 
     # IDs for limb motors and drive modes
-    # limb_ids = [l_arm, r_arm, l_leg, r_leg]
-    # limb_modes = [5, 4, 5, 4]
-    # limb_op_modes = [4, 4, 4, 4]
+    # limb_ids = [l_arm, r_arm, r_leg, l_leg]
+    # limb_modes = [5, 4, 4, 5]
+    limb_ids = [l_arm, r_arm, l_leg, r_leg]
+    limb_modes = [5, 4, 5, 4]
+    limb_op_modes = [4, 4, 4, 4]
 
     # Drive modes
-    all_ids = diff_id
-    drive_modes = diff_modes
+    all_ids = limb_ids + diff_id
+    drive_modes = limb_modes + diff_modes
+
+    # Initial value for differential
+    previous_angle = 0
 
     ## Initialize the port, ping the motors, and create syncWrite and syncRead objects
     ## It's faster and better design to read/write motors with the 'sync' objects than to command each motor sequentially
@@ -418,7 +385,7 @@ def main():
 
     ## setting profile velocity and acceleration
     # calauclate (t1+t3) for each movement and profile accelartion/velocity is calculated
-    t = 1
+    t = 2
     pV = int(t * 0.5 * 1000)
     pA = int(pV * 0.5)
 
@@ -426,7 +393,7 @@ def main():
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     print("zero the limbs")
     time.sleep(5)
-    itemWriteMultiple(diff_id, ADDR_OPERATING_MODE, diff_op_modes, LEN_OPERATING_MODE)
+    itemWriteMultiple(limb_ids, ADDR_OPERATING_MODE, limb_op_modes, LEN_OPERATING_MODE)
     itemWriteMultiple(all_ids, ADDR_DRIVE_MODE, drive_modes, LEN_DRIVE_MODE)
     itemWriteMultiple(all_ids, ADDR_PROFILE_VELOCITY, pV, LEN_PROFILE_VELOCITY)
     itemWriteMultiple(all_ids, ADDR_PROFILE_ACCELERATION, pA, LEN_PROFILE_ACCELERATION)
@@ -434,121 +401,247 @@ def main():
 
     ## Home all motors at the start
 
+    home_trunk(diff_id)
     # itemWriteMultiple(diff_id, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
-    home_pos = home_trunk(diff_id)
+    home_pos = home_limbs(limb_ids)
 
-    time.sleep(3)
-    print("start recording")
-
-    time.sleep(2)
-    start_time = time.time()
+    time.sleep(5)
+    print("Hit record")
+    time.sleep(5)
 
     output = []
+    start_time = time.time()
 
     # itemWriteMultiple([limb_ids], ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     print("Starting")
-    aa = 45
-    angs_101 = [
-        0,
-        20,
-        aa,
-        20,
-        0,
-        -20,
-        -aa,
-        -20,
-        0,
-    ]
 
-    angs_102 = [
-        0,
-        aa,
-        0,
-        -aa,
-        0,
-        aa,
-        0,
-        -aa,
-        0,
-    ]
+    ## limbs + trunk
 
-    angs_103 = [
-        10,
-        160,
-        10,
-        160,
-        10,
-        160,
-        10,
-        160,
-        10,
-    ]
+    # 0-5s
+    print("0-5s")
+    move_limbs(home_pos, limb_ids, [180, 180, 0, 0])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [0, 0, 120, 0])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [0, 0, 120, 0])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [0, 0, 120, 0])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
+    time.sleep(0.7)
 
-    angs_104 = [
-        10,
-        180,
-        40,
-        150,
-        30,
-        170,
-        20,
-        210,
-        50,
-    ]
+    # 6-10s
+    print("6-10s")
+    move_limbs(home_pos, limb_ids, [90, 0, 0, 0])
+    time.sleep(4)
+    move_limbs(home_pos, limb_ids, [0, 90, 0, 0])
+    time.sleep(0.7)
 
-    name = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\rot_402.csv"
+    # 11-15s
+    print("11-15s")
+    move_limbs(home_pos, limb_ids, [0, 0, 60, 60])
+    time.sleep(4)
 
-    for k in range(len(angs_102)):
+    # 15-20s
+    print("16-20s")
+    move_limbs(home_pos, limb_ids, [0, 0, 0, 60])
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [0, 0, 0, 0])
+    time.sleep(1)
 
-        ## limb_ids = [l_arm, r_arm, l_leg, r_leg]
-        rotation(home_pos, diff_id, angs_102[k])
-        # side_bending(home_pos, diff_id, angs_102[k])
-        # print(angs_101[k])
-        # time.sleep(0.2)
-
-        for j in range(60):
-            # while limb_pos != angle2PWM(angles[i]):
-            trunk_pos, trunk_pos_success = position_status(diff_id)
-            trunk_vel, trunk_vel_success = velocity_status(diff_id)
-            trunk_load, trunk_load_success = load_status(diff_id)
-            # limb_pos = home_pos
-            # limb_pos_success = True
-            # print(limb_load)
-
-            print(trunk_angle_side(home_pos, trunk_pos[0], trunk_pos[1]))
-
-            if all([trunk_pos_success, trunk_load_success, trunk_vel_success]):
-                current = [
-                    # 120,
-                    time.time() - start_time,
-                    trunk_angle_rot(home_pos, trunk_pos[0], trunk_pos[1]),
-                    -trunk_angle_side(home_pos, trunk_pos[0], trunk_pos[1]),
-                    trunk_load[0],
-                    trunk_load[1],
-                ]
-
-                # print(len(now))
-
-                output.append(current)
-
-        time.sleep(1)
-
+    # 21-25s
+    print("21-25s")
+    # side_bending(diff_id, 35)
+    time.sleep(0.7)
+    # rotation(diff_id, 45)
+    move_limbs(home_pos, limb_ids, [180, 180, 10, 10])
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [180, 180, 120, 120])
     time.sleep(2)
 
-    output = np.asarray(output)
+    # 25-30s
+    print("25-30s")
+    move_limbs(home_pos, limb_ids, [90, 90, 120, 120])
+    time.sleep(2)
+    # side_bending(diff_id, 0)
+    time.sleep(0.7)
+    # rotation(diff_id, 0)
+    time.sleep(2)
 
-    Head = [
-        # "angle",
-        "time",
-        "rotation",
-        "side_bend",
-        "load1",
-        "load2",
-    ]
+    # 30-35s
+    print("31-35s")
+    move_limbs(home_pos, limb_ids, [0, 0, 60, 60])
+    # side_bending(diff_id, -35)
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [90, 90, 0, 0])
+    # side_bending(diff_id, 0)
+    time.sleep(2)
 
-    DF = pd.DataFrame(output, columns=Head)
-    print(DF)
-    DF.to_csv(name)
+    # 35-40s
+    print("36-40s")
+    move_limbs(home_pos, limb_ids, [0, 0, 60, 60])
+    time.sleep(3)
+    move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
+    time.sleep(2)
+
+    # 41-45s
+    print("41-45s")
+    move_limbs(home_pos, limb_ids, [90, 90, 0, 0])
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [90, 90, 120, 120])
+    # side_bending(diff_id, 35)
+    time.sleep(0.7)
+    # rotation(diff_id, 45)
+    time.sleep(1)
+
+    # 46-50s
+    print("46-50s")
+    # side_bending(diff_id, 0)
+    time.sleep(0.7)
+    # rotation(diff_id, 0)
+    move_limbs(home_pos, limb_ids, [180, 180, 0, 0])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [90, 180, 120, 120])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [90, 90, 60, 60])
+    time.sleep(0.7)
+    move_limbs(home_pos, limb_ids, [90, 90, 60, 120])
+    time.sleep(0.7)
+
+    # 50-55s
+    print("51-55s")
+    move_limbs(home_pos, limb_ids, [90, 0, 60, 0])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [90, 0, 60, 120])
+    # side_bending(diff_id, -35)
+    time.sleep(0.7)
+    # rotation(diff_id, -45)
+    time.sleep(1)
+    # side_bending(diff_id, 0)
+    time.sleep(0.7)
+    # rotation(diff_id, 0)
+    move_limbs(home_pos, limb_ids, [0, 90, 60, 60])
+    time.sleep(1)
+
+    # 56-60s
+    print("56-60s")
+    move_limbs(home_pos, limb_ids, [0, 90, 0, 0])
+    # side_bending(diff_id, 35)
+    time.sleep(2)
+    # side_bending(diff_id, 0)
+    time.sleep(2)
+
+    # 61-66s
+    print("61-66s")
+    move_limbs(home_pos, limb_ids, [90, 90, 120, 120])
+    time.sleep(1)
+    move_limbs(home_pos, limb_ids, [90, 180, 0, 60])
+    time.sleep(2)
+    move_limbs(home_pos, limb_ids, [90, 90, 120, 120])
+    time.sleep(2)
+
+    print("done")
+
+    # for i in range(10):
+
+    #     ##limbs
+    #     rotation(diff_id, -45)
+    #     time.sleep(0.5)
+    #     rotation(diff_id, 0)
+    #     time.sleep(0.5)
+    #     rotation(diff_id, 45)
+    #     time.sleep(0.5)
+    #     rotation(diff_id, 0)
+    #     time.sleep(0.5)
+
+    ##trunk
+
+    # move_limbs(home_pos, limb_ids, [0, 0, 0, 0])
+    # time.sleep(0.7)
+    # move_limbs(home_pos, limb_ids, [0, 0, 120, 120])
+
+    ## limbs + trunk
+    # side_bending(diff_id, -35)
+    # move_limbs(home_pos, limb_ids, [120, 120, 120, 0])
+    # time.sleep(1)
+    # side_bending(diff_id, 0)
+    # move_limbs(home_pos, limb_ids, [50, 50, 50, 0])
+    # time.sleep(1)
+    # side_bending(diff_id, 35)
+    # time.sleep(1)
+    # side_bending(diff_id, 0)
+    # time.sleep(0.5)
+
+    # print(i + 1)
+
+    # for j in range(20):
+    #     limb_pos, limb_pos_success = position_status(limb_ids)
+    #     # limb_pos = home_pos
+    #     # limb_pos_success = True
+    #     # print(limb_pos)
+    #     trunk_pos, trunk_pos_success = position_status(diff_id)
+    #     # limb_status,limb_status_success = moving_status(limb_ids)
+    #     # trunk_status,tunk_status_success = moving_status(diff_id)
+    #     if all([limb_pos_success, trunk_pos_success]):
+    #         current = [
+    #             # 120,
+    #             time.time() - start_time,
+    #             limb_pos[0] - home_pos[0],
+    #             limb_pos[1] - home_pos[1],
+    #             limb_pos[2] - home_pos[2],
+    #             limb_pos[3] - home_pos[3],
+    #             trunk_pos[0],
+    #             trunk_pos[1],
+    #             # limb_vel[0],
+    #             # limb_vel[1],
+    #             # limb_vel[2],
+    #             # limb_vel[3],
+    #             # trunk_vel[0],
+    #             # trunk_vel[1],
+    #             # int(limb_status),
+    #             # int(trunk_status),
+    #         ]
+
+    #         # print(len(now))
+
+    #         output.append(current)
+
+    # time.sleep(2)
+
+    # output = np.asarray(output)
+
+    # Head = [
+    #     # "angle",
+    #     "time",
+    #     "limb 1 psoition",
+    #     "limb 2 psoition",
+    #     "limb 3 psoition",
+    #     "limb 4 psoition",
+    #     "trunk 1 psoition",
+    #     "trunk 2 psoition",
+    #     # "limb 1 velcoity",
+    #     # "limb 2 velcoity",
+    #     # "limb 3 velcoity",
+    #     # "limb 4 velcoity",
+    #     # "trunk 1 velcoity",
+    #     # "trunk 2 velcoity",
+    #     # "limb moving",
+    #     # "trunk moving",
+    # ]
+
+    # DF = pd.DataFrame(output, columns=Head)
+    # # print(DF)
+    # # path=r'C:\Users\franc\Documents\Infant_Sim_data\'
+    # print(DF)
+    # DF.to_csv(r"C:\Users\franc\Documents\Infant_Sim_data\motor\rotation_45_x10_2s.csv")
 
     itemWriteMultiple(all_ids, ADDR_TORQUE_ENABLE, 0, LEN_TORQUE_ENABLE)
     portHandler.closePort()

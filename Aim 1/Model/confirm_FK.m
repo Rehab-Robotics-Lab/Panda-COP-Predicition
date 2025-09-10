@@ -1,0 +1,235 @@
+theta1=0;
+theta2=0;
+theta3=0;
+theta4=0;
+
+l_up=.2;
+l_low=.24;
+
+
+robot = rigidBodyTree;
+
+body1 = rigidBody('body1');
+jnt1 = rigidBodyJoint('jnt1','revolute');
+T01=TI(0 , pi/2, 0, deg2rad(theta1)+pi/2);
+[R1,P1]=RP(T01);
+setFixedTransform(jnt1,T01);
+body1.Joint = jnt1;
+addBody(robot,body1,'base')
+
+body2 = rigidBody('body2');
+jnt2 = rigidBodyJoint('jnt2','revolute');
+T12=TI(0, pi/2 , 0, deg2rad(theta2)+(3*pi/2));
+[R2,P2]=RP(T12);
+setFixedTransform(jnt2,T12);
+body2.Joint = jnt2;
+addBody(robot,body2,'body1')
+
+body3 = rigidBody('body3');
+jnt3 = rigidBodyJoint('jnt3','revolute');
+T23=TI(0, -pi/2, 0, pi+deg2rad(theta3));
+[R3,P3]=RP(T23);
+setFixedTransform(jnt3,T23);
+body3.Joint = jnt3;
+addBody(robot,body3,'body2')
+
+% body4 = rigidBody('body4');
+% jnt4 = rigidBodyJoint('jnt4','revolute');
+% T34=TI(l_up, pi/2 , 0, deg2rad(theta4));
+% [R4,P4]=RP(T34);
+% setFixedTransform(jnt4,T34);
+% body4.Joint = jnt4;
+% addBody(robot,body4,'body3')
+% 
+% body5 = rigidBody('body5');
+% jnt5 = rigidBodyJoint('jnt5','revolute');
+% T45=TI(l_low, 0 , 0, 0);
+% [R5,P5]=RP(T45);
+% setFixedTransform(jnt5,T45);
+% body5.Joint = jnt5;
+% addBody(robot,body5,'body4')
+
+
+q = homeConfiguration(robot);
+t_01=getTransform(robot,q, 'body3','body1');
+p_01=t_01(1:3,4);
+t_02=getTransform(robot,q, 'body3','body2');
+p_02=t_02(1:3,4);
+
+
+show(robot);
+% gui = interactiveRigidBodyTree(robot,"MarkerScaleFactor",0.25);
+
+
+
+% Ti(alpha0, ai, di, thetai)
+% function T=TI(alpha0, ai, di, thetai)
+%     T=[cos(thetai), -sin(thetai)*cos(alpha0), sin(thetai)*sin(alpha0), ai*cos(thetai);
+%        sin(thetai), cos(thetai)*cos(alpha0), -cos(thetai)*sin(alpha0), -ai*sin(thetai);
+%        0, sin(alpha0),  cos(alpha0), di;
+%        0,0,0,1];
+% end
+
+%% 
+syms thet1 
+thet1=rad2deg(thet1);
+% syms thet2 
+% syms thet3 
+syms Xb Yb Zb
+syms Xh Yh Zh
+
+syms L1
+% L1=0;
+
+alph1=90;
+alph2=90;
+alph3=-90;
+
+% alph1=deg2rad(alph1);
+% alph2=deg2rad(alph2);
+% alph3=deg2rad(alph3);
+
+thet2=90;
+thet3=0;
+
+
+% thet2=rad2deg(thet2);
+% thet3=rad2deg(thet3);
+
+% thet1=90;
+% thet3=90;
+
+% T01=TI(0 , pi/2, 0, (thet1)+pi/2);
+% T12=TI(0, pi/2 , 0, (thet2)+(3*pi/2));
+% T23=TI(0, -pi/2, 0, pi+thet3);
+% T3h=TI(l1, 0, 0, 0);
+
+% TB1=TI(0 , alph1, 0, (thet1+90));
+% T12=TI(0, alph2 , 0, (thet2+270));
+% T23=TI(0, alph3, 0, (thet3+180));
+% T3h=TI(-L1, 0, 0, 0);
+
+TB1=TI(0 , alph1, 0, (thet1));
+T12=TI(0, alph2 , 0, (thet2));
+T23=TI(0, alph3, 0, (thet3));
+T3h=TI(-L1, 0, 0, 0);
+
+TBh=T3h*T23*T12*TB1;
+
+
+%% m[k
+
+syms Xb Yb Zb
+syms Xh Yh Zh
+syms thet1 thet2 thet3
+
+syms L1
+
+
+r11=(Si(1)*Si(2)*Si(3))+(Co(1)*Co(3));
+r12=(Si(1)*Si(2)*Co(3))-(Co(1)*Co(3));
+r13=Si(1)*Co(2);
+
+r21=Co(2)*Si(3);
+r22=Co(2)*Co(3);
+r23= -Si(2);
+
+r31=(Co(1)*Si(2)*Si(3))-(Si(1)*Co(3));
+r32=(Co(1)*Si(2)*Co(3))+(Si(1)*Si(3));
+r33=Co(1)*Co(2);
+
+
+% syms c1 c2 c3
+% syms s1 s2 s3
+% 
+% syms L1
+% 
+% 
+% r11=(s1*s2*s3)+(c1*c3);
+% r12=(s1*s2*c3)-(c1*c3);
+% r13=s1*c2;
+% 
+% r21=c2*s3;
+% r22=c2*c3;
+% r23= -s2;
+% 
+% r31=(c1*s2*s3)-(s1*c3);
+% r32=(c1*s2*c3)+(s1*s3);
+% r33=c1*c2;
+
+
+% x11=Xb+Xh;
+% y11=Yb-Yh;
+% z11=Zb-Zh;
+syms x11 y11 z11
+
+
+
+RBh=[r11, r12, r13; r21, r22, r23; r31, r32, r33];
+TBh=[r11, r12, r13, x11; r21, r22, r23, y11; r31, r32, r33, z11; 0,0,0,1];
+
+vec=[Xb;Yb;Zb;1];
+
+vec_new=TBh*vec;
+
+% syms thet2 
+% syms thet3 
+
+
+eqn=vec_new==[Xh;Yh;Zh;1]
+
+S=solve(eqn,[thet1, thet2, thet3])
+
+
+function c=Co(i)
+    % syms thet1 thet2 thet3
+    syms thet1 thet2 thet3
+
+    if i==1
+        c=cos(thet1);
+    elseif i==2
+        c=cos(thet2);
+    elseif i==3
+        c=cos(thet3);
+    end
+
+end
+
+function c=Si(i)
+    % syms thet1 thet2 thet3
+    syms thet1 thet2 thet3
+
+    if i==1
+        c=sin(thet1);
+    elseif i==2
+        c=sin(thet2);
+    elseif i==3
+        c=sin(thet3);
+    end
+
+end
+
+
+function T=TI(ai, alpha0, di, thetai)
+    T=[cosd(thetai), -sind(thetai), 0, ai;
+       sind(thetai)*cosd(alpha0), cosd(thetai)*cosd(alpha0), -sind(alpha0), -di*sind(thetai);
+       sind(thetai)*sind(alpha0), cosd(thetai)*sind(alpha0), cosd(alpha0), di*cosd(thetai);
+       0,0,0,1];
+
+end
+
+% function T=TI(ai, alpha0, di, thetai)
+%     T=[cos(thetai), -sin(thetai), 0, ai;
+%        sin(thetai)*cos(alpha0), cos(thetai)*cos(alpha0), -sin(alpha0), -di*sin(thetai);
+%        sin(thetai)*sin(alpha0), cos(thetai)*sin(alpha0), cos(alpha0), di*cos(thetai);
+%        0,0,0,1];
+% 
+% end
+
+
+function [R,P]=RP(Ti)
+    P=Ti(1:3,4);
+    R=Ti(1:3,1:3);
+end
+
+
