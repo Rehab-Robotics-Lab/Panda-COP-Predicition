@@ -369,21 +369,24 @@ def main():
     limb_op_modes = [4, 4, 4, 4]
 
     # Drive modes
-    all_ids = limb_ids + diff_id
-    drive_modes = limb_modes + diff_modes
+    all_ids = limb_ids
+    drive_modes = limb_modes
 
     ## Initialize the port, ping the motors, and create syncWrite and syncRead objects
     ## It's faster and better design to read/write motors with the 'sync' objects than to command each motor sequentially
     ## Commanding each motor sequentially should only be done for 'non-realtime sensitive' registers - like torquing on/off, setting EEPROM registers, etc...
 
-    DEVICENAME = "com5"
+    DEVICENAME = "COM3"
     BAUDRATE = 57600
 
     if not initPort(DEVICENAME, BAUDRATE):
         return
+
     if not ping(all_ids):
         portHandler.closePort()
         return
+
+    print(3)
 
     global groupBulkWrite
     global groupBulkRead
@@ -436,12 +439,11 @@ def main():
         0,
         0,
         0,
+        90,
         0,
+        90,
         0,
-        0,
-        0,
-        0,
-        0,
+        90,
         0,
         0,
         0,
@@ -452,12 +454,6 @@ def main():
 
     rarm_angs = [
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
         90,
         0,
         90,
@@ -476,6 +472,11 @@ def main():
         0,
         0,
         0,
+        90,
+        0,
+        90,
+        0,
+        90,
     ]
 
     lleg_angs = [
@@ -486,6 +487,27 @@ def main():
         0,
         0,
         0,
+        110,
+        0,
+        110,
+        0,
+        110,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        110,
+        0,
+        110,
+        0,
+        110,
+    ]
+
+    rleg_angs = [
+        0,
         0,
         0,
         0,
@@ -498,6 +520,11 @@ def main():
         0,
         110,
         0,
+        110,
+        0,
+        110,
+        0,
+        110,
         0,
         0,
         0,
@@ -506,9 +533,9 @@ def main():
         0,
     ]
 
-    rleg_angs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 110, 0, 110, 0, 110, 0]
+    print(len(larm_angs), len(rarm_angs), len(lleg_angs), len(rleg_angs))
 
-    name = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\toy_feet.csv"
+    name = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\double_limb.csv"
 
     for k in range(25):
 

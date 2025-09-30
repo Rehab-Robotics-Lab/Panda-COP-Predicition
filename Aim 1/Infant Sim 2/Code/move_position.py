@@ -76,9 +76,7 @@ LEN_GOAL_POSITION = 4  # Data Byte Length
 ADDR_PRESENT_POSITION = 132
 LEN_PRESENT_POSITION = 4  # Data Byte Length
 DXL_MINIMUM_POSITION_VALUE = 0  # Refer to the Minimum Position Limit of product eManual
-DXL_MAXIMUM_POSITION_VALUE = (
-    4095  # Refer to the Maximum Position Limit of product eManual
-)
+DXL_MAXIMUM_POSITION_VALUE = 4095  # Refer to the Maximum Position Limit of product eManual
 ADDR_PROFILE_VELOCITY = 112
 LEN_GOAL_VELOCITY = 4
 BAUDRATE = 57600
@@ -128,32 +126,19 @@ motors = [65, 66]
 
 
 def angle_to_PWM(theta):
-    PWM = (
-        theta
-        * (
-            DXL_MAXIMUM_POSITION_VALUE * np.ones_like(theta)
-            - DXL_MINIMUM_POSITION_VALUE
-        )
-        / 360
-    ).astype(int)
+    PWM = (theta * (DXL_MAXIMUM_POSITION_VALUE * np.ones_like(theta) - DXL_MINIMUM_POSITION_VALUE) / 360).astype(int)
     return PWM
 
 
 def PWM_to_angle(PWM):
-    angle = (
-        PWM
-        * 360
-        / (DXL_MAXIMUM_POSITION_VALUE * np.ones_like(PWM) - DXL_MINIMUM_POSITION_VALUE)
-    ).astype(int)
+    angle = (PWM * 360 / (DXL_MAXIMUM_POSITION_VALUE * np.ones_like(PWM) - DXL_MINIMUM_POSITION_VALUE)).astype(int)
     return angle
 
 
 def enable_torque(DXL_ID):
     # Enable Dynamixel Torque
     for ID in DXL_ID:
-        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
-            portHandler, ID, ADDR_TORQUE_ENABLE, TORQUE_ENABLE
-        )
+        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, ID, ADDR_TORQUE_ENABLE, TORQUE_ENABLE)
         if dxl_comm_result != COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
@@ -162,9 +147,7 @@ def enable_torque(DXL_ID):
             print("Dynamixel#%d has been successfully connected" % ID)
 
         # Add parameter storage for Dynamixel#1 present position
-        dxl_addparam_result = groupBulkRead.addParam(
-            ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
-        )
+        dxl_addparam_result = groupBulkRead.addParam(ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
         if dxl_addparam_result != True:
             print("[ID:%03d] groupBulkRead addparam failed" % ID)
             quit()
@@ -173,9 +156,7 @@ def enable_torque(DXL_ID):
 def disable_torque(DXL_ID):
     # Disable Dynamixel Torque
     for ID in DXL_ID:
-        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
-            portHandler, ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE
-        )
+        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
         if dxl_comm_result != COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
@@ -215,9 +196,7 @@ def move(DXL_ID, dxl_goal_position):
         # Add Dynamixel#1 goal position value to the Bulkwrite parameter storage
         ID = motors[i]
         print(ID, param_goal_position[i])
-        dxl_addparam_result = groupBulkWrite.addParam(
-            ID, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position[i]
-        )
+        dxl_addparam_result = groupBulkWrite.addParam(ID, ADDR_GOAL_POSITION, LEN_GOAL_POSITION, param_goal_position[i])
         if dxl_addparam_result != True:
             print("[ID:%03d] groupBulkWrite addparam failed" % ID)
             quit()
@@ -241,24 +220,17 @@ def read(DXL_ID, dxl_goal_position):
 
         for ID in motors:
             # Check if groupbulkread data of Dynamixel#1 is available
-            dxl_getdata_result = groupBulkRead.isAvailable(
-                ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
-            )
+            dxl_getdata_result = groupBulkRead.isAvailable(ID, ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
             if dxl_getdata_result != True:
                 print("[ID:%03d] groupBulkRead getdata failed" % ID)
                 quit()
 
         for i in range(len(DXL_ID)):
-            dxl_present_position = groupBulkRead.getData(
-                motors[i], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION
-            )
+            dxl_present_position = groupBulkRead.getData(motors[i], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION)
             # print("[ID:%03d] Present Position : %d \t [ID:%03d] LED Value: %d" % (DXL_ID[i], dxl_present_position))
             # print(dxl_goal_position[i] ,dxl_present_position,abs(dxl_goal_position[i] - dxl_present_position))
             print(i + 1, PWM_to_angle(dxl_present_position))
-            if not (
-                abs(dxl_goal_position[i] - dxl_present_position)
-                > DXL_MOVING_STATUS_THRESHOLD
-            ):
+            if not (abs(dxl_goal_position[i] - dxl_present_position) > DXL_MOVING_STATUS_THRESHOLD):
                 break_flag = True
                 break
         # while 1:
@@ -394,7 +366,7 @@ while 1:
 
     prev_motor = angle_to_PWM(np.ones([len(motors)]).astype(int) * 180)
     print("PP ", prev_motor)
-    rotation (motors, 45, 0, prev_motor)
+    rotation(motors, 45, 0, prev_motor)
     read(motors, goal)
 
     # Change goal position
