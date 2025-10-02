@@ -110,6 +110,68 @@ class calibrate:
 
         return rot[loc], extrinsics[loc], self.intrinsics[loc]
 
+    def calibrate_extrinsics_chess(self, image, intrinsics, view=0):
+
+        cam_int = intrinsics
+
+        cv2.namedWindow("ProjectImage", cv2.WINDOW_NORMAL)
+
+        # print("INTRINSICS ", cam)
+        cameraMatrix = np.asmatrix(cam_int["Mat"])
+        distCoeffs = np.asarray(cam_int["Dist"])
+
+        # termination criteria
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+
+        # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+        objp = np.zeros((6 * 8, 3), np.float32)
+        objp[:, :2] = np.mgrid[0:8, 0:6].T.reshape(-1, 2)
+
+        # Arrays to store object points and image points from all the images.
+        objpoints = []  # 3d point in real world space
+        imgpoints = []  # 2d points in image plane.
+
+        img = image
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Find the chess board corners
+        ret, corners = cv2.findChessboardCorners(gray, (8, 6), None)
+
+        # If found, add object points, image points (after refining them)
+        if ret == True:
+            objpoints.append(objp)
+
+            corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+            imgpoints.append(corners2)
+
+            ProjectImage = cv2.drawChessboardCorners(img, (8, 6), corners2, ret)
+
+        # cv2.undistort(img, mtx, dist)
+
+        ret, mtx, dist, Rvec, Tvec = cv2.calibrateCamera(
+            objpoints, imgpoints, gray.shape[::-1], cameraMatrix=cameraMatrix, distCoeffs=distCoeffs
+        )
+
+        Rvec = Rvec[0]
+        Tvec = Tvec[0]
+
+        cam_ex = {"Rvec": Rvec, "Tvec": Tvec}
+        rerror = None
+
+        # print(rvecs, tvecs)
+
+        # ProjectImage = cv2.drawFrameAxes(ProjectImage, cameraMatrix, distCoeffs, rvec=rvecs, tvec=tvecs, length=0.2)
+
+        if view == 1:
+            cv2.imshow("ProjectImage", ProjectImage)
+            # print(cam_ex)
+
+            # Exit at the end of the video on the 'q' keypress
+            if cv2.waitKey(0) & 0xFF == ord("q"):
+                print("exiting")
+
+        return cam_ex, rerror
+
     def calibrate_extrinsics(self, image, intrinsics, view=0):
         ARUCO_PARAMETERS = self.ARUCO_PARAMETERS
         ARUCO_DICT = self.ARUCO_DICT
