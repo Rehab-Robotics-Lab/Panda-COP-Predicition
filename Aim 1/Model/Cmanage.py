@@ -183,7 +183,7 @@ class c_manage:
 
     # Function using ML model to detect when synch light is on or off in frame
     # option to rotate video to try object dectection for different results
-    def visual_synch(self, video, rotate, dur=5, disp=1):
+    def visual_synch(self, video, rotate, dur=10, disp=1):
 
         # retrieving model (location should be changed for different user)
         model = YOLO(r"C:\Users\franc\Documents\GitHub\Panda-COP-Predicition\Aim 1\Model\synch_detect.pt")
@@ -663,10 +663,9 @@ class c_manage:
             json.dump(self.extrinsics_final, outfile, default=self.json_serialize)
 
 
-# print(os.path.exists(r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 1\sim_trunk_cam1_vid3.mp4"))
-# print(os.path.exists(r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 1\sim_trunk_cam1_vid3.MP4"))
-
 # sim = c_manage(cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras", vid_name="sim_trunk")
+# nme = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 2\sim_trunk_cam2_vid5.MP4"
+# sim.manual_synch(nme, 140)
 # _, vid_names = sim.check_vids(4)
 # print(np.array(vid_names))
 # sim.start_stop(r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 1\sim_trunk_cam1_vid3.MP4")

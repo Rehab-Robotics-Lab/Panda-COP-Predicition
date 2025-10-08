@@ -422,8 +422,8 @@ class COP_Tag:
         else:
             R0, T0, R25, T25 = self.glob_pose(camnum, vidnum, name=name, load=1)[:4]
 
-        COM_0 = T0 + R0.apply(np.array([0, 0, -50]) / 1000)
-        COM_25 = T25 + R25.apply(np.array([0, 0, -60]) / 1000)
+        COM_0 = T0 + R0.apply(np.array([0, 0, -70]) / 1000)
+        COM_25 = T25 + R25.apply(np.array([0, 0, -70]) / 1000)
 
         COP_0 = COM_0[:, 0:2] * 1.564
         COP_25 = COM_25[:, 0:2] * 2.187
@@ -432,11 +432,35 @@ class COP_Tag:
 
         return COP * 1000
 
+    def pull_synch_time(self, cam_num, vid_num):
+        col_names = [
+            ["cam1_start", "cam1_stop"],
+            ["cam2_start", "cam2_stop"],
+            ["cam3_start", "cam3_stop"],
+            ["cam4_start", "cam4_stop"],
+            ["cam5_start", "cam5_stop"],
+            ["cam6_start", "cam6_stop"],
+            ["cam7_start", "cam7_stop"],
+        ]
+
+        df = pd.read_excel(r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\synchlight_time.xlsx")
+
+        # print(trial)
+
+        vid = df.loc[(df["vid"] == vid_num) & (df["name"] == self.trial_name)]
+
+        start = vid[col_names[cam_num - 1][0]].item()
+        stop = vid[col_names[cam_num - 1][1]].item()
+
+        return start, stop
+
     def comapre_COP(self, camnum, vidnum, file, name=None):
         COP = self.tag_COP(camnum, vidnum, name)
 
-        Xcalc = COP[int(2.5 * 60) :, 0]
-        Ycalc = COP[int(2.5 * 60) :, 1]
+        start, stop = tt.pull_synch_time(camnum, vidnum)
+
+        Xcalc = COP[start:, 0]
+        Ycalc = COP[start:, 1]
 
         order = 3
         fcut = 5
@@ -456,7 +480,7 @@ class COP_Tag:
 
         # fig, ax = plt.subplots(2, 1)
 
-        plt.subplot(2, 1, 1)
+        plt.subplot(3, 1, 1)
         plt.plot(Xreal - np.mean(Xreal))
         plt.plot(Xcalc - np.mean(Xcalc))
         plt.legend(["Grnd Trth", "Calculated"])
@@ -465,13 +489,20 @@ class COP_Tag:
         plt.ylabel("COP X (mm)")
         plt.grid()
 
-        plt.subplot(2, 1, 2)
+        plt.subplot(3, 1, 2)
         plt.plot(Yreal - np.mean(Yreal))
         plt.plot(Ycalc - np.mean(Ycalc))
         plt.legend(["Grnd Trth", "Calculated"])
         plt.title("Y COP")
         plt.xlabel("Time (s)")
         plt.ylabel("COP Y (mm)")
+        plt.grid()
+
+        plt.subplot(3, 1, 3)
+        plt.plot(COP_gc.Rfilt)
+        plt.title("Reaction")
+        plt.xlabel("Time (s)")
+        # plt.ylabel("COP Y (mm)")
         plt.grid()
 
         plt.tight_layout()
@@ -498,15 +529,16 @@ nme = (
     + "_tagpose.json"
 )
 
-# tt.comapre_COP(
-#     cnum, vnum, name=nme, file=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\sim_trunk_cop_vid4_rot.csv"
-# )
+
+tt.comapre_COP(
+    cnum, vnum, name=nme, file=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\sim_trunk_cop_vid4_rot.csv"
+)
 
 # tt.showtags_loop(cnum, vnum, name=nme)
 # tt.tag_COP(cnum, vnum, name=nme)
 # tt.get_pose(cnum, vnum, view=0)
 
 
-for vnum in [3, 4, 5]:
-    for cnum in [1, 2, 3, 4, 5, 7]:
-        tt.save_tagpose(cnum, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")
+# for vnum in [3, 4, 5]:
+#     for cnum in [1, 2, 3, 4, 5, 7]:
+#         tt.save_tagpose(cnum, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")
