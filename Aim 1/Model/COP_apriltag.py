@@ -33,7 +33,6 @@ class COP_Tag:
         self.calib_names, self.calib_status = calib_names, calib_status
         self.sim = sim
 
-    # def showtags(j,tv0,rv0,tv25,rv25):
     def showtags(self, j):
         plt.cla()
 
@@ -42,18 +41,18 @@ class COP_Tag:
         tv_25 = self.tv25_glob[j]
         rv_25 = self.rv25_glob[j]
 
-        self.ax = self.show_Ti(self.ax, np.array([0, 0, 0]), R.from_matrix(np.eye(3)), scale=0.2, ID="C")
-
-        self.ax = self.show_Ti(self.ax, self.tvec_glob.flatten(), self.rvec_glob, scale=0.2, ID="G")
-
         self.ax.plot3D([tv_0[0], tv_25[0]], [tv_0[1], tv_25[1]], [tv_0[2], tv_25[2]], "o")
 
         # print(self.tvec_glob.flatten()[2] - tv_0[2], self.tvec_glob.flatten()[2] - tv_25[2])
 
+        self.ax = self.show_Ti(self.ax, self.tvec_glob.flatten(), self.rvec_glob, scale=0.2, ID="G")
+        self.ax = self.show_Ti(self.ax, self.tvec_cam.flatten(), self.rvec_cam, scale=0.2, ID="C")
         self.ax = self.show_Ti(self.ax, tv_0, rv_0, ID=0)
+        # com = tv_0 + rv_0.apply(np.array([0.01, 0.01, -0.07]))
+        # self.ax = self.show_Ti(self.ax, com, rv_0, ID="m")
         self.ax = self.show_Ti(self.ax, tv_25, rv_25, ID=25)
 
-        s = "t= " + str(j / 60)
+        s = "t= " + str(round(j / 60, 2))
 
         self.ax.text(0.3, -0.4, 0, "%s" % (s), size=20, zorder=1, color="k")
 
@@ -66,13 +65,27 @@ class COP_Tag:
 
     def showtags_loop(self, camnum, vidnum, name=None):
         if name == None:
-            self.rv0_glob, self.tv0_glob, self.rv25_glob, self.tv25_glob, self.rvec_glob, self.tvec_glob = (
-                self.glob_pose(camnum, vidnum)
-            )
+            (
+                self.rv0_glob,
+                self.tv0_glob,
+                self.rv25_glob,
+                self.tv25_glob,
+                self.rvec_glob,
+                self.tvec_glob,
+                self.rvec_cam,
+                self.tvec_cam,
+            ) = self.glob_pose(camnum, vidnum)
         else:
-            self.rv0_glob, self.tv0_glob, self.rv25_glob, self.tv25_glob, self.rvec_glob, self.tvec_glob = (
-                self.glob_pose(camnum, vidnum, name=name, load=1)
-            )
+            (
+                self.rv0_glob,
+                self.tv0_glob,
+                self.rv25_glob,
+                self.tv25_glob,
+                self.rvec_glob,
+                self.tvec_glob,
+                self.rvec_cam,
+                self.tvec_cam,
+            ) = self.glob_pose(camnum, vidnum, name=name, load=1)
         print("Displaying Pose")
 
         self.fig = plt.figure()
@@ -118,6 +131,7 @@ class COP_Tag:
         # print(R_glob)
 
         R_orient = R.from_matrix(np.matrix([[1, 0, 0], [0, -1, 0], [0, 0, -1]]))
+
         # print(R_orient)
 
         R_glob_cor = R_glob * R_orient
@@ -140,19 +154,31 @@ class COP_Tag:
 
         print("Adjusting extrinsics")
 
-        rv0 = R.from_rotvec(np.array(rv0.to_list()))
+        Rc = R_glob_cor.inv()
+        Tc = Rc.apply(-tvec_glob.T)
+
+        rv0 = np.array(rv0.to_list())
+        rv0 = R.from_rotvec(rv0)
         tv0 = np.array(tv0.to_list())
-        rv25 = R.from_rotvec(np.array(rv25.to_list()))
+
+        rv25 = np.array(rv25.to_list())
+        rv25 = R.from_rotvec(rv25)
         tv25 = np.array(tv25.to_list())
+        # print(rv0)
 
-        rv0_glob = R_glob_cor.inv() * rv0
-        rv25_glob = R_glob_cor.inv() * rv25
+        R0 = R_glob_cor.inv() * rv0
+        R25 = R_glob_cor.inv() * rv25
+        # R0 = R_glob_cor.inv() * rv0.inv()
+        # R25 = R_glob_cor.inv() * rv25.inv()
 
-        tv0_glob = -tvec_glob.T + tv0
-        tv25_glob = -tvec_glob.T + tv25
+        T0 = Rc.apply(-tvec_glob.T + tv0)
+        T25 = Rc.apply(-tvec_glob.T + tv25)
 
-        # return rv0_glob, tv0_glob, rv25_glob, tv25_glob, R_glob_cor, tvec_glob
-        return rv0, tv0, rv25, tv25, R_glob_cor, tvec_glob
+        Rg = R.from_matrix(np.eye(3))
+        Tg = np.array([0, 0, 0])
+
+        return R0, T0, R25, T25, Rg, Tg, Rc, Tc
+        # return rv0, tv0, rv25, tv25, R_glob_cor, tvec_glob, R.from_matrix(np.eye(3)), np.array([0, 0, 0])
 
     def glob_extrinsics(self, camnum, view, chess=0):
         intrinsics = self.intrinsics["cam" + str(camnum)]
@@ -211,13 +237,27 @@ class COP_Tag:
                             {"ID": [ids[0, 0]], "tvec": [tvecs[:, 0]], "rvecs": [rvecs[:, 0]], "frame": [framenum]}
                         )
                     else:
-                        row0 = pd.DataFrame({"ID": [0], "tvec": [np.nan], "rvecs": [np.nan], "frame": [framenum]})
+                        row0 = pd.DataFrame(
+                            {
+                                "ID": [0],
+                                "tvec": [[0, 0, 0]],
+                                "rvecs": [[0, 0, 0]],
+                                "frame": [framenum],
+                            }
+                        )
                     if 25 in ids:
                         row25 = pd.DataFrame(
                             {"ID": [ids[1, 0]], "tvec": [tvecs[:, 1]], "rvecs": [rvecs[:, 1]], "frame": [framenum]}
                         )
                     else:
-                        row0 = pd.DataFrame({"ID": [25], "tvec": [np.nan], "rvecs": [np.nan], "frame": [framenum]})
+                        row0 = pd.DataFrame(
+                            {
+                                "ID": [25],
+                                "tvec": [[0, 0, 0]],
+                                "rvecs": [[0, 0, 0]],
+                                "frame": [framenum],
+                            }
+                        )
 
                     tag_pose = pd.concat([tag_pose, row0], ignore_index=True)
                     tag_pose = pd.concat([tag_pose, row25], ignore_index=True)
@@ -264,7 +304,6 @@ class COP_Tag:
 
         for j in range(len(ids)):
             corner = corners[j]
-            id = ids[j]
 
             # rvec,tvec,objpts=aruco.estimatePoseSingleMarkers(corner, markerlength, cameraMatrix, distCoeffs)
             objpts = np.array(
@@ -366,6 +405,23 @@ class COP_Tag:
 
         # print(self.intrinsics)
 
+    def tag_COP(self, camnum, vidnum, name=None):
+        if name == None:
+            R0, T0, R25, T25 = self.glob_pose(camnum, vidnum)[:4]
+        else:
+            R0, T0, R25, T25 = self.glob_pose(camnum, vidnum, name=name, load=1)[:4]
+
+        COM_0 = T0 + R0.apply(np.array([0, 0, -40]) / 1000)
+        COM_25 = T25 + R25.apply(np.array([0, 0, -40]) / 1000)
+
+        COP_0 = COM_0[:, 0:2] * 1.564
+        COP_25 = COM_25[:, 0:2] * 2.187
+
+        COP = COP_0 + COP_25
+        print(np.shape(COP))
+
+        # print(4)
+
 
 cnum = 3
 vnum = 3
@@ -373,9 +429,19 @@ vnum = 3
 tt = COP_Tag(cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras", name="sim_trunk", load=1)
 
 
-nme = tt.cam_dir + "\\" + tt.trial_name + "_" + "cam" + str(cnum) + "_" + "vid" + str(vnum) + "_tagpose.json"
+nme = (
+    r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose\\"
+    + tt.trial_name
+    + "_"
+    + "cam"
+    + str(cnum)
+    + "_"
+    + "vid"
+    + str(vnum)
+    + "_tagpose.json"
+)
 
-tt.showtags_loop(cnum, vnum, name=nme)
-# tt.showtags_loop(cnum, vnum)
+# tt.showtags_loop(cnum, vnum, name=nme)
+tt.tag_COP(cnum, vnum, name=nme)
 # tt.get_pose(cnum, vnum, view=0)
 # tt.save_tagpose(cnum, vnum)

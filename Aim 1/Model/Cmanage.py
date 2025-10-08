@@ -462,6 +462,67 @@ class c_manage:
         ]
         return tuple(color)
 
+    def tringulate(self, vid_num, delay=0):
+        stat, names = self.check_csvs(vid_num)
+
+        cams = np.array([1, 2, 3, 4, 5, 6, 7])
+
+        stat = stat.astype(bool)
+
+        available = cams[stat]
+        print(available)
+
+        fps = np.array([60, 60, 30, 30, 30, 30, 30])
+        skip = delay * fps[stat]
+
+        names = np.array(names)[stat]
+
+        starts = np.zeros_like(available)
+        stops = np.zeros_like(available)
+
+        for i in range(len(available)):
+            starts[i], stops[i] = self.pull_synch_time(available[i], vid_num)
+
+        if os.path.exists(self.cam_direct + "\\" + filename + "_intrinsics.json") and os.path.exists(
+            self.cam_direct + "\\" + filename + "_extrinsics.json"
+        ):
+            self.load_params()
+        else:
+            self.intrinsics_orientation(view=0)
+            self.save_params()
+        # intrinsics = self.intrinsics_final
+        # extrinsics = self.extrinsics_final
+
+        T = tringulatepose(
+            names=names,
+            cams=available,
+            start=starts + skip,
+            intrinsics=self.intrinsics_final,
+            extrinsics=self.extrinsics_final,
+        )
+
+        T.check_combos()
+        # T.trinagulate_all(1, 4)
+        # T.SBA()
+
+        names = np.array(self.name_4)[stat]
+        self.T = T
+        self.cams = available
+
+        #
+
+    def overlay_reproj(self, vid_num):
+
+        available = self.cams
+
+        # print(np.asarray(names))
+        # print(np.asarray(status))
+
+        for j in range(len(available)):
+            # idx = np.where(available == available[j])[0][0]
+            print(available[j], names[available[j] - 1])
+            self.T.overlay_pose(available[j], vidname=names[available[j] - 1], compare=1)
+
     # function to find orientation of video based on static calibration
     def intrinsics_orientation(self, names, status):
 
