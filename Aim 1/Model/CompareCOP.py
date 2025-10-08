@@ -5,8 +5,9 @@ from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
 import pandas as pd
 from scipy import constants
-from dtaidistance import dtw
-from dtaidistance import dtw_visualisation as dtwvis
+
+# from dtaidistance import dtw
+# from dtaidistance import dtw_visualisation as dtwvis
 
 
 class compareCOP:

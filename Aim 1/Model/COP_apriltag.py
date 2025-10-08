@@ -6,6 +6,9 @@ import numpy as np
 import datetime as dt
 from Cmanage import c_manage
 from Calibrate import calibrate
+import scipy
+from CompareCOP import compareCOP
+from ProcessCOP import processCOP
 from scipy.spatial.transform import Rotation as R
 import json
 import matplotlib.pyplot as plt
@@ -411,14 +414,60 @@ class COP_Tag:
         else:
             R0, T0, R25, T25 = self.glob_pose(camnum, vidnum, name=name, load=1)[:4]
 
-        COM_0 = T0 + R0.apply(np.array([0, 0, -40]) / 1000)
-        COM_25 = T25 + R25.apply(np.array([0, 0, -40]) / 1000)
+        COM_0 = T0 + R0.apply(np.array([0, 0, -70]) / 1000)
+        COM_25 = T25 + R25.apply(np.array([0, 0, -70]) / 1000)
 
         COP_0 = COM_0[:, 0:2] * 1.564
         COP_25 = COM_25[:, 0:2] * 2.187
 
         COP = COP_0 + COP_25
-        print(np.shape(COP))
+
+        return COP * 1000
+
+    def comapre_COP(self, camnum, vidnum, file, name=None):
+        COP = self.tag_COP(camnum, vidnum, name)
+
+        Xcalc = COP[int(5.5 * 60) :, 0]
+        Ycalc = COP[int(5.5 * 60) :, 1]
+
+        order = 3
+        fcut = 5
+
+        b, a = scipy.signal.butter(order, fcut, fs=60)
+
+        # Xcalc = signal.filtfilt(b, a, Xcalc)
+        # Ycalc = signal.filtfilt(b, a, Ycalc)
+        Xcalc = scipy.ndimage.median_filter(Xcalc, 15)
+        Ycalc = scipy.ndimage.median_filter(Ycalc, 15)
+
+        COP_gc = processCOP(file, 60)
+        Xreal = COP_gc.Xfilt
+        Yreal = COP_gc.Yfilt
+
+        # cc = compareCOP(COP_X, COP_Y, X_gc, Y_gc)
+
+        # fig, ax = plt.subplots(2, 1)
+
+        plt.subplot(2, 1, 1)
+        plt.plot(Xreal - np.mean(Xreal))
+        plt.plot(Xcalc - np.mean(Xcalc))
+        plt.legend(["Grnd Trth", "Calculated"])
+        plt.title("X COP")
+        plt.xlabel("Time (s)")
+        plt.ylabel("COP X (mm)")
+        plt.grid()
+
+        plt.subplot(2, 1, 2)
+        plt.plot(Yreal - np.mean(Yreal))
+        plt.plot(Ycalc - np.mean(Ycalc))
+        plt.legend(["Grnd Trth", "Calculated"])
+        plt.title("Y COP")
+        plt.xlabel("Time (s)")
+        plt.ylabel("COP Y (mm)")
+        plt.grid()
+
+        plt.tight_layout()
+        plt.show()
 
         # print(4)
 
@@ -441,7 +490,11 @@ nme = (
     + "_tagpose.json"
 )
 
+tt.comapre_COP(
+    cnum, vnum, name=nme, file=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\2025-6-11_2_28_Sim_flex_1_2_3.csv"
+)
+
 # tt.showtags_loop(cnum, vnum, name=nme)
-tt.tag_COP(cnum, vnum, name=nme)
+# tt.tag_COP(cnum, vnum, name=nme)
 # tt.get_pose(cnum, vnum, view=0)
 # tt.save_tagpose(cnum, vnum)
