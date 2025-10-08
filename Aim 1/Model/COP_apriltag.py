@@ -155,6 +155,14 @@ class COP_Tag:
         rv25 = tag25["rvecs"]
         tv25 = tag25["tvec"]
 
+        # f0 = tag0["frame"].to_numpy()
+        # f25 = tag25["frame"].to_numpy()
+
+        # print(max(f0), max(f25))
+
+        # df0 = np.diff(f0)
+        # df25 = np.diff(f25)
+
         print("Adjusting extrinsics")
 
         Rc = R_glob_cor.inv()
@@ -253,7 +261,7 @@ class COP_Tag:
                             {"ID": [ids[1, 0]], "tvec": [tvecs[:, 1]], "rvecs": [rvecs[:, 1]], "frame": [framenum]}
                         )
                     else:
-                        row0 = pd.DataFrame(
+                        row25 = pd.DataFrame(
                             {
                                 "ID": [25],
                                 "tvec": [[0, 0, 0]],
@@ -414,8 +422,8 @@ class COP_Tag:
         else:
             R0, T0, R25, T25 = self.glob_pose(camnum, vidnum, name=name, load=1)[:4]
 
-        COM_0 = T0 + R0.apply(np.array([0, 0, -70]) / 1000)
-        COM_25 = T25 + R25.apply(np.array([0, 0, -70]) / 1000)
+        COM_0 = T0 + R0.apply(np.array([0, 0, -50]) / 1000)
+        COM_25 = T25 + R25.apply(np.array([0, 0, -60]) / 1000)
 
         COP_0 = COM_0[:, 0:2] * 1.564
         COP_25 = COM_25[:, 0:2] * 2.187
@@ -427,8 +435,8 @@ class COP_Tag:
     def comapre_COP(self, camnum, vidnum, file, name=None):
         COP = self.tag_COP(camnum, vidnum, name)
 
-        Xcalc = COP[int(5.5 * 60) :, 0]
-        Ycalc = COP[int(5.5 * 60) :, 1]
+        Xcalc = COP[int(2.5 * 60) :, 0]
+        Ycalc = COP[int(2.5 * 60) :, 1]
 
         order = 3
         fcut = 5
@@ -473,7 +481,7 @@ class COP_Tag:
 
 
 cnum = 3
-vnum = 3
+vnum = 4
 
 tt = COP_Tag(cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras", name="sim_trunk", load=1)
 
@@ -490,11 +498,15 @@ nme = (
     + "_tagpose.json"
 )
 
-tt.comapre_COP(
-    cnum, vnum, name=nme, file=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\2025-6-11_2_28_Sim_flex_1_2_3.csv"
-)
+# tt.comapre_COP(
+#     cnum, vnum, name=nme, file=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\sim_trunk_cop_vid4_rot.csv"
+# )
 
 # tt.showtags_loop(cnum, vnum, name=nme)
 # tt.tag_COP(cnum, vnum, name=nme)
 # tt.get_pose(cnum, vnum, view=0)
-# tt.save_tagpose(cnum, vnum)
+
+
+for vnum in [3, 4, 5]:
+    for cnum in [1, 2, 3, 4, 5, 7]:
+        tt.save_tagpose(cnum, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")
