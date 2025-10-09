@@ -20,9 +20,6 @@ class calibrate:
         ARUCO_DICT = aruco.getPredefinedDictionary(aruco.DICT_APRILTAG_36h11)
         self.ARUCO_DICT = ARUCO_DICT
 
-        cv2.namedWindow("ProjectImage", cv2.WINDOW_NORMAL)
-        cv2.namedWindow("ArucoPts", cv2.WINDOW_NORMAL)
-
         # Create grid board object we're using in our stream
         self.aruco_board = aruco.GridBoard(
             (5, 7),
@@ -271,6 +268,9 @@ class calibrate:
         cam_ex = {"Rvec": Rvec, "Tvec": Tvec}
 
         if view == 1:
+            cv2.namedWindow("ProjectImage", cv2.WINDOW_NORMAL)
+            cv2.namedWindow("ArucoPts", cv2.WINDOW_NORMAL)
+
             cv2.imshow("ProjectImage", ProjectImage)
             cv2.imshow("ArucoPts", ArucoPts)
             # print(cam_ex)

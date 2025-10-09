@@ -51,8 +51,8 @@ class COP_Tag:
         self.ax = self.show_Ti(self.ax, self.tvec_glob.flatten(), self.rvec_glob, scale=0.2, ID="G")
         self.ax = self.show_Ti(self.ax, self.tvec_cam.flatten(), self.rvec_cam, scale=0.2, ID="C")
         self.ax = self.show_Ti(self.ax, tv_0, rv_0, ID=0)
-        # com = tv_0 + rv_0.apply(np.array([0.01, 0.01, -0.07]))
-        # self.ax = self.show_Ti(self.ax, com, rv_0, ID="m")
+        com = tv_25 + rv_25.apply(np.array([0, -10, -50]) / 1000)
+        self.ax = self.show_Ti(self.ax, com, rv_25, ID="m")
         self.ax = self.show_Ti(self.ax, tv_25, rv_25, ID=25)
 
         s = "t= " + str(round(j / 60, 2))
@@ -96,7 +96,9 @@ class COP_Tag:
 
         # print(np.linspace(1,max_frames,max_frames))
 
-        ani = FuncAnimation(self.fig, self.showtags, frames=np.linspace(1, self.max_frames, self.max_frames, dtype=int))
+        ani = FuncAnimation(
+            self.fig, self.showtags, interval=1, frames=np.linspace(1, self.max_frames, self.max_frames, dtype=int)
+        )
         plt.show()
 
     def show_Ti(self, ax, tvec, rvec, scale=0.1, sign=1, ID="N"):
@@ -422,13 +424,18 @@ class COP_Tag:
         else:
             R0, T0, R25, T25 = self.glob_pose(camnum, vidnum, name=name, load=1)[:4]
 
-        COM_0 = T0 + R0.apply(np.array([0, 0, -70]) / 1000)
-        COM_25 = T25 + R25.apply(np.array([0, 0, -70]) / 1000)
+        rtrunk = 91.39
 
-        COP_0 = COM_0[:, 0:2] * 1.564
-        COP_25 = COM_25[:, 0:2] * 2.187
+        COM_0 = T0
+        COM_25 = T25 + R25.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
 
-        COP = COP_0 + COP_25
+        M0 = 1.564
+        M25 = 2.187
+
+        COP_0 = COM_0[:, 0:2] * M0
+        COP_25 = COM_25[:, 0:2] * M25
+
+        COP = (COP_0 + COP_25) / (M0 + M25)
 
         return COP * 1000
 
@@ -473,14 +480,20 @@ class COP_Tag:
         Ycalc = scipy.ndimage.median_filter(Ycalc, 15)
 
         COP_gc = processCOP(file, 60)
-        Xreal = COP_gc.Xfilt
-        Yreal = COP_gc.Yfilt
+        if camnum > 3:
+            Xreal = COP_gc.Xfilt
+            Yreal = COP_gc.Yfilt
+        else:
+            Xreal = COP_gc.Xfilt
+            Yreal = COP_gc.Yfilt
 
         # cc = compareCOP(COP_X, COP_Y, X_gc, Y_gc)
 
         # fig, ax = plt.subplots(2, 1)
+        Xreal, Yreal = Xreal[60:], Yreal[60:]
+        Xcalc, Ycalc = Xcalc[60:], Ycalc[60:]
 
-        plt.subplot(3, 1, 1)
+        plt.subplot(2, 1, 1)
         plt.plot(Xreal - np.mean(Xreal))
         plt.plot(Xcalc - np.mean(Xcalc))
         plt.legend(["Grnd Trth", "Calculated"])
@@ -489,7 +502,7 @@ class COP_Tag:
         plt.ylabel("COP X (mm)")
         plt.grid()
 
-        plt.subplot(3, 1, 2)
+        plt.subplot(2, 1, 2)
         plt.plot(Yreal - np.mean(Yreal))
         plt.plot(Ycalc - np.mean(Ycalc))
         plt.legend(["Grnd Trth", "Calculated"])
@@ -498,12 +511,12 @@ class COP_Tag:
         plt.ylabel("COP Y (mm)")
         plt.grid()
 
-        plt.subplot(3, 1, 3)
-        plt.plot(COP_gc.Rfilt)
-        plt.title("Reaction")
-        plt.xlabel("Time (s)")
-        # plt.ylabel("COP Y (mm)")
-        plt.grid()
+        # plt.subplot(3, 1, 3)
+        # plt.plot(COP_gc.Rfilt)
+        # plt.title("Reaction")
+        # plt.xlabel("Time (s)")
+        # # plt.ylabel("COP Y (mm)")
+        # plt.grid()
 
         plt.tight_layout()
         plt.show()
@@ -512,7 +525,7 @@ class COP_Tag:
 
 
 cnum = 3
-vnum = 4
+vnum = 3
 
 tt = COP_Tag(cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras", name="sim_trunk", load=1)
 
@@ -531,7 +544,7 @@ nme = (
 
 
 tt.comapre_COP(
-    cnum, vnum, name=nme, file=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\sim_trunk_cop_vid4_rot.csv"
+    cnum, vnum, name=nme, file=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\sim_trunk_cop_vid3_flex.csv"
 )
 
 # tt.showtags_loop(cnum, vnum, name=nme)
