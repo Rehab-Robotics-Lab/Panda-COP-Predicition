@@ -3,6 +3,7 @@ import math
 import datetime
 from io import StringIO
 import subprocess
+import pickle
 
 # from exiftool import ExifToolHelper
 
@@ -25,6 +26,9 @@ from scipy.fftpack import fft
 from itertools import groupby
 from operator import itemgetter
 
+from ProcessPose import processPose
+from triangulate3D import tringulatepose
+
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from moviepy import VideoFileClip, concatenate_videoclips
 import ffmpeg
@@ -33,9 +37,10 @@ import ffmpeg
 ####Class for managing and preocessing camera data from box
 ##Inputs, userdirectory of box on compueter subject Aim, subject ID, trial month, day and year
 class c_manage:
-    def __init__(self, cam_direct, vid_name):
+    def __init__(self, cam_direct, vid_name, csv_direct=None):
 
         self.cam_direct = cam_direct
+        self.csv_direct = csv_direct
         self.vid_name = vid_name
 
         # Variables and paramters for ARUCO calibration board
@@ -92,6 +97,102 @@ class c_manage:
             vid_names.append(name)
 
         return vid_stat, vid_names
+
+    def check_csv(self, vid_num, cam_direct=None):
+        if cam_direct == None:
+            cam_direct = self.csv_direct
+
+        vid_name = self.vid_name
+
+        vid_stat = np.zeros(7)
+        vid_names = []
+        for i in range(7):
+            cam = i + 1
+            name = cam_direct + "\\" + vid_name + "_cam" + str(cam) + "_vid" + str(vid_num) + ".CSV"
+            stat = os.path.exists(name)
+
+            if stat == 0:
+                name = cam_direct + "\\" + vid_name + "_cam" + str(cam) + "_vid" + str(vid_num) + ".csv"
+
+            stat = os.path.exists(name)
+            vid_stat[i] = stat
+            vid_names.append(name)
+
+        return vid_stat, vid_names
+
+    def plotskel2D(self, j, pose, frame):
+
+        x, y = pose.Xfilt[:, j], pose.Yfilt[:, j]
+
+        colors = [
+            [255, 0, 0],
+            [255, 170, 0],
+            [255, 255, 0],
+            [255, 85, 0],
+            [170, 255, 0],
+            [85, 255, 0],
+            [0, 255, 0],
+            [0, 255, 85],
+            [0, 255, 170],
+            [0, 255, 255],
+            [0, 170, 255],
+            [0, 85, 255],
+            [0, 0, 255],
+            [170, 0, 255],
+            [255, 0, 255],
+            [85, 0, 255],
+            [85, 85, 255],
+        ]
+
+        limbSeq = np.matrix(
+            [
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 4],
+                [1, 5],
+                [5, 6],
+                [6, 7],
+                [1, 8],
+                [8, 9],
+                [9, 10],
+                [1, 11],
+                [11, 12],
+                [12, 13],
+                [0, 14],
+                [14, 16],
+                [0, 15],
+                [15, 17],
+            ]
+        )
+
+        # print(np.shape(x))
+
+        x2 = np.asarray(x).reshape(-1)
+        y2 = np.asarray(y).reshape(-1)
+
+        # plt.cla()
+
+        for p in range(17):
+
+            # Plotting skeleton for original pose
+            frame = cv2.line(
+                frame,
+                (int(x2[limbSeq[p, 0]]), int(y2[limbSeq[p, 0]])),
+                (int(x2[limbSeq[p, 1]]), int(y2[limbSeq[p, 1]])),
+                color=colors[p],
+                thickness=7,
+            )
+
+            frame = cv2.circle(
+                frame,
+                (int(x2[limbSeq[p, 0]]), int(y2[limbSeq[p, 0]])),
+                radius=9,
+                color=(0, 0, 0),
+                thickness=7,
+            )
+
+        return frame
 
     # Function for retreving middle frame from video
     def pull_frames_static(self, video):
@@ -476,17 +577,41 @@ class c_manage:
         ]
         return tuple(color)
 
-    def tringulate(self, vid_num, delay=0):
-        stat, names = self.check_csvs(vid_num)
+    def pull_synch_time(self, cam_num, vid_num):
+        col_names = [
+            ["cam1_start", "cam1_stop"],
+            ["cam2_start", "cam2_stop"],
+            ["cam3_start", "cam3_stop"],
+            ["cam4_start", "cam4_stop"],
+            ["cam5_start", "cam5_stop"],
+            ["cam6_start", "cam6_stop"],
+            ["cam7_start", "cam7_stop"],
+        ]
+
+        df = pd.read_excel(r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\synchlight_time.xlsx")
+
+        # print(trial)
+
+        vid = df.loc[(df["vid"] == vid_num) & (df["name"] == self.vid_name)]
+
+        start = vid[col_names[cam_num - 1][0]].item()
+        stop = vid[col_names[cam_num - 1][1]].item()
+
+        return start, stop
+
+    def tringulate(self, vidnum, delay=0):
+        # stat_vid, names_vid = self.check_vids(vidnum)
+        stat, names = self.check_csv(vidnum)
 
         cams = np.array([1, 2, 3, 4, 5, 6, 7])
 
         stat = stat.astype(bool)
 
         available = cams[stat]
+        self.cams = available
         print(available)
 
-        fps = np.array([60, 60, 30, 30, 30, 30, 30])
+        fps = np.array([60, 60, 60, 30, 30, 30, 30])
         skip = delay * fps[stat]
 
         names = np.array(names)[stat]
@@ -495,10 +620,10 @@ class c_manage:
         stops = np.zeros_like(available)
 
         for i in range(len(available)):
-            starts[i], stops[i] = self.pull_synch_time(available[i], vid_num)
+            starts[i], stops[i] = self.pull_synch_time(available[i], vidnum)
 
-        if os.path.exists(self.cam_direct + "\\" + filename + "_intrinsics.json") and os.path.exists(
-            self.cam_direct + "\\" + filename + "_extrinsics.json"
+        if os.path.exists(self.cam_direct + "\\" + self.vid_name + "_intrinsics.json") and os.path.exists(
+            self.cam_direct + "\\" + self.vid_name + "_extrinsics.json"
         ):
             self.load_params()
         else:
@@ -515,19 +640,15 @@ class c_manage:
             extrinsics=self.extrinsics_final,
         )
 
-        T.check_combos()
-        # T.trinagulate_all(1, 4)
-        # T.SBA()
-
-        names = np.array(self.name_4)[stat]
+        # T.check_combos()
+        T.trinagulate_all(2, 4)
+        T.SBA()
         self.T = T
-        self.cams = available
 
-        #
-
-    def overlay_reproj(self, vid_num):
+    def overlay_reproj(self, vidnum):
 
         available = self.cams
+        stat, names = self.check_vids(vidnum)
 
         # print(np.asarray(names))
         # print(np.asarray(status))
@@ -537,8 +658,77 @@ class c_manage:
             print(available[j], names[available[j] - 1])
             self.T.overlay_pose(available[j], vidname=names[available[j] - 1], compare=1)
 
+    def save_3D(self, vidnum, folder):
+
+        available = self.cams
+        stat, names = self.check_vids(vidnum)
+
+        self.T.save_3D(folder=folder)
+
+    def overlay_pose(self, camnum, vidnum):
+
+        stat_vid, names_vid = self.check_vids(vidnum)
+        stat_csv, names_csv = self.check_csv(vidnum)
+
+        pose = processPose(names_csv[camnum - 1])
+
+        filename = names_vid[camnum - 1]
+        # read in video
+        cap = cv2.VideoCapture(filename)
+
+        # OPENCV_FFMPEG_READ_ATTEMPTS (current value is 4096
+        width = cap.get(3)  # float `width`
+        height = cap.get(4)  # float `height`
+
+        j = 0
+
+        # print(self.cam_objects[camnum - 1].start)
+        while cap.isOpened():
+            # variable to skip frames every other frame, remains true if video at 30fps
+            # skip = True
+            # frameId = int(cap.get(1))
+
+            # Capturing each frame of our video stream
+            ret, frame = cap.read()
+            # frame = cv2.resize(frame, (700, 500))
+            if ret == True:
+                j = j + 1
+
+                # plotting original camera pose
+                frame = self.plotskel2D(j, pose, frame)
+
+                # reszing display window to 1/3 original video size
+                frame = cv2.resize(frame, (int(width / 3), int(height / 3)))
+
+                cv2.imshow("ProjectImage", frame)
+
+            # Exit at the end of the video on the 'q' keypress
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+
+    def pkl_to_csv(self, pklpath, csvpath=None):
+        # reading in video file
+        if csvpath == None:
+            csvpath = self.cam_direct
+
+        # filename =
+
+        for pklfile in os.listdir(pklpath):
+
+            if pklfile.endswith(".pkl"):
+                pkl = pklpath + "\\" + pklfile
+                with open(pkl, "rb") as f:
+                    object = pickle.load(f)
+                df = pd.DataFrame(object)
+
+                # print(pklfile)
+                name = csvpath + "\\" + pklfile[0:-4] + ".csv"
+                print(name)
+                df.to_csv(name)
+
     # function to find orientation of video based on static calibration
-    def intrinsics_orientation(self, names, status):
+    def intrinsics_orientation(self, view, vidnum=1):
+        status, names = self.check_vids(vidnum)
 
         intrinsics = {}
         extrinsics = {}
@@ -558,7 +748,7 @@ class c_manage:
                 calib = calibrate(vid, lens, fov)
 
                 # returns calibration results
-                orient, ext, int = calib.intrinsics_orientation(view=0)
+                orient, ext, int = calib.intrinsics_orientation(view=view)
                 print(orient)
 
                 intrinsics.update({"cam" + str(cam): int})
@@ -569,43 +759,6 @@ class c_manage:
         self.intrinsics_final = intrinsics
 
         return orient
-
-    # def intrinsics_orr(self):
-    #     status = self.stat_1
-    #     names = self.name_1
-
-    #     # look for all cameras
-    #     for i in range(7):
-    #         # i = 3
-    #         print("Camera: ", i + 1)
-    #         if status[0] == 1:
-    #             # make 4 copies of image
-    #             image = self.pull_frames_static(names[i])
-    #             image1 = self.pull_frames_static(names[i])
-    #             image2 = self.pull_frames_static(names[i])
-    #             image3 = self.pull_frames_static(names[i])
-
-    #             # use 4 images to calibration instatiage calibration object (based on calibration class)
-    #             calib = calibrate(self.userdirect, image, image1, image2, image3)
-
-    #             # r, extr, intr = calib.intrinsics_orientation(i + 1)
-    #             # print(r)
-
-    #             # returns calibration results
-    #             cam_ex1, rerror = calib.calibrate_extrinsics(i + 1, image, self.intrinsics[0])
-    #             cam_ex2, rerror = calib.calibrate_extrinsics(i + 1, image1, self.intrinsics[1])
-    #             cam_ex3, rerror = calib.calibrate_extrinsics(i + 1, image2, self.intrinsics[2])
-    #             cam_ex4, rerror = calib.calibrate_extrinsics(i + 1, image3, self.intrinsics[3])
-
-    #             rvs = [cam_ex1["Rvec"].T, cam_ex2["Rvec"].T, cam_ex3["Rvec"].T, cam_ex4["Rvec"].T]
-
-    #             # print(rvs)
-
-    #             for rv in rvs:
-    #                 rv[rv < 0] = -1
-    #                 rv[rv > 0] = 1
-
-    #             print(rvs)
 
     def check_metadata(self, video):
 
@@ -654,18 +807,42 @@ class c_manage:
         # savefolder = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Processing\\calib_videos"
         savefolder = self.cam_direct
 
-        with open(savefolder + "\\intrinsics_sim.json", "w") as outfile:
+        with open(savefolder + "\\" + self.vid_name + "_intrinsics.json", "w") as outfile:
             print("Saving Intrinsics")
             json.dump(self.intrinsics_final, outfile, default=self.json_serialize)
 
-        with open(savefolder + "\\extrinsics_sim.json", "w") as outfile:
+        with open(savefolder + "\\" + self.vid_name + "_extrinsics.json", "w") as outfile:
             print("Saving Extrinsics")
             json.dump(self.extrinsics_final, outfile, default=self.json_serialize)
 
+    def load_params(self):
+        savefolder = self.cam_direct
 
-# sim = c_manage(cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras", vid_name="sim_trunk")
+        print("Loading Intrinsics")
+        self.intrinsics_final = pd.read_json(savefolder + "\\" + self.vid_name + "_intrinsics.json").to_dict()
+        print("Loading Extrinsics")
+        self.extrinsics_final = pd.read_json(savefolder + "\\" + self.vid_name + "_extrinsics.json").to_dict()
+
+
+sim = c_manage(
+    cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
+    vid_name="sim",
+    csv_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\pose",
+)
+
+# sim.overlay_pose(camnum=7, vidnum=4)
+
+vidn = 3
+sim.tringulate(vidn)
+# sim.overlay_reproj(vidn)
+sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras")
+
 # nme = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 2\sim_trunk_cam2_vid5.MP4"
 # sim.manual_synch(nme, 140)
 # _, vid_names = sim.check_vids(4)
 # print(np.array(vid_names))
 # sim.start_stop(r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 1\sim_trunk_cam1_vid3.MP4")
+
+# ppth = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Personnel\Students & RAs\Francis Sowande\Passive Sim Trial\poses\pkl"
+# cpth = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Personnel\Students & RAs\Francis Sowande\Passive Sim Trial\poses\csv"
+# sim.pkl_to_csv(pklpath=ppth, csvpath=cpth)

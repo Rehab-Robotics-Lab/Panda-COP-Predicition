@@ -45,6 +45,14 @@ class processpose:
         self.Z = Z
         self.idx = idx
 
+    def get_len(self, i, j):
+        p1 = np.matrix([self.X[:, i], self.Y[:, i], self.Z[:, i]])
+        p2 = np.matrix([self.X[:, j], self.Y[:, j], self.Z[:, j]])
+
+        L = np.linalg.norm(p1 - p2, axis=0)
+
+        return L
+
     def plotskel(self, j, show_Ik=True, show_model=False):
 
         colors = np.matrix(
@@ -125,11 +133,18 @@ class processpose:
         if show_model == True:
             self.model_overlay(j)
 
-        # s1 = "t3= " + str(int(np.rad2deg(self.thet3_ra[0, j])))
-        s2 = "zmin= " + str(np.min(self.Z[j, :]) * 1000)
+        s1 = "t3l= " + str(int(np.rad2deg(self.thet3_ll[0, j])))
+        s2 = "t4l= " + str(int(np.rad2deg(self.thet4_ll[0, j])))
+
+        s3 = "t3r= " + str(int(np.rad2deg(self.thet3_rl[0, j])))
+        s4 = "t4r= " + str(int(np.rad2deg(self.thet4_rl[0, j])))
+        # s2 = "s= " + str(round(j / 30))
 
         # self.ax.text(0.3, -0.3, 0, "%s" % (s1), size=20, zorder=1, color="k")
-        self.ax.text(0.3, -0.4, 0, "%s" % (s2), size=20, zorder=1, color="k")
+        # self.ax.text(0.3, -0.4, 0, "%s" % (s2), size=20, zorder=1, color="k")
+
+        # self.ax.text(-0.6, -0.3, 0, "%s" % (s3), size=20, zorder=1, color="k")
+        # self.ax.text(-0.6, -0.4, 0, "%s" % (s4), size=20, zorder=1, color="k")
 
         # plt.text(0, 0, s)
         self.ax.set_zlim3d(0, 0.6)
@@ -137,11 +152,14 @@ class processpose:
         self.ax.set_xlim3d(-0.3, 0.3)
         plt.grid()
 
-    def plotskel_loop(self):
+    def plotskel_loop(self, start=0):
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111, projection="3d")
 
-        ani = animation.FuncAnimation(self.fig, self.plotskel, frames=self.frames, interval=2)
+        frms = np.linspace(0, self.frames, self.frames + 1, dtype=int)
+        # print(frms)
+
+        ani = animation.FuncAnimation(self.fig, self.plotskel, frames=frms[start:], interval=1)
         plt.show()
 
     def arms(self, k):
@@ -152,17 +170,21 @@ class processpose:
         L1 = np.linalg.norm(le - ls, axis=0)
         L2 = np.linalg.norm(le - lh, axis=0)
 
-        print(k, np.mean(L2) * 100)
+        # print(k, np.mean(L2) * 100)
 
         s1 = np.divide(le[0, :] - ls[0, :], L1)
         c1 = np.divide(ls[1, :] - le[1, :], L1)
 
         thet1 = np.arctan2(s1, c1)
+        s1 = np.sin(thet1)
+        c1 = np.cos(thet1)
 
         s2 = np.divide(le[2, :] - ls[2, :], L1)
         c2 = np.divide((ls[1, :] - le[1, :]), np.multiply(c1, L1))
 
         thet2 = np.arctan2(s2, c2)
+        s2 = np.sin(thet2)
+        c2 = np.cos(thet2)
 
         u = le - ls
         v = lh - le
@@ -203,10 +225,18 @@ class processpose:
         Z = np.divide(lh[2, :] - le[2, :], L2)
 
         s3 = np.divide(-(np.multiply(X, c1) + np.multiply(Y, s1)), s4)
-        # c3 = np.divide((np.multiply(c2, c4) + np.multiply(Y, c1) - np.multiply(X, s1)), np.multiply(s2, s4))
-        c3 = np.sqrt((np.ones_like(s3) - np.power(s3, 2)).T).T
+        c3 = np.divide((np.multiply(c2, c4) + np.multiply(Y, c1) - np.multiply(X, s1)), np.multiply(s2, s4))
+        # c3 = np.sqrt((np.ones_like(s3) - np.power(s3, 2)).T).T
 
         thet3 = np.arctan2(s3, c3)
+
+        # plt.plot(np.rad2deg(thet1.T))
+        # plt.plot(np.rad2deg(thet2.T))
+        # plt.plot(np.rad2deg(thet3.T))
+        # plt.plot(np.rad2deg(thet4.T))
+        # plt.legend(["thet1", "thet2", "thet3", "thet4"])
+        # #  plt.legend(["thet3", "thet4"])
+        # plt.show()
 
         # print([np.min(c3), np.max(c3)], [np.min(s3), np.max(s3)])
         # print([np.min(c4), np.max(c4)], [np.min(s4), np.max(s4)])
@@ -218,21 +248,24 @@ class processpose:
         lh = np.matrix([self.X[:, k + 2], self.Y[:, k + 2], self.Z[:, k + 2]])
 
         L1 = np.linalg.norm(le - ls, axis=0)
-        L2 = np.linalg.norm(le - lh, axis=0)
+        L2 = np.linalg.norm(lh - le, axis=0)
 
         s1 = np.divide(le[0, :] - ls[0, :], L1)
         c1 = np.divide(ls[1, :] - le[1, :], L1)
 
         thet1 = np.arctan2(s1, c1)
+        s1 = np.sin(thet1)
+        c1 = np.cos(thet1)
 
         s2 = np.divide(le[2, :] - ls[2, :], L1)
         c2 = np.divide((ls[1, :] - le[1, :]), np.multiply(c1, L1))
-
         thet2 = np.arctan2(s2, c2)
+        s2 = np.sin(thet2)
+        c2 = np.cos(thet2)
 
-        u = le - ls
-        v = lh - le
-        # q = lh - ls
+        u = ls - le
+        v = le - lh
+        q = ls - lh
 
         cross_product = np.zeros_like(u)
         dot_product = np.zeros_like(u)
@@ -244,15 +277,25 @@ class processpose:
 
         magnitude_u = np.linalg.norm(u, axis=0)
         magnitude_v = np.linalg.norm(v, axis=0)
-        # magnitude_q = np.linalg.norm(q, axis=0)
+        magnitude_q = np.linalg.norm(q, axis=0)
         magnitude_cross = np.linalg.norm(cross_product, axis=0)
 
-        s4 = np.divide(magnitude_cross, np.multiply(magnitude_u, magnitude_v))
-        # # s4 = np.clip(s4, -1, 1)
-        c4 = np.divide(dot_product, np.multiply(magnitude_u, magnitude_v))
-        # # c4 = np.clip(c4, -1, 1)
+        # s4 = [np.divide(magnitude_cross, np.multiply(magnitude_u, magnitude_v))]
+        # c4 = np.divide(dot_product, np.multiply(magnitude_u, magnitude_v))
 
-        thet4 = np.arctan2(s4, c4)
+        c4 = [
+            np.divide(
+                (np.power(L1, 2) + np.power(L2, 2) - np.power(magnitude_q, 2)),
+                (2 * np.multiply(L1, L2)),
+            )
+        ]
+        # s4 = [np.sqrt((np.ones_like(c4) - np.power(c4, 2))).T]
+
+        # thet4 = np.arctan2(s4, c4)
+        thet4 = np.arccos(c4)
+        thet4 = -(np.pi - thet4)
+        c4 = np.cos(thet4)
+        s4 = np.sin(thet4)
 
         ##THETA 3
 
@@ -262,12 +305,25 @@ class processpose:
 
         s3 = np.divide(-(np.multiply(X, c1) + np.multiply(Y, s1)), s4)
         c3 = np.divide((np.multiply(c2, c4) + np.multiply(Y, c1) - np.multiply(X, s1)), np.multiply(s2, s4))
-        c3 = -np.sqrt((np.ones_like(s3) - np.power(s3, 2)).T).T
 
+        # c3 = np.divide((Z - np.multiply(s2, c4)), np.multiply(c2, s4))
+        # s3 = np.divide(
+        #     -(np.multiply(c1, c4) + np.multiply(Y, c2) - np.multiply(np.multiply(Z, c1), s2)),
+        #     np.multiply(np.multiply(s1, c2), s4),
+        # )
+
+        # c3 = np.sqrt((np.ones_like(s3) - np.power(s3, 2)).T).T
+        # s3 = np.sqrt((np.ones_like(c3) - np.power(c3, 2)).T).T
         thet3 = np.arctan2(s3, c3)
 
-        # print([np.min(c3), np.max(c3)], [np.min(s3), np.max(s3)])
-        # print([np.min(c4), np.max(c4)], [np.min(s4), np.max(s4)])
+        # plt.plot(np.rad2deg(thet1.T))
+        # plt.plot(np.rad2deg(thet2.T))
+        # plt.plot(np.rad2deg(thet3.T))
+        # plt.plot(np.rad2deg(thet4.T))
+        # plt.legend(["thet1", "thet2", "thet3", "thet4"])
+        # #  plt.legend(["thet3", "thet4"])
+        # plt.show()
+
         return thet1, thet2, thet3, thet4
 
     def face_ang(self):
@@ -390,6 +446,18 @@ class processpose:
 
         return R
 
+    def R_y(self, t1):
+
+        R = np.matrix(
+            [
+                [np.cos(t1), 0, np.sin(t1)],
+                [0, 1, 0],
+                [-np.sin(t1), 0, np.cos(t1)],
+            ]
+        )
+
+        return R
+
     def R_z(self, t1):
 
         R = np.matrix(
@@ -464,6 +532,366 @@ class processpose:
         )
 
         return R
+
+    def check_IK_legs(self, k=2):
+        lh = np.matrix([self.X[:, k + 3], self.Y[:, k + 3], self.Z[:, k + 3]])
+        lk = np.matrix([self.X[:, k + 4], self.Y[:, k + 4], self.Z[:, k + 4]])
+        lf = np.matrix([self.X[:, k + 5], self.Y[:, k + 5], self.Z[:, k + 5]])
+
+        L1L = np.linalg.norm(lk - lh, axis=0)
+        L2L = np.linalg.norm(lk - lf, axis=0)
+
+        rh = np.matrix([self.X[:, k], self.Y[:, k], self.Z[:, k]])
+        rk = np.matrix([self.X[:, k + 1], self.Y[:, k + 1], self.Z[:, k + 1]])
+        rf = np.matrix([self.X[:, k + 2], self.Y[:, k + 2], self.Z[:, k + 2]])
+
+        # print(np.shape(rf))
+
+        L1R = np.linalg.norm(rk - rh, axis=0)
+        L2R = np.linalg.norm(rk - rf, axis=0)
+
+        # origin = np.matrix([[0], [0], [0], [1]])
+        # origin = Ti @ origin
+        # dx, dy, dz = origin[0, 0], origin[1, 0], origin[2, 0]
+
+        rf_proj = np.zeros_like(rf)
+        lf_proj = np.zeros_like(lf)
+        rk_proj = np.zeros_like(rk)
+        lk_proj = np.zeros_like(lk)
+
+        for i in range(self.frames):
+            Ts, Th, Tf, Te = self.IK_trunk(i)
+            Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(i, Ts, Th)
+
+            if k == 8:
+                T1, T2, T3, T4 = Ts_rk, Ts_lk, Ts_rl, Ts_ll
+            elif k == 2:
+                T1, T2, T3, T4 = Ts_re, Ts_le, Ts_ra, Ts_la
+
+            # feet
+
+            yfR = np.matrix([[0], [L2R[i]], [0], [1]])
+            yfL = np.matrix([[0], [L2L[i]], [0], [1]])
+
+            rf_proj[:, i] = (T1 @ yfR)[0:3, 0]
+            lf_proj[:, i] = (T2 @ yfL)[0:3, 0]
+
+            # knees
+
+            ykR = np.matrix([[0], [L1R[i]], [0], [1]])
+            ykL = np.matrix([[0], [L1L[i]], [0], [1]])
+
+            rk_proj[:, i] = (T3 @ ykR)[0:3, 0]
+            lk_proj[:, i] = (T4 @ ykL)[0:3, 0]
+
+        diffRf = rf - rf_proj
+        diffLf = lf - lf_proj
+
+        diffRk = rk - rk_proj
+        diffLk = lk - lk_proj
+
+        plt.plot(np.linalg.norm(diffRf, axis=0).T)
+        plt.plot(np.linalg.norm(diffLf, axis=0).T)
+        plt.plot(np.linalg.norm(diffRk, axis=0).T)
+        plt.plot(np.linalg.norm(diffLk, axis=0).T)
+
+        plt.legend(["rfoot", "lfoot", "rknee", "lknee"])
+        plt.show()
+
+        thresh = 0.04
+
+        check_lf = np.linalg.norm(diffLf, axis=0) >= thresh
+        check_rf = np.linalg.norm(diffRf, axis=0) >= thresh
+        check_lk = np.linalg.norm(diffLk, axis=0) >= thresh
+        check_rk = np.linalg.norm(diffRk, axis=0) >= thresh
+
+        idxl3, idxl4 = (self.thet3_ll.T[check_lf], self.thet4_ll.T[check_lf])
+        idxr3, idxr4 = (self.thet3_rl.T[check_rf], self.thet4_rl.T[check_rf])
+
+        # idxl3n, idxl4n = (self.thet3_ll.T[check_l], self.thet4_ll.T[check_l])
+        # idxr3n, idxr4n = (self.thet3_rl.T[check], self.thet4_rl.T[check])
+
+        print("Left foot: ", sum(check_lf))
+        print("Right foot: ", sum(check_rf))
+        #   , sum(check_lk), sum(check_rk))
+
+        # print(np.rad2deg(np.max(idxl4)), np.rad2deg(np.min(idxl4)))
+        # print(np.rad2deg(np.max(idxr4)), np.rad2deg(np.min(idxr4)))
+
+    def show_T(self, j):
+        # dx, dy, dz = self.mid_shoulder[0, j], self.mid_shoulder[1, j], self.mid_shoulder[2, j]
+        Ts, Th, Tf, Te = self.IK_trunk(j)
+
+        ##WORLD ORIGIN
+        # self.ax = self.show_Ti(self.ax, np.eye(4), sign=1)
+
+        ## SHOULDERS
+
+        self.ax = self.show_Ti(
+            self.ax,
+            Ts,
+            i="s",
+        )
+
+        # self.ax = self.show_Ti(
+        #     self.ax,
+        #     Ts,
+        #     sign=-1,
+        #     i="-s",
+        # )
+
+        ## HIPS
+        self.ax = self.show_Ti(
+            self.ax,
+            Th,
+            i="h",
+        )
+
+        # self.ax = self.show_Ti(
+        #     self.ax,
+        #     Th,
+        #     sign=-1,
+        #     i="-h",
+        # )
+
+        ## FACE
+        # self.ax = self.show_Ti(
+        #     self.ax,
+        #     Tf,
+        #     i="f",
+        # )
+
+        # self.ax = self.show_Ti(
+        #     self.ax,
+        #     Tf,
+        #     sign=-1,
+        #     i="-f",
+        # )
+
+        ## HEAD
+        # self.ax = self.show_Ti(
+        #     self.ax,
+        #     Te,
+        #     i="e",
+        # )
+
+        # self.ax = self.show_Ti(
+        #     self.ax,
+        #     Te,
+        #     sign=-1,
+        #     i="-e",
+        # )
+
+        Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(j, Ts, Th)
+
+        # Right elbow
+        # Trs = Ts_ra
+        # self.ax = self.show_Ti(self.ax, Trs, i="e", sign=1)
+
+        # Right hand
+        Tre = Ts_re
+        self.ax = self.show_Ti(self.ax, Tre, i="h")
+
+        # Left elbow
+        # Tls = Ts_la
+        # self.ax = self.show_Ti(self.ax, Tls, i="e", sign=1)
+
+        # Left hand
+        Tle = Ts_le
+        self.ax = self.show_Ti(self.ax, Tle, i="h", sign=1)
+
+        # Right leg
+        # Trh = Ts_rl
+        # self.ax = self.show_Ti(self.ax, Trh, i="l")
+
+        # Right knee
+        Trk = Ts_rk
+        self.ax = self.show_Ti(self.ax, Trk, i="h")
+
+        # Left leg
+        # Tlh = Ts_ll
+        # self.ax = self.show_Ti(self.ax, Tlh, i="l")
+
+        # Left knee
+        Tlk = Ts_lk
+        self.ax = self.show_Ti(self.ax, Tlk, i="h")
+
+    def IK_trunk(self, j):
+        ## SHOULDERS
+        Rs = self.R_zy(self.thet1s[0, j], self.thet2s[0, j])
+        T0s = self.get_T(Rs, [self.mid_shoulder[0, j], self.mid_shoulder[1, j], self.mid_shoulder[2, j]])
+
+        ## HIPS
+
+        Rh = self.R_xzy(self.thet1h[0, j], self.thet2h[0, j], self.thet3h[0, j])
+        T0h = self.get_T(Rh, [self.mid_hip[0, j], self.mid_hip[1, j], self.mid_hip[2, j]])
+
+        # Tsh = T0s @ np.linalg.inv(T0h)
+        Tsh = np.linalg.inv(T0s) @ T0h
+        Th = T0s @ Tsh
+
+        ## FACE
+        Rf = self.R_xzy(self.thet1f[0, j], self.thet2f[0, j], self.thet3f[0, j])
+        T0f = self.get_T(Rf, [self.mid_face[0, j], self.mid_face[1, j], self.mid_face[2, j]])
+
+        Tsf = np.linalg.inv(T0s) @ T0f
+        Tf = T0s @ Tsf
+
+        ## HEAD
+        Re = self.R_xzy(self.thet1e[0, j], self.thet2e[0, j], self.thet3e[0, j])
+        T0e = self.get_T(Re, [self.mid_ear[0, j], self.mid_ear[1, j], self.mid_ear[2, j]])
+
+        Tse = np.linalg.inv(T0s) @ T0e
+        Te = T0s @ Tse
+
+        return T0s, Th, Tf, Te
+
+    def IK_limbs(self, j, T0_1, T0_h):
+
+        ## RIGHT ARM
+        T0_2, T0_3 = self.T_arm(
+            j, 2, np.matrix([self.thet1_ra[0, j], self.thet2_ra[0, j], self.thet3_ra[0, j], self.thet4_ra[0, j]])
+        )
+
+        T1_2 = np.linalg.inv(T0_1) @ T0_2
+        T02 = T0_1 @ T1_2
+        T2_3 = np.linalg.inv(T02) @ T0_3
+        T03 = T02 @ T2_3
+
+        ## LEFT ARM
+        T0_5, T0_6 = self.T_arm(
+            j, 5, np.matrix([self.thet1_la[0, j], self.thet2_la[0, j], self.thet3_la[0, j], self.thet4_la[0, j]])
+        )
+
+        T1_5 = np.linalg.inv(T0_1) @ T0_5
+        T05 = T0_1 @ T1_5
+        T5_6 = np.linalg.inv(T05) @ T0_6
+        T06 = T05 @ T5_6
+
+        ## RIGHT LEG
+        T0_8, T0_9 = self.T_leg(
+            j, 8, np.matrix([self.thet1_rl[0, j], self.thet2_rl[0, j], self.thet3_rl[0, j], self.thet4_rl[0, j]])
+        )
+
+        Th_8 = np.linalg.inv(T0_h) @ T0_8
+        T08 = T0_h @ Th_8
+        T8_9 = np.linalg.inv(T08) @ T0_9
+        T09 = T08 @ T8_9
+
+        ## LEFT LEG
+        T0_11, T0_12 = self.T_leg(
+            j, 11, np.matrix([self.thet1_ll[0, j], self.thet2_ll[0, j], self.thet3_ll[0, j], self.thet4_ll[0, j]])
+        )
+
+        Th_11 = np.linalg.inv(T0_h) @ T0_11
+        T011 = T0_h @ Th_11
+        T11_12 = np.linalg.inv(T011) @ T0_12
+        T012 = T011 @ T11_12
+
+        return T02, T03, T05, T06, T08, T09, T011, T012
+
+    def T_arm(self, j, k, T):
+        t1, t2, t3, t4 = T[0, 0], T[0, 1], T[0, 2], T[0, 3]
+
+        Rz_180 = np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
+
+        R_03 = Rz_180 @ self.R_zxy(t1, t2, t3)
+        T0_03 = self.get_T(R_03, [self.X[j, k], self.Y[j, k], self.Z[j, k]])
+
+        # RIGHT ELBOW
+        R_04 = R_03 @ self.R_x(t4)
+        T0_04 = self.get_T(R_04, [self.X[j, k + 1], self.Y[j, k + 1], self.Z[j, k + 1]])
+
+        return T0_03, T0_04
+
+    def T_leg(self, j, k, T):
+        t1, t2, t3, t4 = T[0, 0], T[0, 1], T[0, 2], T[0, 3]
+
+        Rz_180 = np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
+
+        R_03 = Rz_180 @ self.R_zxy(t1, t2, t3)
+        T0_03 = self.get_T(R_03, [self.X[j, k], self.Y[j, k], self.Z[j, k]])
+
+        # RIGHT ELBOW
+        R_04 = R_03 @ self.R_x(t4)
+        T0_04 = self.get_T(R_04, [self.X[j, k + 1], self.Y[j, k + 1], self.Z[j, k + 1]])
+
+        return T0_03, T0_04
+
+    def get_T(self, R, origin):
+        T = np.zeros((4, 4))
+        T[3, 3] = 1
+
+        T[0:3, 0:3] = R
+        T[0, 3] = origin[0]
+        T[1, 3] = origin[1]
+        T[2, 3] = origin[2]
+
+        return T
+
+    def show_Ti(self, ax, Ti, i=0, scale=0.1, sign=1):
+        # Ri = Ti[0:3, 0:3]
+
+        origin = np.matrix([[0], [0], [0], [1]])
+        origin = Ti @ origin
+
+        # print("dx: ", vec.T)
+
+        dx, dy, dz = origin[0, 0], origin[1, 0], origin[2, 0]
+
+        var = 1 * scale * sign
+
+        xaxis = np.matrix([[var], [0], [0], [1]])
+        yaxis = np.matrix([[0], [var], [0], [1]])
+        zaxis = np.matrix([[0], [0], [var], [1]])
+
+        Ri = Ti[0:3, 0:3]
+
+        x = Ri @ xaxis[0:3, 0]
+        y = Ri @ yaxis[0:3, 0]
+        z = Ri @ zaxis[0:3, 0]
+
+        # print("B4: ", xaxis * 1000)
+        # print("AF: ", x * 1000)
+        # print(x[1, 0])
+        # print(x[2] ** 2 + x[1] ** 2)
+
+        d = scale / 10
+
+        ax.quiver([dx], [dy], [dz], x[0, 0], x[1, 0], x[2, 0], colors=[1, 0, 0])
+        ax.text(
+            x[0, 0] + dx + d * 1,
+            x[1, 0] + dy + d * 1,
+            x[2, 0] + dz + d * 1,
+            "X" + str(i),
+            size=10,
+            zorder=1,
+            color=[1, 0, 0],
+        )
+
+        ax.quiver([dx], [dy], [dz], y[0, 0], y[1, 0], y[2, 0], colors="green")
+        ax.text(
+            y[0, 0] + dx + d * 2,
+            y[1, 0] + dy + d * 2,
+            y[2, 0] + dz + d * 2,
+            "Y" + str(i),
+            size=10,
+            zorder=1,
+            color="green",
+        )
+
+        ax.quiver([dx], [dy], [dz], z[0, 0], z[1, 0], z[2, 0], colors=[0, 0, 1])
+        ax.text(
+            z[0, 0] + dx + d * 3,
+            z[1, 0] + dy + d * 3,
+            z[2, 0] + dz + d * 3,
+            "Z" + str(i),
+            size=10,
+            zorder=1,
+            color=[0, 0, 1],
+        )
+
+        return ax
 
     def plot_upper(self, j, ax, T, scale=[0.1, 0.1, 0.1], color1="black", color2="black", color3="black", alph=0.5):
         rs = np.matrix([[self.X[j, 2]], [self.Y[j, 2]], [self.Z[j, 2]]])
@@ -668,267 +1096,6 @@ class processpose:
         self.ax = self.plot_limbs(j=j, k=8, ax=self.ax, T1=Ts_rl, T2=Ts_rk, radius=0.035)
         self.ax = self.plot_limbs(j=j, k=11, ax=self.ax, T1=Ts_ll, T2=Ts_lk, radius=0.035)
 
-    def show_T(self, j):
-        # dx, dy, dz = self.mid_shoulder[0, j], self.mid_shoulder[1, j], self.mid_shoulder[2, j]
-        Ts, Th, Tf, Te = self.IK_trunk(j)
-
-        ##WORLD ORIGIN
-        # self.ax = self.show_Ti(self.ax, np.eye(4), sign=1)
-
-        ## SHOULDERS
-
-        self.ax = self.show_Ti(
-            self.ax,
-            Ts,
-            i="s",
-        )
-
-        # self.ax = self.show_Ti(
-        #     self.ax,
-        #     Ts,
-        #     sign=-1,
-        #     i="-s",
-        # )
-
-        ## HIPS
-        self.ax = self.show_Ti(
-            self.ax,
-            Th,
-            i="h",
-        )
-
-        # self.ax = self.show_Ti(
-        #     self.ax,
-        #     Th,
-        #     sign=-1,
-        #     i="-h",
-        # )
-
-        ## FACE
-        # self.ax = self.show_Ti(
-        #     self.ax,
-        #     Tf,
-        #     i="f",
-        # )
-
-        # self.ax = self.show_Ti(
-        #     self.ax,
-        #     Tf,
-        #     sign=-1,
-        #     i="-f",
-        # )
-
-        ## HEAD
-        self.ax = self.show_Ti(
-            self.ax,
-            Te,
-            i="e",
-        )
-
-        # self.ax = self.show_Ti(
-        #     self.ax,
-        #     Te,
-        #     sign=-1,
-        #     i="-e",
-        # )
-
-        Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(j, Ts, Th)
-
-        # Right elbow
-        Trs = Ts_ra
-        self.ax = self.show_Ti(self.ax, Trs, i="e", sign=1)
-
-        # Right hand
-        Tre = Ts_re
-        self.ax = self.show_Ti(self.ax, Tre, i="h")
-
-        # Left elbow
-        Tls = Ts_la
-        self.ax = self.show_Ti(self.ax, Tls, i="e", sign=1)
-
-        # Left hand
-        Tle = Ts_le
-        self.ax = self.show_Ti(self.ax, Tle, i="h", sign=1)
-
-        # Right leg
-        Trh = Ts_rl
-        self.ax = self.show_Ti(self.ax, Trh, i="l")
-
-        # Right knee
-        Trk = Ts_rk
-        self.ax = self.show_Ti(self.ax, Trk, i="h")
-
-        # Left leg
-        Tlh = Ts_ll
-        self.ax = self.show_Ti(self.ax, Tlh, i="l")
-
-        # Left knee
-        Tlk = Ts_lk
-        self.ax = self.show_Ti(self.ax, Tlk, i="h")
-
-    def IK_trunk(self, j):
-        ## SHOULDERS
-        Rs = self.R_zy(self.thet1s[0, j], self.thet2s[0, j])
-        T0s = self.get_T(Rs, [self.mid_shoulder[0, j], self.mid_shoulder[1, j], self.mid_shoulder[2, j]])
-
-        ## HIPS
-
-        Rh = self.R_xzy(self.thet1h[0, j], self.thet2h[0, j], self.thet3h[0, j])
-        T0h = self.get_T(Rh, [self.mid_hip[0, j], self.mid_hip[1, j], self.mid_hip[2, j]])
-
-        # Tsh = T0s @ np.linalg.inv(T0h)
-        Tsh = np.linalg.inv(T0s) @ T0h
-        Th = T0s @ Tsh
-
-        ## FACE
-        Rf = self.R_xzy(self.thet1f[0, j], self.thet2f[0, j], self.thet3f[0, j])
-        T0f = self.get_T(Rf, [self.mid_face[0, j], self.mid_face[1, j], self.mid_face[2, j]])
-
-        Tsf = np.linalg.inv(T0s) @ T0f
-        Tf = T0s @ Tsf
-
-        ## HEAD
-        Re = self.R_xzy(self.thet1e[0, j], self.thet2e[0, j], self.thet3e[0, j])
-        T0e = self.get_T(Re, [self.mid_ear[0, j], self.mid_ear[1, j], self.mid_ear[2, j]])
-
-        Tse = np.linalg.inv(T0s) @ T0e
-        Te = T0s @ Tse
-
-        return T0s, Th, Tf, Te
-
-    def IK_limbs(self, j, T0_1, T0_h):
-
-        ## RIGHT ARM
-        T0_2, T0_3 = self.T_limb(
-            j, 2, np.matrix([self.thet1_ra[0, j], self.thet2_ra[0, j], self.thet3_ra[0, j], self.thet4_ra[0, j]])
-        )
-
-        T1_2 = np.linalg.inv(T0_1) @ T0_2
-        T02 = T0_1 @ T1_2
-        T2_3 = np.linalg.inv(T02) @ T0_3
-        T03 = T02 @ T2_3
-
-        ## LEFT ARM
-        T0_5, T0_6 = self.T_limb(
-            j, 5, np.matrix([self.thet1_la[0, j], self.thet2_la[0, j], self.thet3_la[0, j], self.thet4_la[0, j]])
-        )
-
-        T1_5 = np.linalg.inv(T0_1) @ T0_5
-        T05 = T0_1 @ T1_5
-        T5_6 = np.linalg.inv(T05) @ T0_6
-        T06 = T05 @ T5_6
-
-        ## RIGHT LEG
-        T0_8, T0_9 = self.T_limb(
-            j, 8, np.matrix([self.thet1_rl[0, j], self.thet2_rl[0, j], self.thet3_rl[0, j], self.thet4_rl[0, j]])
-        )
-
-        Th_8 = np.linalg.inv(T0_h) @ T0_8
-        T08 = T0_h @ Th_8
-        T8_9 = np.linalg.inv(T08) @ T0_9
-        T09 = T08 @ T8_9
-
-        ## LEFT LEG
-        T0_11, T0_12 = self.T_limb(
-            j, 11, np.matrix([self.thet1_ll[0, j], self.thet2_ll[0, j], self.thet3_ll[0, j], self.thet4_ll[0, j]])
-        )
-
-        Th_11 = np.linalg.inv(T0_h) @ T0_11
-        T011 = T0_h @ Th_11
-        T11_12 = np.linalg.inv(T011) @ T0_12
-        T012 = T011 @ T11_12
-
-        return T02, T03, T05, T06, T08, T09, T011, T012
-
-    def T_limb(self, j, k, T, R=np.matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])):
-        t1, t2, t3, t4 = T[0, 0], T[0, 1], T[0, 2], T[0, 3]
-
-        Rz_180 = np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
-
-        R_03 = R @ Rz_180 @ self.R_zxy(t1, t2, t3)
-        T0_03 = self.get_T(R_03, [self.X[j, k], self.Y[j, k], self.Z[j, k]])
-
-        # RIGHT ELBOW
-        R_04 = R_03 @ self.R_x(t4)
-        T0_04 = self.get_T(R_04, [self.X[j, k + 1], self.Y[j, k + 1], self.Z[j, k + 1]])
-
-        return T0_03, T0_04
-
-    def get_T(self, R, origin):
-        T = np.zeros((4, 4))
-        T[3, 3] = 1
-
-        T[0:3, 0:3] = R
-        T[0, 3] = origin[0]
-        T[1, 3] = origin[1]
-        T[2, 3] = origin[2]
-
-        return T
-
-    def show_Ti(self, ax, Ti, i=0, scale=0.1, sign=1):
-        # Ri = Ti[0:3, 0:3]
-
-        origin = np.matrix([[0], [0], [0], [1]])
-        origin = Ti @ origin
-
-        # print("dx: ", vec.T)
-
-        dx, dy, dz = origin[0, 0], origin[1, 0], origin[2, 0]
-
-        var = 1 * scale * sign
-
-        xaxis = np.matrix([[var], [0], [0], [1]])
-        yaxis = np.matrix([[0], [var], [0], [1]])
-        zaxis = np.matrix([[0], [0], [var], [1]])
-
-        Ri = Ti[0:3, 0:3]
-
-        x = Ri @ xaxis[0:3, 0]
-        y = Ri @ yaxis[0:3, 0]
-        z = Ri @ zaxis[0:3, 0]
-
-        # print("B4: ", xaxis * 1000)
-        # print("AF: ", x * 1000)
-        # print(x[1, 0])
-        # print(x[2] ** 2 + x[1] ** 2)
-
-        d = scale / 10
-
-        ax.quiver([dx], [dy], [dz], x[0, 0], x[1, 0], x[2, 0], colors=[1, 0, 0])
-        ax.text(
-            x[0, 0] + dx + d * 1,
-            x[1, 0] + dy + d * 1,
-            x[2, 0] + dz + d * 1,
-            "X" + str(i),
-            size=10,
-            zorder=1,
-            color=[1, 0, 0],
-        )
-
-        ax.quiver([dx], [dy], [dz], y[0, 0], y[1, 0], y[2, 0], colors="green")
-        ax.text(
-            y[0, 0] + dx + d * 2,
-            y[1, 0] + dy + d * 2,
-            y[2, 0] + dz + d * 2,
-            "Y" + str(i),
-            size=10,
-            zorder=1,
-            color="green",
-        )
-
-        ax.quiver([dx], [dy], [dz], z[0, 0], z[1, 0], z[2, 0], colors=[0, 0, 1])
-        ax.text(
-            z[0, 0] + dx + d * 3,
-            z[1, 0] + dy + d * 3,
-            z[2, 0] + dz + d * 3,
-            "Z" + str(i),
-            size=10,
-            zorder=1,
-            color=[0, 0, 1],
-        )
-
-        return ax
-
     def IK_init(self):
 
         ## SHOULDERS
@@ -950,12 +1117,134 @@ class processpose:
         self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl = self.legs(k=8)
         self.thet1_ll, self.thet2_ll, self.thet3_ll, self.thet4_ll = self.legs(k=11)
 
+    def ID_init(self):
 
-fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"
+        T_ra = np.array([self.thet1_ra, self.thet2_ra, self.thet3_ra, self.thet4_ra])[:, 0, :]
+        print(np.shape(T_ra))
+        # T_ra,F_ra=self.inv_dynamics(T, L, m, I)
+        T_la = np.array([self.thet1_la, self.thet2_la, self.thet3_la, self.thet4_la])[:, 0, :]
 
-tt = processpose(fi)
+        T_rl = np.array([self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl])[:, 0, :]
+        T_ll = np.array([self.thet1_ll, self.thet2_ll, self.thet3_ll, self.thet4_ll])[:, 0, :]
 
-tt.IK_init()
+    def inv_dynamics(self, T, L, m, I):
+        dt = 1 / 30
+        TD = np.gradient(T, dt, axis=1)
+        TDD = np.gradient(TD, dt, axis=1)
+
+        # print(np.shape(TD))
+        ###### FORWARD ITERATION
+        w0 = np.zeros([3, 1])
+        w0_d = np.zeros([3, 1])
+        v0_d = np.zeros([3, 1])
+        v0_d[2] = -9.81
+
+        # t1, t2, t3, t4 = T[:, 0], T[:, 1], T[:, 2], T[:, 3]
+        # t1d, t2d, t3d, t4d = TD[:, 0], TD[:, 1], TD[:, 2], TD[:, 3]
+        # t1dd, t2dd, t3dd, t4dd = TDD[:, 0], TDD[:, 1], TDD[:, 2], TDD[:, 3]
+
+        L1, L2 = L[0], L[1]
+        m1, m2 = m[0], m[1]
+        I1, I2 = I[0, :], I[1, :]
+        n = self.frames
+
+        Fr = np.zeros((3, n))
+        Tq = np.zeros((3, n))
+
+        for i in range(n):
+            t1, t2, t3, t4 = T[0, i], T[1, i], T[2, i], T[3, i]
+            t1d, t2d, t3d, t4d = TD[0, i], TD[1, i], TD[2, i], TD[3, i]
+            t1dd, t2dd, t3dd, t4dd = TDD[0, i], TDD[1, i], TDD[2, i], TDD[3, i]
+
+            # # initializing paramteres from refrence to first frame
+
+            ## ANGULAR
+            # angular velocity
+            Rz_180 = np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
+
+            Rz1 = Rz_180 @ self.R_z(t1)
+            Rx2 = self.R_x(t2)
+            Ry3 = self.R_y(t3)
+            Rx4 = self.R_x(t4)
+
+            p1 = np.matrix([[0], [L1], [0]])
+            p2 = np.matrix([[0], [L2], [0]])
+
+            wz = Rz1.T @ w0 + np.matrix([[0], [0], [t1d]])
+            wx = Rx2.T @ wz + np.matrix([[t2d], [0], [0]])
+            w1 = Ry3.T @ wx + np.matrix([[0], [t3d], [0]])
+            w2 = Rx4.T @ w1 + np.matrix([[t4d], [0], [0]])
+
+            # angular accelearation
+            wz_d = (
+                (Rz1.T @ w0_d)
+                + np.cross(Rz1.T @ w0, np.matrix([[0], [0], [t1d]]), axis=0)
+                + np.matrix([[0], [0], [t1dd]])
+            )
+            wx_d = (
+                (Rx2.T @ wz_d)
+                + np.cross(Rx2.T @ wz, np.matrix([[t2d], [0], [0]]), axis=0)
+                + np.matrix([[t2dd], [0], [0]])
+            )
+            w1_d = (
+                (Ry3.T @ wx_d)
+                + np.cross(Ry3.T @ wx, np.matrix([[0], [t3d], [0]]), axis=0)
+                + np.matrix([[0], [t3dd], [0]])
+            )
+            w2_d = (
+                (Rx4.T @ w1_d)
+                + np.cross(Rx4.T @ w1, np.matrix([[t4d], [0], [0]]), axis=0)
+                + np.matrix([[t4dd], [0], [0]])
+            )
+            ## LINEAR
+
+            # linear accelearation
+            v1_d = (Rz1 @ Rx2 @ Ry3).T @ v0_d
+            v2_d = Rx4.T @ (np.cross(w1_d, p1, axis=0) + np.cross(w1, np.cross(w1, p1, axis=0), axis=0) + v1_d)
+
+            # linear acceleration relative to COM
+            vc1_d = np.cross(w1_d, p1 / 2, axis=0) + np.cross(w1, np.cross(w1, p1 / 1, axis=0), axis=0) + v1_d
+            vc2_d = np.cross(w2_d, p2 / 2, axis=0) + np.cross(w2, np.cross(w2, p2 / 2, axis=0), axis=0) + v2_d
+
+            ## FORCES
+            # froces from shoulder frames
+            F1 = m1 * vc1_d
+            # froces from ekbow frame
+            F2 = m2 * vc2_d
+
+            ##MOMENTS
+            I1 = np.diag(np.ravel(I1))
+            N1 = I1 @ w1_d + np.cross(w1, (I1 @ w1), axis=0)
+            I2 = np.diag(np.ravel(I2))
+            N2 = I2 @ w2_d + np.cross(w2, (I2 @ w2), axis=0)
+
+            ###### BACKWARDS ITERATION
+            # ACCUMULATED FORCES at joints
+            f2 = F2
+            f1 = Rx4 @ f2 + F1
+
+            # ACCUMULATED TORQUE at joints
+            n2 = N2
+            n1 = N1 + Rx4 @ n2 + np.cross(p1 / 2, F1, axis=0) + np.cross(p1, (Rx4 @ f2), axis=0)
+
+            # torque from shoulder flextion/extension
+            print(np.shape(Tq[0:3, 5]), np.shape((Rz1 @ Rx2 @ Ry3) @ n1))
+            Tq[:, i] = (Rz1 @ Rx2 @ Ry3) @ n1
+            # forces transformed to base frame
+            Fr[:, i] = (Rz1 @ Rx2 @ Ry3) @ f1
+
+        return Tq, Fr
+
+
+# fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"
+# fi = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_cam_2_6_vid_3.csv"
+
+
+# tt = processpose(fi)
+
+# tt.IK_init()
+# tt.ID_init()
+
 # p1 = tt.plo1
 # p2 = tt.plo2
 
@@ -965,4 +1254,6 @@ tt.IK_init()
 # plt.plot(np.cos(tt4.T))
 # plt.show()
 
-tt.plotskel_loop()
+# tt.plotskel_loop(start=0 * 30)
+# tt.check_IK_legs(k=2)
+# tt.check_IK_legs(k=8)

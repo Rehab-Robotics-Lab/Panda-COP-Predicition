@@ -19,11 +19,16 @@ class processCOP:
 
         self.Xraw = cop.X_scaled
         self.Yraw = cop.Y_scaled
+        self.Rraw = cop.Reaction
 
-        order = 2
+        order = 3
         fcut = 5
 
         b, a = signal.butter(order, fcut, fs=rate)
 
         self.Xfilt = signal.filtfilt(b, a, self.Xraw)
         self.Yfilt = signal.filtfilt(b, a, self.Yraw)
+        self.Rfilt = signal.filtfilt(b, a, self.Rraw)
+
+        self.Xnorm = np.divide(self.Xfilt, self.Rfilt) * np.mean(self.Rfilt)
+        self.Ynorm = np.divide(self.Yfilt, self.Rfilt) * np.mean(self.Rfilt)

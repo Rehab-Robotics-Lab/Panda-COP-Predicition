@@ -1,5 +1,6 @@
 # import sba
 import json
+import os.path
 import itertools
 import pandas as pd
 import numpy as np
@@ -8,7 +9,7 @@ import cv2.aruco as aruco
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from IPython.display import display
-from ProcessPose import processpose
+from ProcessPose import processPose
 from scipy.sparse import lil_matrix
 from scipy.optimize import least_squares
 
@@ -16,17 +17,12 @@ from scipy.optimize import least_squares
 
 
 class tringulatepose:
-    def __init__(self):
-        pfloder = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Trials\Pose Estimates\3D Test\unsmoothed"
-        folder = r"C:\Users\franc\Documents\GitHub\PANDA-Gym-Data-Proceeing\Calibration"
+    def __init__(self, names, cams, start, intrinsics, extrinsics):
+        # pfloder = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Trials\Pose Estimates\3D Test\unsmoothed"
+        # folder = r"C:\Users\franc\Documents\GitHub\PANDA-Gym-Data-Proceeing\Calibration"
 
         # rot = np.array([0, 180, 0, 0, 90])
         # rot = np.array([0, 180, 0, 0, 90, 0, 90])
-
-        # cams = np.array([1, 2, 3, 4, 5])
-        cams = np.array([1, 2, 3, 4, 5, 6, 7])
-
-        start = [82, 81, 42, 11, 12, 9, 10]
 
         self.cams = cams
 
@@ -38,9 +34,9 @@ class tringulatepose:
         n = 100000000
 
         for i in range(n_cams):
-            print("Processing camera ", i + 1)
+            print("Processing camera ", cams[i])
             # print(cams[i])
-            cam = processpose(pfloder + "\\25_01_31_833180_108_cam" + str(cams[i]) + "_vid4.csv", start[i])
+            cam = processPose(names[i], start[i])
             cam_objects.append(cam)
 
             if cam.fps == 60:
@@ -67,17 +63,6 @@ class tringulatepose:
             elif cam.fps == 30:
                 X, Y, I, C = cam.Xfilt, cam.Yfilt, cam.idx, cam.conf
 
-            d = 30
-
-            # if cams[j] == 1 | cams[j] == 2 | cams[j] == 3:
-            #     XA[j, :, :], YA[j, :, :], IA[j, :, :], conf[j, :, :] = (
-            #         X[:, d : n + d],
-            #         Y[:, d : n + d],
-            #         I[:, d : n + d],
-            #         C[:, d : n + d],
-            #     )
-            # else:
-
             XA[j, :, :], YA[j, :, :], IA[j, :, :], conf[j, :, :] = X[:, 0:n], Y[:, 0:n], I[:, 0:n], C[:, 0:n]
 
             CA[j, :, :] = np.ones((18, n)) * (cams[j] - 1)
@@ -90,11 +75,9 @@ class tringulatepose:
         self.ptidx = IA.ravel()
         self.camidx = CA.ravel()
 
-        with open(folder + "\\intrinsic_params.json") as f:
-            self.intrinsics = json.load(f)
+        self.intrinsics = intrinsics
 
-        with open(folder + "\\extrinsic_params.json") as f:
-            self.extrinsics = json.load(f)
+        self.extrinsics = extrinsics
 
         # n = 100
         self.n = n
@@ -110,8 +93,8 @@ class tringulatepose:
         self.Z0 = np.zeros((n, 18))
         # print(n)
 
-        intrinsics = self.intrinsics
-        extrinsics = self.extrinsics
+        # intrinsics = self.intrinsics
+        # extrinsics = self.extrinsics
 
         # dim1= cam#, dim2= Tvec or Rvec, dim3= X,Y,Z
         ext_params = np.zeros((n_cams, 2, 3))
@@ -174,6 +157,7 @@ class tringulatepose:
 
         # print(np.shape(pt1))
         # print(np.shape(pt2))
+        # print(pt1, cam1_mat, cam1_dist)
 
         pt1 = cv2.undistortPoints(pt1, cam1_mat, cam1_dist)
         pt2 = cv2.undistortPoints(pt2, cam2_mat, cam2_dist)
@@ -189,7 +173,7 @@ class tringulatepose:
 
         return X, Y, Z
 
-    def trinagulat_all(self, num1, num2):
+    def trinagulate_all(self, num1, num2):
         self.num1 = num1
         self.num2 = num2
 
@@ -334,6 +318,131 @@ class tringulatepose:
             tot_error[j] = np.mean(error)
 
         return np.mean(tot_error)
+
+    def reproj_each(self, num):
+        intrinsics = self.intrinsics
+
+        cam_int = intrinsics["cam" + str(num)]
+
+        cam_mat = np.asmatrix(cam_int["Mat"])
+        cam_dist = np.asarray(cam_int["Dist"])
+
+        idx = np.where(self.cams == num)[0][0]
+
+        cam_ext = self.ext_params[idx, :, :]  # (7,2,3)
+
+        cam_rvec = cam_ext[0, :]
+        cam_tvec = cam_ext[1, :]
+
+        reproj = np.zeros((2, self.n, 18))
+
+        for i in range(18):
+            pts = np.vstack((self.X[:, i], self.Y[:, i], self.Z[:, i]))
+
+            # reproj[:, :, [i]] = cv2.projectPoints(pts, cam_rvec, cam_tvec, cam_mat, cam_dist)
+            R, _ = cv2.projectPoints(pts, cam_rvec, cam_tvec, cam_mat, cam_dist)
+            R = R.reshape(-1, 2).T
+
+            reproj[:, :, i] = R
+
+        Xreproj = reproj[0, :, :]
+        Yreproj = reproj[1, :, :]
+
+        # errorX = np.zeros((13))
+        # errorY = np.zeros((13))
+        error = np.zeros((18))
+
+        for j in range(18):
+            rpt = np.vstack((Xreproj[:, j], Yreproj[:, j]))
+            pt = np.vstack((self.XA[idx][j, :], self.YA[idx][j, :]))
+
+            error[j] = np.linalg.norm(rpt - pt) / self.n
+            # errorX[j] = np.linalg.norm(Xreproj[:, j] - self.XA[num - 1][j, :])
+            # errorY[j] = np.linalg.norm(Xreproj[:, j] - self.XA[num - 1][j, :])
+
+        mean_error = sum(error) / 18
+
+        return Xreproj.T, Yreproj.T, mean_error
+
+    def reproj_all(self):
+        n = self.n
+        ncams = self.n_cams
+
+        XAr = np.zeros((ncams, 18, n))
+        YAr = np.zeros((ncams, 18, n))
+        E = np.zeros((18))
+
+        for i in range(ncams):
+            X, Y, e = self.reproj_each(self.cams[i])
+
+            XAr[i, :, :] = X
+            YAr[i, :, :] = Y
+            E[i] = e
+
+        return XAr, YAr, E
+
+    def recover_cam3(self, name=None):
+        intrinsics = pd.read_json(
+            r"C:\Users\franc\Documents\GitHub\PANDA-Data-Processing\Calibration\intrinsic_params.json"
+        ).to_dict()
+        extrinsics = pd.read_json(
+            r"C:\Users\franc\Documents\GitHub\PANDA-Data-Processing\Calibration\extrinsic_params.json"
+        ).to_dict()
+
+        cam_int = intrinsics["cam3"]
+
+        cam_mat = np.asmatrix(cam_int["Mat"])
+        cam_dist = np.asarray(cam_int["Dist"])
+
+        cam_ext = extrinsics["cam3"]  # (7,2,3)
+
+        cam_rvec = np.asmatrix(cam_ext["Rvec"])
+        cam_tvec = np.asmatrix(cam_ext["Tvec"])
+
+        # print(cam_rvec)
+
+        reproj = np.zeros((2, self.n, 18))
+
+        for i in range(18):
+            pts = np.vstack((self.X[:, i], self.Y[:, i], self.Z[:, i]))
+
+            # reproj[:, :, [i]] = cv2.projectPoints(pts, cam_rvec, cam_tvec, cam_mat, cam_dist)
+            R, _ = cv2.projectPoints(pts, cam_rvec, cam_tvec, cam_mat, cam_dist)
+            R = R.reshape(-1, 2).T
+
+            reproj[:, :, i] = R
+
+        Xreproj = reproj[0, :, :]
+        Yreproj = reproj[1, :, :]
+
+        part_idx = np.ones((self.n, 18))
+        frame_idx = np.ones((self.n, 18))
+        fps = np.ones((self.n, 18)) * 30
+        conf = np.ones((self.n, 18)) * 2
+
+        for i in range(18):
+            part_idx[:, i] = part_idx[:, i] * i
+            frame_idx[:, i] = np.arange(0, self.n, dtype=int).T
+
+        # print(frame_idx)
+        # print(part_idx)
+
+        data = {
+            "frame": frame_idx.ravel(),
+            "x": Xreproj.ravel(),
+            "y": Yreproj.ravel(),
+            "part_idx": part_idx.ravel(),
+            "fps": fps.ravel(),
+            "c": conf.ravel(),
+        }
+
+        # Create DataFrame
+        df = pd.DataFrame(data)
+
+        if name != None:
+            df.to_csv(name)
+
+        return Xreproj, Yreproj
 
     def plotskel(self, j):
 
@@ -480,7 +589,9 @@ class tringulatepose:
                 [15, 17],
             ]
         )
-        x, y = self.XA[camnum - 1, :, j], self.YA[camnum - 1, :, j]
+
+        idx = np.where(self.cams == camnum)[0][0]
+        x, y = self.XA[idx, :, j - 1], self.YA[idx, :, j - 1]
 
         # print(np.shape(x))
 
@@ -540,8 +651,8 @@ class tringulatepose:
 
         X, Y, E = self.reproj_each(camnum)
 
-        x = X[:, j].T
-        y = Y[:, j].T
+        x = X[:, j - 1].T
+        y = Y[:, j - 1].T
 
         # print(np.shape(x))
 
@@ -571,17 +682,11 @@ class tringulatepose:
 
         return frame
 
-    def overlay_pose(self, camnum, compare):
+    def overlay_pose(self, camnum, vidname, compare):
         # storing video rotation
-        rot = np.array([0, 180, 0, 0, -90, 0, -90])
+        # rot = np.array([0, 180, 0, 0, -90, 0, -90])
 
-        filename = (
-            r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Trials\Aim I\833180_108\01-31-2025\Cameras\Camera "
-            + str(camnum)
-            + "\\2025_01_31_833180_108_cam"
-            + str(camnum)
-            + "_vid4.mp4"
-        )
+        filename = vidname
         # read in video
         cap = cv2.VideoCapture(filename)
 
@@ -590,6 +695,7 @@ class tringulatepose:
         height = cap.get(4)  # float `height`
 
         j = 0
+        idx = np.where(self.cams == camnum)[0][0]
 
         # print(self.cam_objects[camnum - 1].start)
         while cap.isOpened():
@@ -601,9 +707,10 @@ class tringulatepose:
 
             # if 60fps video skip every other frame to diaplay video at 30fps
             # if self.cam_objects[camnum - 1].start < frameId:
-            wait = self.cam_objects[camnum - 1].start < frameId
 
-            if self.cam_objects[camnum - 1].fps == 60:
+            wait = self.cam_objects[idx].start < frameId
+
+            if self.cam_objects[idx].fps == 60:
                 skip = frameId % 2
 
             # Capturing each frame of our video stream
@@ -614,12 +721,12 @@ class tringulatepose:
                     j = j + 1
 
                     # rotating video
-                    if rot[camnum - 1] == 90:
-                        frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
-                    elif rot[camnum - 1] == 180:
-                        frame = cv2.rotate(frame, cv2.ROTATE_180)
-                    elif rot[camnum - 1] == -90:
-                        frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                    # if rot[idx] == 90:
+                    #     frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                    # elif rot[idx] == 180:
+                    #     frame = cv2.rotate(frame, cv2.ROTATE_180)
+                    # elif rot[idx] == -90:
+                    #     frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
                     # plotting original camera pose
                     frame = self.plotskel2D(j, camnum, frame)
@@ -704,68 +811,6 @@ class tringulatepose:
             # Exit at the end of the video on the 'q' keypress
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
-
-    def reproj_each(self, num):
-        intrinsics = self.intrinsics
-
-        cam_int = intrinsics["cam" + str(num)]
-
-        cam_mat = np.asmatrix(cam_int["Mat"])
-        cam_dist = np.asarray(cam_int["Dist"])
-
-        idx = np.where(self.cams == num)[0][0]
-
-        cam_ext = self.ext_params[idx, :, :]  # (7,2,3)
-
-        cam_rvec = cam_ext[0, :]
-        cam_tvec = cam_ext[1, :]
-
-        reproj = np.zeros((2, self.n, 18))
-
-        for i in range(18):
-            pts = np.vstack((self.X[:, i], self.Y[:, i], self.Z[:, i]))
-
-            # reproj[:, :, [i]] = cv2.projectPoints(pts, cam_rvec, cam_tvec, cam_mat, cam_dist)
-            R, _ = cv2.projectPoints(pts, cam_rvec, cam_tvec, cam_mat, cam_dist)
-            R = R.reshape(-1, 2).T
-
-            reproj[:, :, i] = R
-
-        Xreproj = reproj[0, :, :]
-        Yreproj = reproj[1, :, :]
-
-        # errorX = np.zeros((13))
-        # errorY = np.zeros((13))
-        error = np.zeros((18))
-
-        for j in range(18):
-            rpt = np.vstack((Xreproj[:, j], Yreproj[:, j]))
-            pt = np.vstack((self.XA[idx][j, :], self.YA[idx][j, :]))
-
-            error[j] = np.linalg.norm(rpt - pt) / self.n
-            # errorX[j] = np.linalg.norm(Xreproj[:, j] - self.XA[num - 1][j, :])
-            # errorY[j] = np.linalg.norm(Xreproj[:, j] - self.XA[num - 1][j, :])
-
-        mean_error = sum(error) / 18
-
-        return Xreproj.T, Yreproj.T, mean_error
-
-    def reproj_all(self):
-        n = self.n
-        ncams = self.n_cams
-
-        XAr = np.zeros((ncams, 18, n))
-        YAr = np.zeros((ncams, 18, n))
-        E = np.zeros((18))
-
-        for i in range(ncams):
-            X, Y, e = self.reproj_each(self.cams[i])
-
-            XAr[i, :, :] = X
-            YAr[i, :, :] = Y
-            E[i] = e
-
-        return XAr, YAr, E
 
     def update3D(self, pts):
         n = self.n
@@ -967,31 +1012,13 @@ class tringulatepose:
 
         return A
 
-    def SBA(self):
+    def SBA(self, disp=1, verbose=2):
         # points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel()))
         points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel())).T
 
         x0 = np.hstack((self.ext_params.ravel(), points_3d.ravel()))
 
         f0 = self.residual(x0)
-
-        # pts3D = x0[6 * 7 : len(x0)]
-        # pts3D = points_3d.ravel()
-
-        # k = 13 * self.n
-
-        # x = pts3D[0:k]
-        # y = pts3D[k : 2 * k]
-        # z = pts3D[2 * k : 3 * k]
-
-        # pts3Dt = points_3dt.ravel()
-
-        # # xt = pts3Dt[0:k] * 0
-
-        # X1 = self.Y
-        # self.update3D(pts3D)
-        # X2 = self.Y
-
         A = self.jacob()
         # print(np.any(np.isnan(f0)), np.any(np.isinf(f0)))
 
@@ -1002,7 +1029,7 @@ class tringulatepose:
             self.residual,
             x0,
             jac_sparsity=A,
-            verbose=2,
+            verbose=verbose,
             x_scale="jac",
             ftol=1e-4,
             method="trf",
@@ -1013,12 +1040,11 @@ class tringulatepose:
         # params = res.x[0 : 6 * 7]
         ff = res.fun
 
-        # print(max(f0))
-        # print(max(ff))
+        if disp == 1:
 
-        plt.plot(f0)
-        plt.plot(ff)
-        plt.show()
+            plt.plot(f0)
+            plt.plot(ff)
+            plt.show()
 
         # print(self.ext_params)
 
@@ -1028,9 +1054,10 @@ class tringulatepose:
         i = 0
         print("Checking camera combinations")
         for c in self.combos:
+            print("Combo: ", c[0], c[1])
 
-            self.trinagulat_all(c[0], c[1])
-            # self.SBA()
+            self.trinagulate_all(c[0], c[1])
+            # self.SBA(disp=0, verbose=0)
             points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel())).T
 
             x0 = np.hstack((self.ext_params.ravel(), points_3d.ravel()))
@@ -1048,20 +1075,38 @@ class tringulatepose:
 
         print("1st Best reults from cameras: ", num1, "+", num2)
         print("2nd Best reults from cameras: ", int(sorted[1, 0]), "+", int(sorted[1, 1]))
-        # print("3rd Best reults from cameras: ", int(sorted[2, 0]), "+", int(sorted[2, 1]))
+        print("3rd Best reults from cameras: ", int(sorted[2, 0]), "+", int(sorted[2, 1]))
 
-        # for i in range(5):
-        #     self.trinagulat_all(int(sorted[i, 0]), int(sorted[i, 1]))
+        self.trinagulate_all(num1, num2)
+        self.SBA()
+
+        # for i in range(3):
+        #     self.trinagulate_all(int(sorted[i, 0]), int(sorted[i, 1]))
         #     print(sorted[i, 0], sorted[i, 1])
         #     self.SBA()
 
-        self.trinagulat_all(num1, num2)
+        #     points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel())).T
 
-    def save_3D(self):
+        #     x0 = np.hstack((self.ext_params.ravel(), points_3d.ravel()))
+
+        #     f0 = self.residual(x0)
+        #     results[i, :] = np.array([(c[0]), (c[1]), np.linalg.norm(f0) / 2])
+        #     i = i + 1
+
+        # srt = np.argsort(results[:, 2])
+        # sorted = results[srt, :]
+
+        # num1 = int(sorted[0, 0])
+        # num2 = int(sorted[0, 1])
+
+        # print("1st Best reults from cameras (after SBA): ", num1, "+", num2)
+        # print("2nd Best reults from cameras (after SBA): ", int(sorted[1, 0]), "+", int(sorted[1, 1]))
+
+        # self.trinagulate_all(num1, num2)
+
+    def save_3D(self, folder):
         num1 = self.num1
         num2 = self.num2
-
-        folder = r"C:\Users\franc\Documents\GitHub\PANDA-Gym-Data-Proceeing\Calibration"
 
         print("Saving As:" + folder + "\\3D_vid_" + str(num1) + "_" + str(num2) + ".csv")
 
@@ -1089,20 +1134,20 @@ class tringulatepose:
         df.to_csv(folder + "\\3D_vid_" + str(num1) + "_" + str(num2) + ".csv", index=False)
 
 
-tt = tringulatepose()
-tt.check_combos()
+# tt = tringulatepose()
+# tt.check_combos()
 
 # num1 = 3
 # num2 = 5
 
-# tt.trinagulat_all(num1, num2)
+# tt.trinagulate_all(num1, num2)
 # # tt.trinagulat_conf()
 
 
 # print(tt.error_percent())
 
 # tt.SBA()
-tt.overlay_pose(3, compare=1)
+# tt.overlay_pose(3, compare=1)
 # tt.plotskel_loop()
 
 # print(tt.error_percent())
