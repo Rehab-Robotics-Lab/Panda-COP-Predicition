@@ -36,14 +36,42 @@ class processpose:
             Z[:, p] = df.z[df.part_idx == p].T
             idx[:, p] = p
 
-        # creating global variables
+        order = 3
+        fcut = 5
 
-        X_init, Y_init, Z_init = np.mean(X[0:5, 1]), np.mean(Y[0:5, 1]), np.mean(Z[0:5, 1])
+        b, a = scipy.signal.butter(order, fcut, fs=60)
+
+        # X = scipy.signal.filtfilt(b, a, X)
+        # Y = scipy.signal.filtfilt(b, a, Y)
+        # Z = scipy.signal.filtfilt(b, a, Z)
+
+        # creating global variables
+        win = 5
+
+        X_init, Y_init, Z_init = np.mean(X[0:win, 1]), np.mean(Y[0:win, 1]), np.mean(Z[0:win, 1])
+
+        # Xcalc = scipy.ndimage.median_filter(Xcalc, 15)
 
         self.X = X - X_init
         self.Y = Y - Y_init
         self.Z = Z
         self.idx = idx
+
+        zrarm, zlarm, zrleg, zlleg = Z[:, 3], Z[:, 6], Z[:, 10], Z[:, 13]
+
+        # print(
+        #     np.mean(zrarm[3000:]) * 1000,
+        #     np.mean(zlarm[3000:]) * 1000,
+        #     np.mean(zrleg[:2000]) * 1000,
+        #     np.mean(zlleg[:2000]) * 1000,
+        # )
+
+        # plt.plot(zrarm)
+        # plt.plot(zlarm)
+        # plt.plot(zrleg)
+        # plt.plot(zlleg)
+        # plt.legend(["Rarm", "Larm", "Rleg", "Lleg"])
+        # plt.show()
 
     def get_len(self, i, j):
         p1 = np.matrix([self.X[:, i], self.Y[:, i], self.Z[:, i]])
@@ -234,8 +262,7 @@ class processpose:
         # plt.plot(np.rad2deg(thet2.T))
         # plt.plot(np.rad2deg(thet3.T))
         # plt.plot(np.rad2deg(thet4.T))
-        # plt.legend(["thet1", "thet2", "thet3", "thet4"])
-        # #  plt.legend(["thet3", "thet4"])
+        # plt.legend(["tz1", "tx2", "ty3", "tx4"])
         # plt.show()
 
         # print([np.min(c3), np.max(c3)], [np.min(s3), np.max(s3)])
@@ -320,7 +347,7 @@ class processpose:
         # plt.plot(np.rad2deg(thet2.T))
         # plt.plot(np.rad2deg(thet3.T))
         # plt.plot(np.rad2deg(thet4.T))
-        # plt.legend(["thet1", "thet2", "thet3", "thet4"])
+        # plt.legend(["tz1", "tx2", "ty3", "tx4"])
         # #  plt.legend(["thet3", "thet4"])
         # plt.show()
 
@@ -338,6 +365,8 @@ class processpose:
         c1 = mid[1, :] - nose[1, :]
 
         thet1 = np.arctan2(s1, c1)
+        c1 = np.cos(thet1)
+        s1 = np.sin(thet1)
         self.thet1f = thet1
 
         c2 = np.divide((mid[1, :] - nose[1, :]), np.cos(thet1))
@@ -345,6 +374,8 @@ class processpose:
 
         thet2 = np.arctan2(s2, c2)
         self.thet2f = thet2
+        c2 = np.cos(thet2)
+        s2 = np.sin(thet2)
 
         c3 = np.divide((leye[0, :] - mid[0, :]), np.cos(thet2))
         # t12 = np.multiply(np.divide(s1, c1), np.divide(s2, c2))
@@ -366,12 +397,16 @@ class processpose:
         c1 = mid[1, :] - neck[1, :]
 
         thet1 = np.arctan2(s1, c1)
+        c1 = np.cos(thet1)
+        s1 = np.sin(thet1)
         self.thet1e = thet1
 
         c2 = np.divide((mid[1, :] - neck[1, :]), np.cos(thet1))
         s2 = neck[0, :] - mid[0, :]
 
         thet2 = np.arctan2(s2, c2)
+        c2 = np.cos(thet2)
+        s2 = np.sin(thet2)
         self.thet2e = thet2
 
         c3 = np.divide((lear[0, :] - mid[0, :]), np.cos(thet2))
@@ -395,6 +430,8 @@ class processpose:
         c1 = lshoulder[0, :] - mid[0, :]
 
         thet1 = np.arctan2(s1, c1)
+        c1 = np.cos(thet1)
+        s1 = np.sin(thet1)
         self.thet1s = thet1
 
         # c2 = np.divide((lshoulder[0, :] - mid[0, :]), c1)
@@ -419,11 +456,15 @@ class processpose:
 
         thet1 = np.arctan2(s1, c1)
         self.thet1h = thet1
+        c1 = np.cos(thet1)
+        s1 = np.sin(thet1)
 
         c2 = np.divide((neck[1, :] - mid[1, :]), c1)
         s2 = mid[0, :] - neck[0, :]
 
         thet2 = np.arctan2(s2, c2)
+        c2 = np.cos(thet2)
+        s2 = np.sin(thet2)
         self.thet2h = thet2
 
         c3 = np.divide((lhip[0, :] - mid[0, :]), np.cos(thet2))
@@ -533,6 +574,74 @@ class processpose:
 
         return R
 
+    def reproj_IK(self, axis, T, i, P1, P2, mid=0):
+        if mid == 0:
+            p1 = np.matrix([self.X[i, P1], self.Y[i, P1], self.Z[i, P1]])
+            p2 = np.matrix([self.X[i, P2], self.Y[i, P2], self.Z[i, P2]])
+        else:
+            k1 = np.matrix([self.X[i, P1], self.Y[i, P1], self.Z[i, P1]])
+            k2 = np.matrix([self.X[i, P2], self.Y[i, P2], self.Z[i, P2]])
+
+            p1 = (k1 + k2) * 0.5
+            p2 = k2
+
+        # print(p1,p2)
+        L = np.linalg.norm(p1 - p2, axis=1)[0]
+
+        # print(L)
+
+        if axis == "x":
+            vec = np.matrix([[L], [0], [0], [1]])
+        elif axis == "y":
+            vec = np.matrix([[0], [L], [0], [1]])
+
+        p2_proj = np.zeros_like(p2)
+        p2_proj = (T @ vec)[0:3, 0]
+        diff = np.linalg.norm(p2 - p2_proj.T)
+
+        thresh = 0.01
+
+        check = diff >= thresh
+
+        return diff, check
+
+    def check_IK_all(self):
+        n = self.frames + 1
+        diff_S = np.zeros((n))
+        diff_H = np.zeros((n))
+        diff_F = np.zeros((n))
+        diff_Rf = np.zeros((n))
+        diff_Rh = np.zeros((n))
+
+        check_S = np.zeros((n))
+        check_H = np.zeros((n))
+        check_F = np.zeros((n))
+        check_Rf = np.zeros((n))
+        check_Rh = np.zeros((n))
+
+        # print(np.shape(diff_F),np.shape)
+
+        for i in range(n):
+            Ts, Th, Tf, Te = self.IK_trunk(i)
+            Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(i, Ts, Th)
+
+            diff_S[i], check_S[i] = self.reproj_IK(axis="x", T=Ts, i=i, P1=2, P2=5, mid=1)
+            diff_H[i], check_H[i] = self.reproj_IK(axis="x", T=Th, i=i, P1=8, P2=11, mid=1)
+            diff_F[i], check_F[i] = self.reproj_IK(axis="x", T=Tf, i=i, P1=14, P2=15, mid=1)
+            diff_Rf[i], check_Rf[i] = self.reproj_IK(axis="y", T=Ts_rk, i=i, P1=3, P2=4, mid=0)
+
+        print("Shoulders: ", sum(check_S))
+        print("Hips: ", sum(check_H))
+        print("Face: ", sum(check_F))
+        print("RFoot: ", sum(diff_Rf))
+
+        plt.plot(diff_S)
+        plt.plot(diff_H)
+        plt.plot(diff_F)
+        plt.plot(diff_Rf)
+        plt.legend(["Shoulders", "Hips", "Face", "RFoot"])
+        plt.show()
+
     def check_IK_legs(self, k=2):
         lh = np.matrix([self.X[:, k + 3], self.Y[:, k + 3], self.Z[:, k + 3]])
         lk = np.matrix([self.X[:, k + 4], self.Y[:, k + 4], self.Z[:, k + 4]])
@@ -559,7 +668,7 @@ class processpose:
         rk_proj = np.zeros_like(rk)
         lk_proj = np.zeros_like(lk)
 
-        for i in range(self.frames):
+        for i in range(self.frames + 1):
             Ts, Th, Tf, Te = self.IK_trunk(i)
             Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(i, Ts, Th)
 
@@ -598,7 +707,7 @@ class processpose:
         plt.legend(["rfoot", "lfoot", "rknee", "lknee"])
         plt.show()
 
-        thresh = 0.04
+        thresh = 0.001
 
         check_lf = np.linalg.norm(diffLf, axis=0) >= thresh
         check_rf = np.linalg.norm(diffRf, axis=0) >= thresh
@@ -1145,11 +1254,12 @@ class processpose:
 
         L1, L2 = L[0], L[1]
         m1, m2 = m[0], m[1]
-        I1, I2 = I[0, :], I[1, :]
-        n = self.frames
+        i1, i2 = I[0, :], I[1, :]
 
-        Fr = np.zeros((3, n))
-        Tq = np.zeros((3, n))
+        n = self.frames + 1
+
+        Fr = np.ones((3, n))
+        Tq = np.ones((3, n))
 
         for i in range(n):
             t1, t2, t3, t4 = T[0, i], T[1, i], T[2, i], T[3, i]
@@ -1170,37 +1280,29 @@ class processpose:
             p1 = np.matrix([[0], [L1], [0]])
             p2 = np.matrix([[0], [L2], [0]])
 
-            wz = Rz1.T @ w0 + np.matrix([[0], [0], [t1d]])
-            wx = Rx2.T @ wz + np.matrix([[t2d], [0], [0]])
-            w1 = Ry3.T @ wx + np.matrix([[0], [t3d], [0]])
-            w2 = Rx4.T @ w1 + np.matrix([[t4d], [0], [0]])
+            wz = Rz1 @ w0 + np.matrix([[0], [0], [t1d]])
+            wx = Rx2 @ wz + np.matrix([[t2d], [0], [0]])
+            w1 = Ry3 @ wx + np.matrix([[0], [t3d], [0]])
+            w2 = Rx4 @ w1 + np.matrix([[t4d], [0], [0]])
 
             # angular accelearation
             wz_d = (
-                (Rz1.T @ w0_d)
-                + np.cross(Rz1.T @ w0, np.matrix([[0], [0], [t1d]]), axis=0)
-                + np.matrix([[0], [0], [t1dd]])
+                (Rz1 @ w0_d) + np.cross(Rz1 @ w0, np.matrix([[0], [0], [t1d]]), axis=0) + np.matrix([[0], [0], [t1dd]])
             )
             wx_d = (
-                (Rx2.T @ wz_d)
-                + np.cross(Rx2.T @ wz, np.matrix([[t2d], [0], [0]]), axis=0)
-                + np.matrix([[t2dd], [0], [0]])
+                (Rx2 @ wz_d) + np.cross(Rx2 @ wz, np.matrix([[t2d], [0], [0]]), axis=0) + np.matrix([[t2dd], [0], [0]])
             )
             w1_d = (
-                (Ry3.T @ wx_d)
-                + np.cross(Ry3.T @ wx, np.matrix([[0], [t3d], [0]]), axis=0)
-                + np.matrix([[0], [t3dd], [0]])
+                (Ry3 @ wx_d) + np.cross(Ry3 @ wx, np.matrix([[0], [t3d], [0]]), axis=0) + np.matrix([[0], [t3dd], [0]])
             )
             w2_d = (
-                (Rx4.T @ w1_d)
-                + np.cross(Rx4.T @ w1, np.matrix([[t4d], [0], [0]]), axis=0)
-                + np.matrix([[t4dd], [0], [0]])
+                (Rx4 @ w1_d) + np.cross(Rx4 @ w1, np.matrix([[t4d], [0], [0]]), axis=0) + np.matrix([[t4dd], [0], [0]])
             )
             ## LINEAR
 
             # linear accelearation
-            v1_d = (Rz1 @ Rx2 @ Ry3).T @ v0_d
-            v2_d = Rx4.T @ (np.cross(w1_d, p1, axis=0) + np.cross(w1, np.cross(w1, p1, axis=0), axis=0) + v1_d)
+            v1_d = (Rz1 @ Rx2 @ Ry3) @ v0_d
+            v2_d = Rx4 @ (np.cross(w1_d, p1, axis=0) + np.cross(w1, np.cross(w1, p1, axis=0), axis=0) + v1_d)
 
             # linear acceleration relative to COM
             vc1_d = np.cross(w1_d, p1 / 2, axis=0) + np.cross(w1, np.cross(w1, p1 / 1, axis=0), axis=0) + v1_d
@@ -1213,36 +1315,39 @@ class processpose:
             F2 = m2 * vc2_d
 
             ##MOMENTS
-            I1 = np.diag(np.ravel(I1))
+            I1 = np.diag(np.ravel(i1))
             N1 = I1 @ w1_d + np.cross(w1, (I1 @ w1), axis=0)
-            I2 = np.diag(np.ravel(I2))
+            I2 = np.diag(np.ravel(i2))
             N2 = I2 @ w2_d + np.cross(w2, (I2 @ w2), axis=0)
 
             ###### BACKWARDS ITERATION
             # ACCUMULATED FORCES at joints
             f2 = F2
-            f1 = Rx4 @ f2 + F1
+            f1 = Rx4.T @ f2 + F1
 
             # ACCUMULATED TORQUE at joints
             n2 = N2
-            n1 = N1 + Rx4 @ n2 + np.cross(p1 / 2, F1, axis=0) + np.cross(p1, (Rx4 @ f2), axis=0)
+            n1 = N1 + Rx4.T @ n2 + np.cross(p1 / 2, F1, axis=0) + np.cross(p1, (Rx4.T @ f2), axis=0)
 
             # torque from shoulder flextion/extension
-            print(np.shape(Tq[0:3, 5]), np.shape((Rz1 @ Rx2 @ Ry3) @ n1))
-            Tq[:, i] = (Rz1 @ Rx2 @ Ry3) @ n1
+
+            tq = ((Rz1 @ Rx2 @ Ry3).T @ n1)[:, 0]
             # forces transformed to base frame
-            Fr[:, i] = (Rz1 @ Rx2 @ Ry3) @ f1
+            fr = ((Rz1 @ Rx2 @ Ry3).T @ f1)[:, 0]
+
+            Tq[:, [i]] = tq
+            Fr[:, [i]] = fr
 
         return Tq, Fr
 
 
-# fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"
+fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"
 # fi = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_cam_2_6_vid_3.csv"
 
 
-# tt = processpose(fi)
+tt = processpose(fi)
 
-# tt.IK_init()
+tt.IK_init()
 # tt.ID_init()
 
 # p1 = tt.plo1
@@ -1255,5 +1360,6 @@ class processpose:
 # plt.show()
 
 # tt.plotskel_loop(start=0 * 30)
-# tt.check_IK_legs(k=2)
-# tt.check_IK_legs(k=8)
+tt.check_IK_legs(k=2)
+tt.check_IK_legs(k=8)
+# tt.check_IK_all()

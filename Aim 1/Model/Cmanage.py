@@ -824,18 +824,18 @@ class c_manage:
         self.extrinsics_final = pd.read_json(savefolder + "\\" + self.vid_name + "_extrinsics.json").to_dict()
 
 
-sim = c_manage(
-    cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
-    vid_name="sim",
-    csv_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\pose",
-)
+# sim = c_manage(
+#     cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
+#     vid_name="sim",
+#     csv_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\pose",
+# )
 
 # sim.overlay_pose(camnum=7, vidnum=4)
 
-vidn = 3
-sim.tringulate(vidn)
+# vidn = 3
+# sim.tringulate(vidn)
 # sim.overlay_reproj(vidn)
-sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras")
+# sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras")
 
 # nme = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 2\sim_trunk_cam2_vid5.MP4"
 # sim.manual_synch(nme, 140)

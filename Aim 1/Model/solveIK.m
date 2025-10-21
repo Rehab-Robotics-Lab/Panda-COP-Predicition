@@ -22,3 +22,13 @@ eqn3=[ex ; ey]==[X;Y]
 solve(eqn1,[c3,s3])
 solve(eqn2,[c3,s3])
 solve(eqn3,[c3,s3])
+
+%% 
+
+syms f1 f2 f3 dx dy dz
+
+F=[f1;f2;f3]
+L=[dx;dy;dz]
+
+Tq=cross(F,L)
+

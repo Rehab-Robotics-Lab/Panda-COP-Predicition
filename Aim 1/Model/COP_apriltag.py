@@ -618,7 +618,7 @@ class COP_Tag:
         # print(4)
 
 
-# cnum = 3
+cnum = 5
 vnum = 5
 
 tt = COP_Tag(cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras", name="sim_trunk", load=1)
@@ -629,27 +629,27 @@ cams = [4]
 # tt.combine_vecs(cams, vnum, folder)
 
 copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\sim_trunk_cop_vid5_side.csv"
-tt.comapre_COP(cams, vnum, file=copfile, folder=folder)
+# tt.comapre_COP(cams, vnum, file=copfile, folder=folder)
 
 
-# nme = (
-#     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose\\"
-#     + tt.trial_name
-#     + "_"
-#     + "cam"
-#     + str(cnum)
-#     + "_"
-#     + "vid"
-#     + str(vnum)
-#     + "_tagpose.json"
-# )
+nme = (
+    r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose\\"
+    + tt.trial_name
+    + "_"
+    + "cam"
+    + str(cnum)
+    + "_"
+    + "vid"
+    + str(vnum)
+    + "_tagpose.json"
+)
 
 
 # tt.comapre_COP(
 #     cnum, vnum, name=nme, file=copfile
 # )
 
-# tt.showtags_loop(cnum, vnum, name=nme)
+tt.showtags_loop(cnum, vnum, name=nme)
 # tt.tag_COP(cnum, vnum, name=nme)
 # tt.get_pose(cnum, vnum, view=0)
 
