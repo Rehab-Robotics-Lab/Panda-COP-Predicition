@@ -858,7 +858,7 @@ class processpose:
     def IK_limbs(self, j, T0_1, T0_h):
 
         ## RIGHT ARM
-        T0_2, T0_3 = self.T_arm(
+        T0_2, T0_3 = self.T_limb(
             j, 2, np.matrix([self.thet1_ra[0, j], self.thet2_ra[0, j], self.thet3_ra[0, j], self.thet4_ra[0, j]])
         )
 
@@ -868,7 +868,7 @@ class processpose:
         T03 = T02 @ T2_3
 
         ## LEFT ARM
-        T0_5, T0_6 = self.T_arm(
+        T0_5, T0_6 = self.T_limb(
             j, 5, np.matrix([self.thet1_la[0, j], self.thet2_la[0, j], self.thet3_la[0, j], self.thet4_la[0, j]])
         )
 
@@ -878,7 +878,7 @@ class processpose:
         T06 = T05 @ T5_6
 
         ## RIGHT LEG
-        T0_8, T0_9 = self.T_leg(
+        T0_8, T0_9 = self.T_limb(
             j, 8, np.matrix([self.thet1_rl[0, j], self.thet2_rl[0, j], self.thet3_rl[0, j], self.thet4_rl[0, j]])
         )
 
@@ -888,7 +888,7 @@ class processpose:
         T09 = T08 @ T8_9
 
         ## LEFT LEG
-        T0_11, T0_12 = self.T_leg(
+        T0_11, T0_12 = self.T_limb(
             j, 11, np.matrix([self.thet1_ll[0, j], self.thet2_ll[0, j], self.thet3_ll[0, j], self.thet4_ll[0, j]])
         )
 
@@ -899,21 +899,7 @@ class processpose:
 
         return T02, T03, T05, T06, T08, T09, T011, T012
 
-    def T_arm(self, j, k, T):
-        t1, t2, t3, t4 = T[0, 0], T[0, 1], T[0, 2], T[0, 3]
-
-        Rz_180 = np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
-
-        R_03 = Rz_180 @ self.R_zxy(t1, t2, t3)
-        T0_03 = self.get_T(R_03, [self.X[j, k], self.Y[j, k], self.Z[j, k]])
-
-        # RIGHT ELBOW
-        R_04 = R_03 @ self.R_x(t4)
-        T0_04 = self.get_T(R_04, [self.X[j, k + 1], self.Y[j, k + 1], self.Z[j, k + 1]])
-
-        return T0_03, T0_04
-
-    def T_leg(self, j, k, T):
+    def T_limb(self, j, k, T):
         t1, t2, t3, t4 = T[0, 0], T[0, 1], T[0, 2], T[0, 3]
 
         Rz_180 = np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
@@ -1277,6 +1263,14 @@ class processpose:
             Ry3 = self.R_y(t3)
             Rx4 = self.R_x(t4)
 
+            Rz1 = (Rz_180 @ self.R_z(t1)).T
+            Rx2 = (self.R_x(t2)).T
+            Ry3 = (self.R_y(t3)).T
+            Rx4 = (self.R_x(t4)).T
+
+            R01 = Rz1 @ Rx2 @ Ry3
+            R12 = Rx4
+
             p1 = np.matrix([[0], [L1], [0]])
             p2 = np.matrix([[0], [L2], [0]])
 
@@ -1301,11 +1295,11 @@ class processpose:
             ## LINEAR
 
             # linear accelearation
-            v1_d = (Rz1 @ Rx2 @ Ry3) @ v0_d
-            v2_d = Rx4 @ (np.cross(w1_d, p1, axis=0) + np.cross(w1, np.cross(w1, p1, axis=0), axis=0) + v1_d)
+            v1_d = R01 @ v0_d
+            v2_d = R12 @ (np.cross(w1_d, p1, axis=0) + np.cross(w1, np.cross(w1, p1, axis=0), axis=0) + v1_d)
 
             # linear acceleration relative to COM
-            vc1_d = np.cross(w1_d, p1 / 2, axis=0) + np.cross(w1, np.cross(w1, p1 / 1, axis=0), axis=0) + v1_d
+            vc1_d = np.cross(w1_d, p1 / 2, axis=0) + np.cross(w1, np.cross(w1, p1 / 2, axis=0), axis=0) + v1_d
             vc2_d = np.cross(w2_d, p2 / 2, axis=0) + np.cross(w2, np.cross(w2, p2 / 2, axis=0), axis=0) + v2_d
 
             ## FORCES
@@ -1316,24 +1310,23 @@ class processpose:
 
             ##MOMENTS
             I1 = np.diag(np.ravel(i1))
-            N1 = I1 @ w1_d + np.cross(w1, (I1 @ w1), axis=0)
+            N1 = (I1 @ w1_d) + np.cross(w1, (I1 @ w1), axis=0)
             I2 = np.diag(np.ravel(i2))
-            N2 = I2 @ w2_d + np.cross(w2, (I2 @ w2), axis=0)
+            N2 = (I2 @ w2_d) + np.cross(w2, (I2 @ w2), axis=0)
 
             ###### BACKWARDS ITERATION
             # ACCUMULATED FORCES at joints
             f2 = F2
-            f1 = Rx4.T @ f2 + F1
+            f1 = F1 + (R12.T @ f2)
 
             # ACCUMULATED TORQUE at joints
-            n2 = N2
-            n1 = N1 + Rx4.T @ n2 + np.cross(p1 / 2, F1, axis=0) + np.cross(p1, (Rx4.T @ f2), axis=0)
+            n2 = N2 + np.cross(p2 / 2, F2, axis=0)
+            n1 = N1 + (R12.T @ n2) + np.cross(p1 / 2, F1, axis=0) + np.cross(p1, (R12.T @ f2), axis=0)
 
             # torque from shoulder flextion/extension
-
-            tq = ((Rz1 @ Rx2 @ Ry3).T @ n1)[:, 0]
+            tq = (R01.T @ n1)[:, 0]
             # forces transformed to base frame
-            fr = ((Rz1 @ Rx2 @ Ry3).T @ f1)[:, 0]
+            fr = (R01.T @ f1)[:, 0]
 
             Tq[:, [i]] = tq
             Fr[:, [i]] = fr
@@ -1341,13 +1334,13 @@ class processpose:
         return Tq, Fr
 
 
-fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"
-# fi = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_cam_2_6_vid_3.csv"
+# fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"
+fi = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_cam_2_6_vid_3.csv"
 
 
-tt = processpose(fi)
+# tt = processpose(fi)
 
-tt.IK_init()
+# tt.IK_init()
 # tt.ID_init()
 
 # p1 = tt.plo1
@@ -1360,6 +1353,6 @@ tt.IK_init()
 # plt.show()
 
 # tt.plotskel_loop(start=0 * 30)
-tt.check_IK_legs(k=2)
-tt.check_IK_legs(k=8)
+# tt.check_IK_legs(k=2)
+# tt.check_IK_legs(k=8)
 # tt.check_IK_all()

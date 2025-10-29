@@ -110,7 +110,9 @@ class sim_COP:
         # checking when left arm is in contact with the ground
         # self.larm_check = arm_angle_l == -45
         # self.rarm_check = arm_angle_r == -45
-        self.lleg_check = leg_angle_l == -30
+        self.lleg_check = leg_angle_l <= 18
+        # plt.plot(self.lleg_check)
+        # plt.show()
         self.rleg_check = leg_angle_r == -100
 
         # self.larm_Ld = robofile.larm_load * 1.4 / 1000
@@ -312,20 +314,23 @@ class sim_COP:
         lleg_check = np.asarray(self.lleg_check).reshape(1, n)
         rleg_check = np.asarray(self.rleg_check).reshape(1, n)
 
+        f = 1
+
         # resting COP for legs
         xleg = (self.ltrunk_w / 2) + 0.02
         yleg = (self.ltrunk_l / 2) - 0.13 - ytrunk
 
         X_lleg = xleg * lleg_check
         Y_lleg = yleg * lleg_check
-        Fn_lleg = np.sum(self.lleg_m) * 9.81 * lleg_check
+        Fn_lleg = np.sum(self.lleg_m) * 9.81 * lleg_check * f
 
         X_rleg = -xleg * rleg_check
         Y_rleg = yleg * rleg_check
-        Fn_rleg = np.sum(self.rleg_m) * 9.81 * rleg_check
+        Fn_rleg = np.sum(self.rleg_m) * 9.81 * rleg_check * f
 
         # self.Xcalc = X_low
         # self.Ycalc = Y_low
+        Fn_tot = Fn_up + Fn_low + Fn_lleg + Fn_rleg
         self.Xcalc = (
             np.multiply(X_low, Fn_low)
             + np.multiply(X_up, Fn_up)
@@ -339,6 +344,27 @@ class sim_COP:
             + np.multiply(Y_lleg, Fn_lleg)
             + np.multiply(Y_rleg, Fn_rleg)
         ) / (Fn_up + Fn_low + Fn_lleg + Fn_rleg)
+
+        xup = np.multiply(X_up, Fn_up) / Fn_tot
+        xlow = np.multiply(X_low, Fn_low) / Fn_tot
+        xlleg = np.multiply(X_lleg, Fn_lleg) / Fn_tot
+        xrleg = np.multiply(X_rleg, Fn_rleg) / Fn_tot
+
+        # print(np.shape(xup))
+        # plt.plot(xup.T)
+        # plt.plot(xlow.T)
+        # plt.plot(xlleg.T)
+        # plt.plot(xrleg.T)
+        # plt.plot(Fn_tot.T)
+        # plt.plot(self.Xcalc)
+
+        # plt.plot(Fn_up.T)
+        # plt.plot(Fn_low.T)
+        # plt.plot(Fn_lleg.T)
+        # plt.plot(Fn_rleg.T)
+        # plt.plot(Fn_tot.T)
+        # plt.legend(["Upper", "Lower", "L_leg", "R_Leg", "Tot"])
+        # plt.show()
 
     def compare_T(self):
         t = self.robot_t

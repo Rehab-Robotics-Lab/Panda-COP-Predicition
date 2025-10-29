@@ -11,9 +11,9 @@ class sim_COP:
     # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
     def __init__(self):
 
-        robofile = pd.read_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\rarm_larm_101.csv")
+        robofile = pd.read_csv(r"C:\Users\franc\Documents\Infant_Sim_data\load tests\larm_101.csv")
         # LOADING FILE WITH COP VALUES
-        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\cop_rarm_larm_101.csv"
+        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\cop_larm_101.csv"
         self.rate = 60
         # cop object
         self.COP = processCOP(cop_file, self.rate)
@@ -110,6 +110,8 @@ class sim_COP:
         # checking when left arm is in contact with the ground
         self.larm_check = arm_angle_l == -45
         self.rarm_check = arm_angle_r == -45
+        # self.larm_check = arm_angle_l <= -38
+        # self.rarm_check = arm_angle_r <= -38
         self.lleg_check = leg_angle_l == -100
         self.rleg_check = leg_angle_r == -100
 
@@ -150,12 +152,27 @@ class sim_COP:
 
         return np.array([I2, I2, I1])
 
+    def plot_ID(self, T, F):
+        plt.subplot(2, 1, 1)
+        plt.plot(T.T)
+        plt.title("Torque")
+        plt.legend(["Tx", "Ty", "Tz"])
+
+        plt.subplot(2, 1, 2)
+        plt.plot(F.T)
+        plt.title("Force")
+        plt.legend(["Fx", "Fy", "Fz"])
+
+        plt.show()
+
     def COP_upper(self):
         # right arm dynamics
         rarm_dynamics = inv_dynamics(self.right_arm_angles, self.rarm_len, self.rarm_m, self.rarm_I, self.dt)
         Trarm, Frarm = rarm_dynamics.calc()
         Trarm[:, self.rarm_check] = 0
         Frarm[:, self.rarm_check] = 0
+
+        # self.plot_ID(Trarm, Frarm)
 
         # Wrinting dynamic terms for right arm
         T1x = Trarm[0, :]
@@ -197,6 +214,8 @@ class sim_COP:
 
         # X_calc = ((T1y - T2y - Tt) + ((F1x - F2x) * h * 0.5) + ((F2z - F1z) * w * 0.5)) / (F1z + F2z + (g * M))
         # Y_calc = (((F1z + F2z) * l * 0.5) - ((F1y + F2y) * h * 0.5) - (T1x + T2x)) / (F1z + F2z + (g * M))
+        # plt.plot(F1z)
+        # plt.show()
 
         X_calc = ((T1y + T2y + Tt) + ((F1x - F2x) * h * 0.5) + ((F1z - F2z) * w * 0.5)) / (-F1z - F2z + (g * M))
         Y_calc = ((T1x - T2x) + ((F1z + F2z) * l * 0.5) - ((F1y + F2y) * h * 0.5)) / (F1z + F2z - (g * M))
@@ -314,17 +333,19 @@ class sim_COP:
         lleg_check = np.asarray(self.lleg_check).reshape(1, n)
         rleg_check = np.asarray(self.rleg_check).reshape(1, n)
 
+        f = 1
+
         # resting COP for arms
         xarm = (self.utrunk_w / 2) + 0.06
         yarm = (self.utrunk_l / 2) - 0.1
 
         X_larm = xarm * larm_check
         Y_larm = yarm * larm_check
-        Fn_larm = np.sum(self.larm_m) * 9.81 * larm_check
+        Fn_larm = np.sum(self.larm_m) * 9.81 * larm_check * f
 
         X_rarm = -xarm * rarm_check
         Y_rarm = yarm * rarm_check
-        Fn_rarm = np.sum(self.rarm_m) * 9.81 * rarm_check
+        Fn_rarm = np.sum(self.rarm_m) * 9.81 * rarm_check * f
 
         # resting COP for legs
         xleg = (self.ltrunk_w / 2) + 0.02
@@ -332,14 +353,20 @@ class sim_COP:
 
         X_lleg = xleg * lleg_check
         Y_lleg = yleg * lleg_check
-        Fn_lleg = np.sum(self.lleg_m) * 9.81 * lleg_check
+        Fn_lleg = np.sum(self.lleg_m) * 9.81 * lleg_check * f
 
         X_rleg = -xleg * rleg_check
         Y_rleg = yleg * rleg_check
-        Fn_rleg = np.sum(self.rleg_m) * 9.81 * rleg_check
+        Fn_rleg = np.sum(self.rleg_m) * 9.81 * rleg_check * f
+
+        # plt.plot(X_up.T)
+        # plt.plot(X_low.T)
+        # plt.show()
 
         # self.Xcalc = X_low
         # self.Ycalc = Y_low
+        Fn_tot = Fn_larm + Fn_up + Fn_rarm + Fn_low + Fn_lleg + Fn_rleg
+
         self.Xcalc = (
             np.multiply(X_low, Fn_low)
             + np.multiply(X_up, Fn_up)
@@ -347,8 +374,7 @@ class sim_COP:
             + np.multiply(X_rarm, Fn_rarm)
             + np.multiply(X_lleg, Fn_lleg)
             + np.multiply(X_rleg, Fn_rleg)
-        ) / (Fn_larm + Fn_up + Fn_rarm + Fn_low + Fn_lleg + Fn_rleg)
-
+        ) / Fn_tot
         self.Ycalc = (
             np.multiply(Y_low, Fn_low)
             + np.multiply(Y_up, Fn_up)
@@ -356,7 +382,33 @@ class sim_COP:
             + np.multiply(Y_rarm, Fn_rarm)
             + np.multiply(Y_lleg, Fn_lleg)
             + np.multiply(Y_rleg, Fn_rleg)
-        ) / (Fn_larm + Fn_up + Fn_rarm + Fn_low + Fn_lleg + Fn_rleg)
+        ) / Fn_tot
+
+        xup = np.multiply(X_up, Fn_up) / Fn_tot
+        xlow = np.multiply(X_low, Fn_low) / Fn_tot
+        xlleg = np.multiply(X_lleg, Fn_lleg) / Fn_tot
+        xrleg = np.multiply(X_rleg, Fn_rleg) / Fn_tot
+        xlarm = np.multiply(X_larm, Fn_larm) / Fn_tot
+        xrarm = np.multiply(X_rarm, Fn_rarm) / Fn_tot
+        # print(np.shape(xup))
+        # plt.plot(xup.T)
+        # plt.plot(xlow.T)
+        # plt.plot(xlleg.T)
+        # plt.plot(xrleg.T)
+        # plt.plot(xlarm.T)
+        # plt.plot(xrarm.T)
+        # plt.plot(Fn_tot.T)
+        # plt.plot(self.Xcalc)
+
+        # plt.plot(Fn_up.T)
+        # plt.plot(Fn_low.T)
+        # plt.plot(Fn_lleg.T)
+        # plt.plot(Fn_rleg.T)
+        # plt.plot(Fn_larm.T)
+        # plt.plot(Fn_rarm.T)
+        # plt.plot(Fn_tot.T)
+        # plt.legend(["Upper", "Lower", "L_leg", "R_Leg", "L_arm", "R_arm", "Tot"])
+        # plt.show()
 
     def compare_T(self):
         t = self.robot_t
