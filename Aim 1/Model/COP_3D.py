@@ -198,10 +198,20 @@ class sim_COP:
 
         self.ax.quiver(Xcalc[j], Ycalc[j], -Fn_tot, 0, 0, Fn_tot, color="red")
 
-        s = "COPx= " + str(Xcalc[j])
+        Fv = self.Flarm[:, j] / self.Fn_tot[j] * 1000
+        self.ax = self.plotF(j, Fv, 5, self.ax)
+
+        # Tv = self.Tlarm[:, j] / np.max(self.Tlarm)
+        # self.ax = self.plotT(j, Tv, 5, self.ax)
+
+        s = "t= " + str(int(j / 60))
         # s2 = "s= " + str(round(j / 30))
 
         self.ax.text(0.3, -0.3, 0, "%s" % (s), size=20, zorder=1, color="k")
+
+        # self.ax.set_zlim3d(0, 600)
+        # self.ax.set_ylim3d(-100, 50)
+        # self.ax.set_xlim3d(0, 100)
 
         self.ax.set_zlim3d(0, 600)
         self.ax.set_ylim3d(-500, 200)
@@ -218,10 +228,39 @@ class sim_COP:
         ani = animation.FuncAnimation(self.fig, self.plot_cop_3d, frames=frms[start:], interval=1)
         plt.show()
 
-    def plot_axs(vec):
-        x = vec[0]
-        y = vec[1]
-        z = vec[2]
+    def plotT(self, i, Tvec, k, ax, scale=1000):
+        origin = np.matrix([self.pose.X[i, k], self.pose.Y[i, k], self.pose.Z[i, k]])
+        r1 = Tvec[0] * scale / 10
+        r2 = Tvec[1] * scale / 10
+        r3 = Tvec[2] * scale / 10
+
+        x, y, z = origin[0, 0] * scale, origin[0, 1] * scale, origin[0, 2] * scale
+
+        theta = np.linspace(0, 2 * np.pi, 100)
+
+        x1, y1, z1 = np.zeros_like(theta) + x, np.cos(theta) * r1 + y, np.sin(theta) * r1 + z
+        x2, y2, z2 = np.cos(theta) * r2 + x, np.zeros_like(theta) + y, np.sin(theta) * r2 + z
+        x3, y3, z3 = np.cos(theta) * r3 + x, np.sin(theta) * r3 + y, np.zeros_like(theta) + z
+
+        ax.plot(x1, y1, z1, color=[1, 0, 0])
+        ax.plot(x2, y2, z2, color="green")
+        ax.plot(x3, y3, z3, color=[0, 0, 1])
+
+        return ax
+
+    def plotF(self, i, Fvec, k, ax, scale=100):
+        origin = np.matrix([self.pose.X[i, k], self.pose.Y[i, k], self.pose.Z[i, k]])
+        dx = Fvec[0] * scale
+        dy = Fvec[1] * scale
+        dz = Fvec[2] * scale
+
+        x, y, z = origin[0, 0] * scale, origin[0, 1] * scale, origin[0, 2] * scale
+
+        ax.quiver(x, y, z, dx, 0, 0, colors=[1, 0, 0])
+        ax.quiver(x, y, z, 0, dy, 0, colors="green")
+        ax.quiver(x, y, z, 0, 0, dz, colors=[0, 0, 1])
+
+        return ax
 
     def I(self, l, m, r):
 
@@ -255,7 +294,7 @@ class sim_COP:
 
         Trarm[:, rarm_check] = 0
         Frarm[:, rarm_check] = 0
-        Frarm[2, rarm_check] = -(np.sum(self.rarm_m) - 0.310) * g
+        # Frarm[2, rarm_check] = -(np.sum(self.rarm_m) - 0.310) * g
 
         # self.plot_ID(Trarm, Frarm)
 
@@ -273,7 +312,8 @@ class sim_COP:
         larm_check = np.ravel(np.rad2deg(pose.thet3_la) > 50)
         Tlarm[:, larm_check] = 0
         Flarm[:, larm_check] = 0
-        Flarm[2, larm_check] = -(np.sum(self.larm_m) - 0.367) * g
+        self.Tlarm, self.Flarm = Tlarm, Flarm
+        # Flarm[2, larm_check] = -(np.sum(self.larm_m) - 0.367) * g
 
         # self.plot_ID(Tlarm, Flarm)
 
@@ -298,16 +338,16 @@ class sim_COP:
         # X_calc = ((T1y - T2y - Tt) + ((F1x - F2x) * h * 0.5) + ((F2z - F1z) * w * 0.5)) / (F1z + F2z + (g * M))
         # Y_calc = (((F1z + F2z) * l * 0.5) - ((F1y + F2y) * h * 0.5) - (T1x + T2x)) / (F1z + F2z + (g * M))
 
-        plt.plot(Tx)
-        plt.plot(Ty)
-        plt.legend(["Tx", "Ty"])
-        plt.show()
-        Txx = T1x + T2x - Tx
-        Tyy = T1y + T2y - Ty
-        plt.plot(Txx)
-        plt.plot(Tyy)
-        plt.legend(["Txx", "Tyy"])
-        plt.show()
+        # plt.plot(Tx)
+        # plt.plot(Ty)
+        # plt.legend(["Tx", "Ty"])
+        # plt.show()
+        Txx = T1x + T2x + Tx
+        Tyy = T1y + T2y + Ty
+        # plt.plot(Txx)
+        # plt.plot(Tyy)
+        # plt.legend(["Txx", "Tyy"])
+        # plt.show()
 
         mg = g * M
         F12_x = F1x + F2x
@@ -315,7 +355,7 @@ class sim_COP:
         F12_z = F1z + F2z
 
         dx = w / 2
-        dy = l / 2
+        dy = l / 4
         dz = h / 2
 
         # X_calc = np.divide((Tyy - (F12_x * dz) + ((F1z - F2z) * dx)), (mg - F12_z))
@@ -349,7 +389,7 @@ class sim_COP:
         # plt.show()
         # quit()
 
-        X_calc = mids_X + X_calc + 0.01
+        X_calc = mids_X + X_calc
         Y_calc = mids_Y - dy + Y_calc
 
         Fn_up = (g * M * np.ones_like(X_calc)) - F1z - F2z
@@ -373,7 +413,7 @@ class sim_COP:
         rleg_check = np.ravel(np.rad2deg(pose.thet3_rl) < 50)
         Trleg[:, rleg_check] = 0
         Frleg[:, rleg_check] = 0
-        Frleg[2, rleg_check] = -(np.sum(self.rleg_m) - 0.340) * g
+        # Frleg[2, rleg_check] = -(np.sum(self.rleg_m) - 0.340) * g
 
         # self.plot_ID(Trleg, Frleg)
 
@@ -395,7 +435,7 @@ class sim_COP:
         # zeroing force and torque when leg is at rest
         Tlleg[:, lleg_check] = 0
         Flleg[:, lleg_check] = 0
-        Flleg[2, lleg_check] = -(np.sum(self.lleg_m) - 0.271) * g
+        # Flleg[2, lleg_check] = -(np.sum(self.lleg_m) - 0.271) * g
 
         # self.plot_ID(Tlleg, Flleg)
 
@@ -419,16 +459,26 @@ class sim_COP:
         h = self.ltrunk_h
 
         X_calc = (pose.X[:, 8] + pose.X[:, 11]) * 0.5
-        Y_calc = (pose.Y[:, 8] + pose.Y[:, 11]) * 0.5
+        Y_calc = (pose.Y[:, 8] + pose.Y[:, 11]) * 0.5 - 0.01
         # Y_calc = ((T3x - T4x)) / (F3z + F4z - (g * M))
 
-        # print(T3x)
+        mg = g * M
+        F34_x = F3x + F4x
+        F34_y = F3y + F4y
+        F34_z = F3z + F4z
 
-        X_calc = X_calc
-        Y_calc = Y_calc
+        T34_x = T3x + T4x
+        T34_y = T3y + T4y
 
-        Ty = (T4y + T3y) + ((F3z - F4z) * w * 0.5) + ((F3x + F4x) * h * 0.5)
-        Tx = (T3x + T4x) - ((F3y + F4y) * h * 0.5) - ((F3z + F4z) * l * 0.5)
+        dx = w / 2
+        dy = l / 4
+        dz = h / 2
+
+        Tx = T34_x - (F34_z * dy) - (F34_y * dz)
+        Ty = T34_y + ((F3z - F4z) * dx) + (F34_x * dz)
+
+        # Ty = (T4y + T3y) + ((F3z - F4z) * w * 0.5) + ((F3x + F4x) * h * 0.5)
+        # Tx = (T3x + T4x) - ((F3y + F4y) * h * 0.5) - ((F3z + F4z) * l * 0.5)
 
         Fn = (g * M * np.ones_like(F3z)) - F3z - F4z
 
@@ -461,19 +511,21 @@ class sim_COP:
         X_head = np.multiply(self.pose.X[:, 0], Fn_head)
         Y_head = np.multiply(self.pose.Y[:, 0], Fn_head)
 
-        Fn_lleg = 0.271 * 9.81 * lleg_check * f
+        Fn_lleg = np.sum(self.lleg_m) * 9.81 * lleg_check * f
         X_lleg = np.multiply(self.pose.X[:, 13], Fn_lleg)
         Y_lleg = np.multiply(self.pose.Y[:, 13], Fn_lleg)
 
-        Fn_rleg = 0.340 * 9.81 * rleg_check * f
+        Fn_rleg = np.sum(self.rleg_m) * 9.81 * rleg_check * f
         X_rleg = np.multiply(self.pose.X[:, 10], Fn_rleg)
         Y_rleg = np.multiply(self.pose.Y[:, 10], Fn_rleg)
 
-        Fn_larm = 0.367 * 9.81 * larm_check * f
+        # Fn_larm = 0.367 * 9.81 * larm_check * f
+        Fn_larm = np.sum(self.larm_m) * 9.81 * larm_check * f
         X_larm = np.multiply(self.pose.X[:, 6], Fn_larm)
         Y_larm = np.multiply(self.pose.Y[:, 6], Fn_larm)
 
-        Fn_rarm = 0.310 * 9.81 * rarm_check * f
+        # Fn_rarm = 0.310 * 9.81 * rarm_check * f
+        Fn_rarm = np.sum(self.rarm_m) * 9.81 * rarm_check * f
         X_rarm = np.multiply(self.pose.X[:, 3], Fn_rarm)
         Y_rarm = np.multiply(self.pose.Y[:, 3], Fn_rarm)
 
@@ -539,8 +591,10 @@ class sim_COP:
         # Xreal, Yreal = Xreal[delay:2500], Yreal[delay:2500]
         # Xcalc, Ycalc = Xcalc[delay:2500], Ycalc[delay:2500]
 
-        Xcalc = scipy.ndimage.median_filter(Xcalc, 15)
-        Ycalc = scipy.ndimage.median_filter(Ycalc, 15)
+        win = 5
+
+        Xcalc = scipy.ndimage.median_filter(Xcalc, win)
+        Ycalc = scipy.ndimage.median_filter(Ycalc, win)
 
         # print(np.mean(Xcalc) - np.mean(Xreal))
         # print(np.mean(Ycalc) - np.mean(Yreal))
@@ -576,5 +630,5 @@ class sim_COP:
 test = sim_COP()
 test.calc_COP()
 print("calculation done")
-# test.plot_cop_anim()
-test.compare_COP()
+test.plot_cop_anim()
+# test.compare_COP()

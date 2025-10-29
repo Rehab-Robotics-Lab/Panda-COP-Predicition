@@ -1263,10 +1263,10 @@ class processpose:
             Ry3 = self.R_y(t3)
             Rx4 = self.R_x(t4)
 
-            Rz1 = (Rz_180 @ self.R_z(t1)).T
-            Rx2 = (self.R_x(t2)).T
-            Ry3 = (self.R_y(t3)).T
-            Rx4 = (self.R_x(t4)).T
+            # Rz1 = self.R_z(t1).T @ Rz_180.T
+            # Rx2 = (self.R_x(t2)).T
+            # Ry3 = (self.R_y(t3)).T
+            # Rx4 = (self.R_x(t4)).T
 
             R01 = Rz1 @ Rx2 @ Ry3
             R12 = Rx4
@@ -1274,29 +1274,37 @@ class processpose:
             p1 = np.matrix([[0], [L1], [0]])
             p2 = np.matrix([[0], [L2], [0]])
 
-            wz = Rz1 @ w0 + np.matrix([[0], [0], [t1d]])
-            wx = Rx2 @ wz + np.matrix([[t2d], [0], [0]])
-            w1 = Ry3 @ wx + np.matrix([[0], [t3d], [0]])
-            w2 = Rx4 @ w1 + np.matrix([[t4d], [0], [0]])
+            wz = Rz1.T @ w0 + np.matrix([[0], [0], [t1d]])
+            wx = Rx2.T @ wz + np.matrix([[t2d], [0], [0]])
+            w1 = Ry3.T @ wx + np.matrix([[0], [t3d], [0]])
+            w2 = Rx4.T @ w1 + np.matrix([[t4d], [0], [0]])
 
             # angular accelearation
             wz_d = (
-                (Rz1 @ w0_d) + np.cross(Rz1 @ w0, np.matrix([[0], [0], [t1d]]), axis=0) + np.matrix([[0], [0], [t1dd]])
+                (Rz1.T @ w0_d)
+                + np.cross(Rz1.T @ w0, np.matrix([[0], [0], [t1d]]), axis=0)
+                + np.matrix([[0], [0], [t1dd]])
             )
             wx_d = (
-                (Rx2 @ wz_d) + np.cross(Rx2 @ wz, np.matrix([[t2d], [0], [0]]), axis=0) + np.matrix([[t2dd], [0], [0]])
+                (Rx2.T @ wz_d)
+                + np.cross(Rx2.T @ wz, np.matrix([[t2d], [0], [0]]), axis=0)
+                + np.matrix([[t2dd], [0], [0]])
             )
             w1_d = (
-                (Ry3 @ wx_d) + np.cross(Ry3 @ wx, np.matrix([[0], [t3d], [0]]), axis=0) + np.matrix([[0], [t3dd], [0]])
+                (Ry3.T @ wx_d)
+                + np.cross(Ry3.T @ wx, np.matrix([[0], [t3d], [0]]), axis=0)
+                + np.matrix([[0], [t3dd], [0]])
             )
             w2_d = (
-                (Rx4 @ w1_d) + np.cross(Rx4 @ w1, np.matrix([[t4d], [0], [0]]), axis=0) + np.matrix([[t4dd], [0], [0]])
+                (Rx4.T @ w1_d)
+                + np.cross(Rx4.T @ w1, np.matrix([[t4d], [0], [0]]), axis=0)
+                + np.matrix([[t4dd], [0], [0]])
             )
             ## LINEAR
 
             # linear accelearation
-            v1_d = R01 @ v0_d
-            v2_d = R12 @ (np.cross(w1_d, p1, axis=0) + np.cross(w1, np.cross(w1, p1, axis=0), axis=0) + v1_d)
+            v1_d = R01.T @ v0_d
+            v2_d = R12.T @ (np.cross(w1_d, p1, axis=0) + np.cross(w1, np.cross(w1, p1, axis=0), axis=0) + v1_d)
 
             # linear acceleration relative to COM
             vc1_d = np.cross(w1_d, p1 / 2, axis=0) + np.cross(w1, np.cross(w1, p1 / 2, axis=0), axis=0) + v1_d
@@ -1317,16 +1325,16 @@ class processpose:
             ###### BACKWARDS ITERATION
             # ACCUMULATED FORCES at joints
             f2 = F2
-            f1 = F1 + (R12.T @ f2)
+            f1 = F1 + (R12 @ f2)
 
             # ACCUMULATED TORQUE at joints
             n2 = N2 + np.cross(p2 / 2, F2, axis=0)
-            n1 = N1 + (R12.T @ n2) + np.cross(p1 / 2, F1, axis=0) + np.cross(p1, (R12.T @ f2), axis=0)
+            n1 = N1 + (R12 @ n2) + np.cross(p1 / 2, F1, axis=0) + np.cross(p1, (R12 @ f2), axis=0)
 
             # torque from shoulder flextion/extension
-            tq = (R01.T @ n1)[:, 0]
+            tq = (R01 @ n1)[:, 0]
             # forces transformed to base frame
-            fr = (R01.T @ f1)[:, 0]
+            fr = (R01 @ f1)[:, 0]
 
             Tq[:, [i]] = tq
             Fr[:, [i]] = fr

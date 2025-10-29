@@ -23,7 +23,7 @@ solve(eqn1,[c3,s3])
 solve(eqn2,[c3,s3])
 solve(eqn3,[c3,s3])
 
-%% 
+%% UPPER TRUNK
 
 syms f1x f1y f1z T1x T1y T1z
 syms f2x f2y f2z T2x T2y T2z
@@ -49,3 +49,29 @@ zer=[0;0;0];
 cop_eqn=Ft1+Ft2+mg_t+T==[0;0;0]
 
 solve(cop_eqn(1:2),[Cx,Cy])
+
+%% LOWER TRUNK
+
+syms f3x f3y f3z T3x T3y T3z
+syms f4x f4y f4z T4x T4y T4z
+syms mg Cx Cy Cz TX TY TZ dx dy dz
+
+p3x=dx;
+p4x=dx;
+p3y=dy;
+p4y=dy;
+p3z=dz;
+p4z=dz;
+
+% syms p1x p2x p1y p2y p1z p2z
+
+
+Ft3=cross([-p3x;-p3y;p3z],[f3x;f3y;f3z])
+Ft4=cross([p4x;-p4y;p4z],[f4x;f4y;f4z])
+T=([T3x;T3y;T3z]+[T4x;T4y;T4z]-[TX;TY;TZ]);
+zer=[0;0;0];
+
+
+cop_eqn=Ft3+Ft4+T==[0;0;0]
+
+solve(cop_eqn(1:2),[TX,TY])
