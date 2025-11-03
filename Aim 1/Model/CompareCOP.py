@@ -1,6 +1,7 @@
 from ProcessCOP import processCOP
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
 import pandas as pd
@@ -11,16 +12,152 @@ from scipy import constants
 
 
 class compareCOP:
-    def __init__(self, Xcalc, Ycalc, Xreal, Yreal):
-        self.Xcalc = Xcalc
-        self.Ycalc = Ycalc
+    def __init__(self, Xcalc, Ycalc, Xreal, Yreal, cam=None):
+        if cam == 1:
+            n = min(Xcalc.shape[0], Xreal.shape[0])
+            self.n = n
+            self.Xcalc = Xcalc[0:n]
+            self.Ycalc = Ycalc[0:n]
 
-        self.Xreal = Xreal
-        self.Yreal = Yreal
+            self.Xreal = Xreal[0:n]
+            self.Yreal = Yreal[0:n]
+        else:
 
-        self.rate = 60
+            self.Xcalc = Xcalc
+            self.Ycalc = Ycalc
 
-    def comp_XY(self, robot_t, off=0):
+            self.Xreal = Xreal
+            self.Yreal = Yreal
+
+            self.rate = 60
+
+    def comp_XY(self):
+
+        X, Y = self.Xreal, self.Yreal
+        n = self.n
+        t = (np.linspace(0, n / 30, num=n)).T
+
+        Xcalc = self.Xcalc
+        Ycalc = self.Ycalc
+
+        # print(t.shape, X.shape, Xcalc.shape)
+
+        # fig, ax = plt.subplots(2, 1)
+
+        plt.subplot(2, 1, 1)
+        plt.plot(t, X - np.mean(X[0:15]))
+        plt.plot(t, Xcalc - np.mean(Xcalc[0:15]))
+        plt.legend(["Grnd Trth", "Calculated"])
+        plt.title("X COP")
+        plt.xlabel("Time (s)")
+        plt.ylabel("COP X (mm)")
+        plt.grid()
+
+        plt.subplot(2, 1, 2)
+        plt.plot(t, Y - np.mean(Y[0:15]))
+        plt.plot(t, Ycalc - np.mean(Ycalc[0:15]))
+        plt.legend(["Grnd Trth", "Calculated"])
+        plt.title("Y COP")
+        plt.xlabel("Time (s)")
+        plt.ylabel("COP Y (mm)")
+        plt.grid()
+
+        plt.tight_layout()
+        plt.show()
+
+    def ellipse_anim(self, j):
+        self.ax1.cla()
+        self.ax2.cla()
+
+        # loading zeroing ground truth COP
+        Xr = self.Xreal - np.mean(self.Xreal[0:15])
+        Yr = self.Yreal - np.mean(self.Yreal[0:15])
+
+        Xc = self.Xcalc - np.mean(self.Xcalc[0:15])
+        Yc = self.Ycalc - np.mean(self.Ycalc[0:15])
+
+        xmax, xmin = np.max([np.max(Xc), np.max(Xr)]), np.min([np.min(Xc), np.min(Xr)])
+        ymax, ymin = np.max([np.max(Yc), np.max(Yr)]), np.min([np.min(Yc), np.min(Yr)])
+
+        # plt.xlim(xmin - 10, xmax + 10)
+        # plt.ylim(ymin - 10, ymax + 10)
+
+        s = "t= " + str(int(j / 30))
+        self.ax1.text(0, 0, "%s" % (s), size=20, zorder=1, color="k")
+
+        ##Ellpise plot for ground truth data
+        self.ax1.scatter(Xr[j], Yr[j], hatch="x", color="orange")
+        self.ax1.plot(Xr[:j], Yr[:j], alpha=0.7)
+        self.ax1.grid()
+        self.ax1.set_title("Ground Truth")
+        self.ax1.set(xlabel="COP X (mm)", ylabel="COP Y (mm)")
+        self.ax1.set_xlim(xmin - 10, xmax + 10)
+        self.ax1.set_ylim(ymin - 10, ymax + 10)
+
+        ##Ellpise plot for model data
+        self.ax2.scatter(Xc[j], Yc[j], hatch="x", color="red")
+        self.ax2.plot(Xc[:j], Yc[:j], alpha=0.7)
+        self.ax2.grid()
+        self.ax2.set_title("Model")
+        self.ax2.set(xlabel="COP X (mm)", ylabel="COP Y (mm)")
+        self.ax2.set_xlim(xmin - 10, xmax + 10)
+        self.ax2.set_ylim(ymin - 10, ymax + 10)
+
+        # plt.xlabel("COP X (mm)")
+        # plt.ylabel("COP Y (mm)")
+
+    def xy_anim(self, j):
+        self.ax3.cla()
+        self.ax4.cla()
+
+        n = self.n
+        t = (np.linspace(0, n / 30, num=n)).T
+
+        # loading zeroing ground truth COP
+        Xr = self.Xreal - np.mean(self.Xreal[0:15])
+        Yr = self.Yreal - np.mean(self.Yreal[0:15])
+
+        Xc = self.Xcalc - np.mean(self.Xcalc[0:15])
+        Yc = self.Ycalc - np.mean(self.Ycalc[0:15])
+
+        xmax, xmin = np.max([np.max(Xc), np.max(Xr)]), np.min([np.min(Xc), np.min(Xr)])
+        ymax, ymin = np.max([np.max(Yc), np.max(Yr)]), np.min([np.min(Yc), np.min(Yr)])
+
+        # print(t.shape, X.shape, Xcalc.shape)
+
+        # fig, ax = plt.subplots(2, 1)
+        s = "t= " + str(int(j / 30))
+        self.ax3.text(0, 0, "%s" % (s), size=20, zorder=1, color="k")
+
+        self.ax3.plot(t[:j], Xr[:j], color="orange")
+        self.ax3.plot(t[:j], Xc[:j], color="blue")
+        self.ax3.legend(["Grnd Trth", "Calculated"])
+        self.ax3.set_title("X COP")
+        self.ax3.set(xlabel="Time (s)", ylabel="COP X (mm)")
+        self.ax3.set_xlim(0, np.max(t) + 1)
+        self.ax3.set_ylim(xmin - 10, xmax + 10)
+        self.ax3.grid()
+
+        self.ax4.plot(t[:j], Yr[:j], color="orange")
+        self.ax4.plot(t[:j], Yc[:j], color="blue")
+        self.ax4.legend(["Grnd Trth", "Calculated"])
+        self.ax4.set_title("Y COP")
+        self.ax4.set(xlabel="Time (s)", ylabel="COP Y (mm)")
+        self.ax4.set_xlim(0, np.max(t) + 1)
+        self.ax4.set_ylim(ymin - 10, ymax + 10)
+        self.ax4.grid()
+
+    def plot_cop_anim(self, start=0):
+        fig1, (self.ax1, self.ax2) = plt.subplots(1, 2, figsize=(12, 5), sharex=True, sharey=True)
+        fig2, (self.ax3, self.ax4) = plt.subplots(2, 1, figsize=(12, 4), sharex=True)
+        frms = np.linspace(0, self.n, self.n + 1, dtype=int)
+        # print(frms)
+
+        ani1 = animation.FuncAnimation(fig1, self.ellipse_anim, frames=frms[start:], interval=1)
+        ani2 = animation.FuncAnimation(fig2, self.xy_anim, frames=frms[start:], interval=1)
+        plt.show()
+
+    def comp_XY_robo(self, robot_t, off=0):
 
         n = len(robot_t)
         t = np.asarray(robot_t).reshape(n, 1)
@@ -54,20 +191,54 @@ class compareCOP:
         plt.tight_layout()
         plt.show()
 
+    def comp_XY(self):
+
+        X, Y = self.Xreal, self.Yreal
+        n = self.n
+        t = (np.linspace(0, n / 30, num=n)).T
+
+        Xcalc = self.Xcalc
+        Ycalc = self.Ycalc
+
+        # print(t.shape, X.shape, Xcalc.shape)
+
+        # fig, ax = plt.subplots(2, 1)
+
+        plt.subplot(2, 1, 1)
+        plt.plot(t, X - np.mean(X[0:15]))
+        plt.plot(t, Xcalc - np.mean(Xcalc[0:15]))
+        plt.legend(["Grnd Trth", "Calculated"])
+        plt.title("X COP")
+        plt.xlabel("Time (s)")
+        plt.ylabel("COP X (mm)")
+        plt.grid()
+
+        plt.subplot(2, 1, 2)
+        plt.plot(t, Y - np.mean(Y[0:15]))
+        plt.plot(t, Ycalc - np.mean(Ycalc[0:15]))
+        plt.legend(["Grnd Trth", "Calculated"])
+        plt.title("Y COP")
+        plt.xlabel("Time (s)")
+        plt.ylabel("COP Y (mm)")
+        plt.grid()
+
+        plt.tight_layout()
+        plt.show()
+
     def comp_ellipse(self):
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5), sharex=True, sharey=True)
 
         # loading zeroing ground truth COP
-        Xr = (self.Xreal - np.mean(self.Xreal)).T
-        Yr = (self.Yreal - np.mean(self.Yreal)).T
+        Xr = (self.Xreal - np.mean(self.Xreal[0:15])).T
+        Yr = (self.Yreal - np.mean(self.Yreal[0:15])).T
 
         # loading zeroing model COP
         Xcalc = self.Xcalc
         Ycalc = self.Ycalc
 
-        Xc = Xcalc - np.mean(Xcalc)
-        Yc = Ycalc - np.mean(Ycalc)
+        Xc = Xcalc - np.mean(Xcalc[0:15])
+        Yc = Ycalc - np.mean(Ycalc[0:15])
 
         xmax, xmin = np.max([np.max(Xc), np.max(Xr)]), np.min([np.min(Xc), np.min(Xr)])
         ymax, ymin = np.max([np.max(Yc), np.max(Yr)]), np.min([np.min(Yc), np.min(Yr)])

@@ -68,7 +68,7 @@ class sim_COP:
         l_uleg_m = 0.4
         l_lleg_m = 0.805 - l_uleg_m
         r_uleg_m = 0.4
-        r_lleg_m = 0.823 - r_uleg_m
+        r_lleg_m = 0.805 - r_uleg_m
         # inertia
         l_uleg_I = self.I(uleg_len, l_uleg_m, uleg_r)
         l_lleg_I = self.I(lleg_len, l_lleg_m, lleg_r)
@@ -98,6 +98,17 @@ class sim_COP:
         # self.ltrunk_w = 0.18
         self.ltrunk_h = 0.08
         self.ltrunk_m = 2.641 - (l_uleg_m + l_lleg_m + r_uleg_m + r_lleg_m)
+
+        s1 = np.matrix([pose.X[:, 2], pose.Y[:, 2], pose.Z[:, 2]])
+        s2 = np.matrix([pose.X[:, 5], pose.Y[:, 5], pose.Z[:, 5]])
+        S = (s1 + s2) / 2
+
+        h1 = np.matrix([pose.X[:, 8], pose.Y[:, 8], pose.Z[:, 8]])
+        h2 = np.matrix([pose.X[:, 11], pose.Y[:, 11], pose.Z[:, 11]])
+        H = (h1 + h2) / 2
+
+        self.L_full = np.linalg.norm(S - H, axis=0)
+        self.zerodegm = np.array([0.253, 0.273, 0.150, 0.155])
 
         self.pose = pose
 
@@ -185,7 +196,8 @@ class sim_COP:
         # print(self.Xcop[:, j] / self.Fn[:, j])
         # quit()
 
-        for i in [0, 1, 2, 3, 4, 5, 6]:
+        # for i in [0, 1, 2, 3, 4, 5, 6]:
+        for i in range(6):
             Fn = self.Fn[i, j]
 
             Xcop = np.divide(self.Xcop[i, j], Fn)
@@ -198,20 +210,20 @@ class sim_COP:
 
         self.ax.quiver(Xcalc[j], Ycalc[j], -Fn_tot, 0, 0, Fn_tot, color="red")
 
-        Fv = self.Flarm[:, j] / self.Fn_tot[j] * 1000
-        self.ax = self.plotF(j, Fv, 5, self.ax)
+        # Fv = self.Flarm[:, j] / self.Fn_tot[j] * 1000
+        # self.ax = self.plotF(j, Fv, 5, self.ax)
 
-        # Tv = self.Tlarm[:, j] / np.max(self.Tlarm)
+        Tv = self.Tlarm[:, j] / np.max(self.Tlarm)
         # self.ax = self.plotT(j, Tv, 5, self.ax)
 
-        s = "t= " + str(int(j / 60))
+        s = "t= " + str(int(j / 30))
         # s2 = "s= " + str(round(j / 30))
 
         self.ax.text(0.3, -0.3, 0, "%s" % (s), size=20, zorder=1, color="k")
 
         # self.ax.set_zlim3d(0, 600)
-        # self.ax.set_ylim3d(-100, 50)
-        # self.ax.set_xlim3d(0, 100)
+        # self.ax.set_ylim3d(-100, 10)
+        # self.ax.set_xlim3d(0, 160)
 
         self.ax.set_zlim3d(0, 600)
         self.ax.set_ylim3d(-500, 200)
@@ -243,16 +255,17 @@ class sim_COP:
         x3, y3, z3 = np.cos(theta) * r3 + x, np.sin(theta) * r3 + y, np.zeros_like(theta) + z
 
         ax.plot(x1, y1, z1, color=[1, 0, 0])
+        ax.arrow(x1, y1, z1, color=[1, 0, 0])
         ax.plot(x2, y2, z2, color="green")
         ax.plot(x3, y3, z3, color=[0, 0, 1])
 
         return ax
 
-    def plotF(self, i, Fvec, k, ax, scale=100):
+    def plotF(self, i, Fvec, k, ax, scale=1000):
         origin = np.matrix([self.pose.X[i, k], self.pose.Y[i, k], self.pose.Z[i, k]])
-        dx = Fvec[0] * scale
-        dy = Fvec[1] * scale
-        dz = Fvec[2] * scale
+        dx = Fvec[0]
+        dy = Fvec[1]
+        dz = Fvec[2]
 
         x, y, z = origin[0, 0] * scale, origin[0, 1] * scale, origin[0, 2] * scale
 
@@ -265,8 +278,8 @@ class sim_COP:
     def I(self, l, m, r):
 
         I1 = 1 / 2 * (m * r**2)
-        I2 = (1 / 4 * (m * r**2)) + (1 / 3 * (m * l**2))
-        # I2 = 1 / 12 * (m * (3 * r**2 + l**2))
+        # I2 = (1 / 4 * (m * r**2)) + (1 / 12 * (m * l**2))
+        I2 = 1 / 12 * (m * (3 * r**2 + l**2))
 
         return np.array([I2, I1, I2])
 
@@ -283,6 +296,27 @@ class sim_COP:
 
         plt.show()
 
+    def adjust_IK(self, T, F, check):
+        T[0, check] = np.ones_like(T[0, check]) * np.mean(T[0, check])
+        T[1, check] = np.ones_like(T[1, check]) * np.mean(T[1, check])
+        T[2, check] = np.ones_like(T[2, check]) * np.mean(T[2, check])
+
+        F[0, check] = np.ones_like(F[0, check]) * np.mean(F[0, check])
+        F[1, check] = np.ones_like(F[1, check]) * np.mean(F[1, check])
+        F[2, check] = np.ones_like(F[2, check]) * np.mean(F[2, check])
+
+        ncheck = np.logical_not(check)
+
+        T[0, ncheck] = np.ones_like(T[0, ncheck]) * np.mean(T[0, ncheck])
+        T[1, ncheck] = np.ones_like(T[1, ncheck]) * np.mean(T[1, ncheck])
+        T[2, ncheck] = np.ones_like(T[2, ncheck]) * np.mean(T[2, ncheck])
+
+        F[0, ncheck] = np.ones_like(F[0, ncheck]) * np.mean(F[0, ncheck])
+        F[1, ncheck] = np.ones_like(F[1, ncheck]) * np.mean(F[1, ncheck])
+        F[2, ncheck] = np.ones_like(F[2, ncheck]) * np.mean(F[2, ncheck])
+
+        return T, F
+
     def COP_upper(self):
         g = 9.81
         pose = self.pose
@@ -292,10 +326,10 @@ class sim_COP:
         Trarm, Frarm = pose.inv_dynamics(T_ra, self.rarm_len, self.rarm_m, self.rarm_I)
         rarm_check = np.ravel((np.rad2deg(pose.thet3_ra) < -45))
 
-        Trarm[:, rarm_check] = 0
-        Frarm[:, rarm_check] = 0
-        # Frarm[2, rarm_check] = -(np.sum(self.rarm_m) - 0.310) * g
+        # print(np.mean(Trarm[:, rarm_check], axis=1))
 
+        Trarm, Frarm = self.adjust_IK(Trarm, Frarm, rarm_check)
+        # Frarm[2, rarm_check] = -(np.sum(self.rarm_m) - self.zerodegm[0]) * g
         # self.plot_ID(Trarm, Frarm)
 
         # Wrinting dynamic terms for right arm
@@ -310,11 +344,9 @@ class sim_COP:
         T_la = np.array([pose.thet1_la, pose.thet2_la, pose.thet3_la, pose.thet4_la])[:, 0, :]
         Tlarm, Flarm = pose.inv_dynamics(T_la, self.larm_len, self.larm_m, self.larm_I)
         larm_check = np.ravel(np.rad2deg(pose.thet3_la) > 50)
-        Tlarm[:, larm_check] = 0
-        Flarm[:, larm_check] = 0
-        self.Tlarm, self.Flarm = Tlarm, Flarm
-        # Flarm[2, larm_check] = -(np.sum(self.larm_m) - 0.367) * g
 
+        Tlarm, Flarm = self.adjust_IK(Tlarm, Flarm, larm_check)
+        self.Tlarm, self.Flarm = Tlarm, Flarm
         # self.plot_ID(Tlarm, Flarm)
 
         # Wrinting dynamic terms for left arm
@@ -337,6 +369,12 @@ class sim_COP:
 
         # X_calc = ((T1y - T2y - Tt) + ((F1x - F2x) * h * 0.5) + ((F2z - F1z) * w * 0.5)) / (F1z + F2z + (g * M))
         # Y_calc = (((F1z + F2z) * l * 0.5) - ((F1y + F2y) * h * 0.5) - (T1x + T2x)) / (F1z + F2z + (g * M))
+
+        print("T1x", np.max(T1x) - np.min(T1x))
+        print("T1y", np.max(T1y) - np.min(T1y))
+
+        print("T2x", np.max(T2x) - np.min(T2x))
+        print("T2y", np.max(T2y) - np.min(T2y))
 
         # plt.plot(Tx)
         # plt.plot(Ty)
@@ -411,10 +449,10 @@ class sim_COP:
 
         # zeroing force and torque when leg is at rest
         rleg_check = np.ravel(np.rad2deg(pose.thet3_rl) < 50)
-        Trleg[:, rleg_check] = 0
-        Frleg[:, rleg_check] = 0
-        # Frleg[2, rleg_check] = -(np.sum(self.rleg_m) - 0.340) * g
-
+        # Trleg[:, rleg_check] = 0
+        # Frleg[:, rleg_check] = 0
+        # Frleg[2, rleg_check] = -(np.sum(self.rleg_m) - self.zerodegm[2]) * g
+        Trleg, Frleg = self.adjust_IK(Trleg, Frleg, rleg_check)
         # self.plot_ID(Trleg, Frleg)
 
         # right leg dynamic terms
@@ -433,10 +471,10 @@ class sim_COP:
         lleg_check = np.ravel(np.rad2deg(pose.thet3_ll) > -50)
 
         # zeroing force and torque when leg is at rest
-        Tlleg[:, lleg_check] = 0
-        Flleg[:, lleg_check] = 0
-        # Flleg[2, lleg_check] = -(np.sum(self.lleg_m) - 0.271) * g
-
+        # Tlleg[:, lleg_check] = 0
+        # Flleg[:, lleg_check] = 0
+        # Flleg[2, lleg_check] = -(np.sum(self.lleg_m) - self.zerodegm[3]) * g
+        Tlleg, Flleg = self.adjust_IK(Tlleg, Flleg, lleg_check)
         # self.plot_ID(Tlleg, Flleg)
 
         # left leg dynamic terms
@@ -451,6 +489,11 @@ class sim_COP:
         # plt.plot(lleg_check.T)
         # plt.show()
         # exit()
+        print("T3x", np.max(T3x) - np.min(T3x))
+        print("T3y", np.max(T3y) - np.min(T3y))
+
+        print("T4x", np.max(T4x) - np.min(T4x))
+        print("T4y", np.max(T4y) - np.min(T4y))
 
         # lower trunk parameters
         l = self.ltrunk_l
@@ -459,7 +502,7 @@ class sim_COP:
         h = self.ltrunk_h
 
         X_calc = (pose.X[:, 8] + pose.X[:, 11]) * 0.5
-        Y_calc = (pose.Y[:, 8] + pose.Y[:, 11]) * 0.5 - 0.01
+        Y_calc = (pose.Y[:, 8] + pose.Y[:, 11]) * 0.5
         # Y_calc = ((T3x - T4x)) / (F3z + F4z - (g * M))
 
         mg = g * M
@@ -482,97 +525,213 @@ class sim_COP:
 
         Fn = (g * M * np.ones_like(F3z)) - F3z - F4z
 
-        # plt.plot(Tx.T)
-        # plt.plot(Ty.T)
+        # plt.plot(X_calc.T)
+        # plt.plot(Y_calc.T)
         # plt.plot(Fn.T)
-        # plt.legend(["Tx", "Ty", "Fn"])
+        # # plt.legend(["Tx", "Ty", "Fn"])
         # plt.show()
         # exit()
+
+        X_calc = np.ones_like(X_calc) * np.mean(X_calc)
+        Y_calc = np.ones_like(Y_calc) * np.mean(Y_calc)
 
         self.rleg_check, self.lleg_check = rleg_check, lleg_check
 
         return np.multiply(X_calc, Fn), np.multiply(Y_calc, Fn), Fn, Tx, Ty
 
-    def calc_COP(self):
+    def full_trunk(self):
+        g = 9.81
+        pose = self.pose
 
+        # right arm dynamics
+        T_ra = np.array([pose.thet1_ra, pose.thet2_ra, pose.thet3_ra, pose.thet4_ra])[:, 0, :]
+        Trarm, Frarm = pose.inv_dynamics(T_ra, self.rarm_len, self.rarm_m, self.rarm_I)
+        rarm_check = np.ravel((np.rad2deg(pose.thet3_ra) < -45))
+
+        # Trarm[:, rarm_check] = 0
+        # Frarm[:, rarm_check] = 0
+        # Frarm[2, rarm_check] = -(np.sum(self.rarm_m) - self.zerodegm[0]) * g
+        Trarm, Frarm = self.adjust_IK(Trarm, Frarm, rarm_check)
+        # self.plot_ID(Trarm, Frarm)
+
+        # Wrinting dynamic terms for right arm
+        T1x, T1y = Trarm[0, :], Trarm[1, :]
+        F1x, F1y, F1z = Frarm[0, :], Frarm[1, :], Frarm[2, :]
+
+        # left arm dynamics
+        T_la = np.array([pose.thet1_la, pose.thet2_la, pose.thet3_la, pose.thet4_la])[:, 0, :]
+        Tlarm, Flarm = pose.inv_dynamics(T_la, self.larm_len, self.larm_m, self.larm_I)
+        larm_check = np.ravel(np.rad2deg(pose.thet3_la) > 50)
+        # Tlarm[:, larm_check] = 0
+        # Flarm[:, larm_check] = 0
+        # Flarm[2, larm_check] = -(np.sum(self.larm_m) - self.zerodegm[1]) * g
+        Tlarm, Flarm = self.adjust_IK(Tlarm, Flarm, larm_check)
+        self.Tlarm, self.Flarm = Tlarm, Flarm
+        # self.plot_ID(Tlarm, Flarm)
+
+        # Wrinting dynamic terms for left arm
+        T2x, T2y = Tlarm[0, :], Tlarm[1, :]
+        F2x, F2y, F2z = Flarm[0, :], Flarm[1, :], Flarm[2, :]
+
+        # right leg dynamics
+        T_rl = np.array([pose.thet1_rl, pose.thet2_rl, pose.thet3_rl, pose.thet4_rl])[:, 0, :]
+        Trleg, Frleg = pose.inv_dynamics(T_rl, self.rleg_len, self.rleg_m, self.rleg_I)
+
+        # zeroing force and torque when leg is at rest
+        rleg_check = np.ravel(np.rad2deg(pose.thet3_rl) < 50)
+        # Trleg[:, rleg_check] = 0
+        # Frleg[:, rleg_check] = 0
+        # Frleg[2, rleg_check] = -(np.sum(self.rleg_m) - self.zerodegm[2]) * g
+        # self.plot_ID(Trleg, Frleg)
+        Trleg, Frleg = self.adjust_IK(Trleg, Frleg, rleg_check)
+
+        # right leg dynamic terms
+        T3x, T3y = Trleg[0, :], Trleg[1, :]
+        F3x, F3y, F3z = Frleg[0, :], Frleg[1, :], Frleg[2, :]
+
+        # left leg dynamics
+        T_ll = np.array([pose.thet1_ll, pose.thet2_ll, pose.thet3_ll, pose.thet4_ll])[:, 0, :]
+        Tlleg, Flleg = pose.inv_dynamics(T_ll, self.lleg_len, self.lleg_m, self.lleg_I)
+        lleg_check = np.ravel(np.rad2deg(pose.thet3_ll) > -50)
+
+        # zeroing force and torque when leg is at rest
+        # Tlleg[:, lleg_check] = 0
+        # Flleg[:, lleg_check] = 0
+        # Flleg[2, lleg_check] = -(np.sum(self.lleg_m) - self.zerodegm[3]) * g
+        # self.plot_ID(Tlleg, Flleg)
+        Tlleg, Flleg = self.adjust_IK(Tlleg, Flleg, lleg_check)
+
+        # left leg dynamic terms
+        T4x, T4y = Tlleg[0, :], Tlleg[1, :]
+        F4x, F4y, F4z = Flleg[0, :], Flleg[1, :], Flleg[2, :]
+
+        # lower trunk parameters
+        L = self.L_full
+        w1 = self.ltrunk_w
+        w2 = self.utrunk_w
+        W = (w1 + w2) * 0.5
+        M = self.ltrunk_m + self.utrunk_m
+        h = self.ltrunk_h
+
+        mg = g * M
+
+        Txx = T1x + T2x + T3x + T4x
+        Tyy = T1y + T2y + T3y + T4y
+
+        # plt.plot(Txx.T)
+        # plt.plot(Tyy.T)
+        # plt.legend(["Txx", "Tyy"])
+        # plt.show()
+        # exit()
+
+        F1234_x = F1x + F2x + F3x + F4x
+        F1234_y = F1y + F2y + F3y + F4y
+        F1234_z = F1z + F2z + F3z + F4z
+
+        F12_z = F1z + F2z
+        F34_z = F3z + F4z
+        F13_z = F1z + F3z
+        F24_z = F2z + F4z
+
+        dx = W / 2
+        dy = L / 4
+        dz = h / 2
+
+        X_calc = np.divide(-(Tyy + ((F13_z * dx) - (F24_z * dx) + (F1234_x * dz))), (F1234_z - mg))
+        Y_calc = np.divide((Txx + ((F12_z * dy) - (F34_z * dy) - (F1234_y * dz))), (F1234_z - mg))
+
+        mids_X = (pose.X[:, 2] + pose.X[:, 5] + pose.X[:, 8] + pose.X[:, 11]) * 0.25
+        mids_Y = (pose.Y[:, 2] + pose.Y[:, 5] + pose.Y[:, 8] + pose.Y[:, 11]) * 0.25
+
+        X_cop = mids_X + X_calc
+        Y_cop = mids_Y - dy + Y_calc
+
+        Fn = (g * M * np.ones_like(F3z)) - F1z - F2z - F3z - F4z
+
+        self.rarm_check, self.larm_check = rarm_check, larm_check
+        self.rleg_check, self.lleg_check = rleg_check, lleg_check
+
+        return np.multiply(X_cop, Fn), np.multiply(Y_cop, Fn), Fn
+
+    def calc_COP(self):
         X_up, Y_up, Fn_up, X_low, Y_low, Fn_low = self.COP_upper()
 
-        # reshaping to make sure all dimenesions are [1,n]
-        n = len(self.lleg_check)
+        Fn_head = np.ones_like(X_up) * 1.033 * 9.81
+        X_head = np.multiply(self.pose.X[:, 0], Fn_head)
+        Y_head = np.multiply(self.pose.Y[:, 0], Fn_head)
+
+        ##UPPER/LOWER TRUNK
+        Fn_tot = Fn_up + Fn_low + Fn_head
+
+        self.Xcalc = (X_low + X_up + X_head) / Fn_tot * 1000
+        self.Ycalc = (Y_low + Y_up + Y_head) / Fn_tot * 1000
+
+        self.Fn = np.array([Fn_low, Fn_up, Fn_head])
+        self.Xcop = np.array([X_low, X_up, X_head]) * 1000
+        self.Ycop = np.array([Y_low, Y_up, Y_head]) * 1000
+
+        self.Fn_tot = Fn_tot
+
+        # plt.plot(X_up)
+        # plt.plot(X_low)
+        # plt.plot(X_head)
+        # plt.plot(self.Xcalc / 1000)
+
+        # plt.plot(Fn_up)
+        # plt.plot(Fn_low)
+        # plt.plot(Fn_head)
+        # plt.plot(Fn_tot)
+
+        # plt.legend(["Upper", "Lower", "Head", "Tot"])
+        # plt.grid()
+        # plt.show()
+
+    def calc_COP_full(self):
+        X_trunk, Y_trunk, Fn_trunk = self.full_trunk()
 
         lleg_check = self.lleg_check
         rleg_check = self.rleg_check
         larm_check = self.larm_check
         rarm_check = self.rarm_check
 
-        f = 1
+        f = 0
 
-        Fn_head = np.ones_like(Fn_up) * 1.033 * 9.81
+        Fn_head = np.ones_like(Fn_trunk) * 1.033 * 9.81
         X_head = np.multiply(self.pose.X[:, 0], Fn_head)
         Y_head = np.multiply(self.pose.Y[:, 0], Fn_head)
 
-        Fn_lleg = np.sum(self.lleg_m) * 9.81 * lleg_check * f
+        Fn_lleg = self.zerodegm[3] * 9.81 * lleg_check * f
         X_lleg = np.multiply(self.pose.X[:, 13], Fn_lleg)
         Y_lleg = np.multiply(self.pose.Y[:, 13], Fn_lleg)
 
-        Fn_rleg = np.sum(self.rleg_m) * 9.81 * rleg_check * f
+        Fn_rleg = self.zerodegm[2] * 9.81 * rleg_check * f
         X_rleg = np.multiply(self.pose.X[:, 10], Fn_rleg)
         Y_rleg = np.multiply(self.pose.Y[:, 10], Fn_rleg)
 
         # Fn_larm = 0.367 * 9.81 * larm_check * f
-        Fn_larm = np.sum(self.larm_m) * 9.81 * larm_check * f
+        Fn_larm = self.zerodegm[1] * 9.81 * larm_check * f
         X_larm = np.multiply(self.pose.X[:, 6], Fn_larm)
         Y_larm = np.multiply(self.pose.Y[:, 6], Fn_larm)
 
         # Fn_rarm = 0.310 * 9.81 * rarm_check * f
-        Fn_rarm = np.sum(self.rarm_m) * 9.81 * rarm_check * f
+        Fn_rarm = self.zerodegm[0] * 9.81 * rarm_check * f
         X_rarm = np.multiply(self.pose.X[:, 3], Fn_rarm)
         Y_rarm = np.multiply(self.pose.Y[:, 3], Fn_rarm)
 
-        # print(Fn_rarm, Fn_larm)
+        ## FULL TRUNK
+        Fn_tot = Fn_trunk + Fn_lleg + Fn_rleg + Fn_larm + Fn_rarm + Fn_head
 
-        Fn_tot = Fn_up + Fn_low + Fn_lleg + Fn_rleg + Fn_larm + Fn_rarm + Fn_head
+        self.Xcalc = (X_trunk + X_lleg + X_rleg + X_larm + X_rarm + X_head) / Fn_tot * 1000
 
-        self.Xcalc = (X_low + X_up + X_lleg + X_rleg + X_larm + X_rarm + X_head) / Fn_tot * 1000
+        self.Ycalc = (Y_trunk + Y_lleg + Y_rleg + Y_larm + Y_rarm + Y_head) / Fn_tot * 1000
 
-        self.Ycalc = (Y_low + Y_up + Y_lleg + Y_rleg + Y_larm + Y_rarm + Y_head) / Fn_tot * 1000
-
-        self.Fn = np.array([Fn_low, Fn_up, Fn_lleg, Fn_rleg, Fn_larm, Fn_rarm, Fn_head])
-        self.Xcop = np.array([X_low, X_up, X_lleg, X_rleg, X_larm, X_rarm, X_head]) * 1000
-        self.Ycop = np.array([Y_low, Y_up, Y_lleg, Y_rleg, Y_larm, Y_rarm, Y_head]) * 1000
+        self.Fn = np.array([Fn_trunk, Fn_lleg, Fn_rleg, Fn_larm, Fn_rarm, Fn_head])
+        self.Xcop = np.array([X_trunk, X_lleg, X_rleg, X_larm, X_rarm, X_head]) * 1000
+        self.Ycop = np.array([Y_trunk, Y_lleg, Y_rleg, Y_larm, Y_rarm, Y_head]) * 1000
 
         self.Fn_tot = Fn_tot
 
-        # print(np.shape(self.Fn), np.shape(self.Xcop), np.shape(self.Ycop))
-
-        # plt.plot(X_up / Fn_tot)
-        # plt.plot(X_low / Fn_tot)
-        # plt.plot(X_lleg / Fn_tot)
-        # plt.plot(X_rleg / Fn_tot)
-        # plt.plot(X_larm / Fn_tot)
-        # plt.plot(X_rarm / Fn_tot)
-        # plt.plot(X_head / Fn_tot)
-        # plt.plot(self.Xcalc)
-
-        # plt.plot(Fn_up)
-        # plt.plot(Fn_low)
-        # plt.plot(Fn_lleg)
-        # plt.plot(Fn_rleg)
-        # plt.plot(Fn_larm)
-        # plt.plot(Fn_rarm)
-        # plt.plot(Fn_head)
-        # plt.plot(Fn_tot)
-
-        # plt.legend(["Upper", "Lower", "L_leg", "R_Leg", "L_arm", "R_arm", "Head", "Tot"])
-        # plt.grid()
-        # plt.show()
-
     def compare_COP(self):
-        # cc = compareCOP(self.Xcalc[0, 5:-1], self.Ycalc[0, 5:-1], self.COP.Xfilt[5:-1], self.COP.Yfilt[5:-1])
-        # cc.comp_XY(self.robot_t[5:-1], -0.2)
-        # cc.comp_ellipse()
-        # print(cc.metrics())
-        # print(cc.diff_metric())
         Xcalc = self.Xcalc.T
         Ycalc = self.Ycalc.T
 
@@ -588,6 +747,9 @@ class sim_COP:
         Xreal, Yreal = Xreal[delay:], Yreal[delay:]
         Xcalc, Ycalc = Xcalc[delay:], Ycalc[delay:]
 
+        # Xreal, Yreal = Xreal[2500:], Yreal[2500:]
+        # Xcalc, Ycalc = Xcalc[2500:], Ycalc[2500:]
+
         # Xreal, Yreal = Xreal[delay:2500], Yreal[delay:2500]
         # Xcalc, Ycalc = Xcalc[delay:2500], Ycalc[delay:2500]
 
@@ -596,39 +758,48 @@ class sim_COP:
         Xcalc = scipy.ndimage.median_filter(Xcalc, win)
         Ycalc = scipy.ndimage.median_filter(Ycalc, win)
 
+        cc = compareCOP(Xcalc, Ycalc, Xreal, Yreal, cam=1)
+        cc.comp_XY()
+        cc.comp_ellipse()
+        # cc.plot_cop_anim()
+
+        # print(cc.metrics())
+        # print(cc.diff_metric())
+
         # print(np.mean(Xcalc) - np.mean(Xreal))
         # print(np.mean(Ycalc) - np.mean(Yreal))
 
-        plt.subplot(2, 1, 1)
-        # plt.plot(Xcalc - np.mean(Xcalc[0:30]))
+        # plt.subplot(2, 1, 1)
+        # # plt.plot(Xcalc - np.mean(Xcalc[0:30]))
+        # # plt.plot(Xreal - np.mean(Xreal[0:30]))
+        # # plt.legend(["Calculated", "Grnd Trth"])
         # plt.plot(Xreal - np.mean(Xreal[0:30]))
-        # plt.legend(["Calculated", "Grnd Trth"])
-        plt.plot(Xreal - np.mean(Xreal[0:30]))
-        plt.plot(Xcalc - np.mean(Xcalc[0:30]))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("X COP")
-        plt.xlabel("Time (s)")
-        plt.ylabel("COP X (mm)")
-        plt.grid()
+        # plt.plot(Xcalc - np.mean(Xcalc[0:30]))
+        # plt.legend(["Grnd Trth", "Calculated"])
+        # plt.title("X COP")
+        # plt.xlabel("Time (s)")
+        # plt.ylabel("COP X (mm)")
+        # plt.grid()
 
-        plt.subplot(2, 1, 2)
-        # plt.plot(Ycalc - np.mean(Ycalc[0:30]))
+        # plt.subplot(2, 1, 2)
+        # # plt.plot(Ycalc - np.mean(Ycalc[0:30]))
+        # # plt.plot(Yreal - np.mean(Yreal[0:30]))
+        # # plt.legend(["Calculated", "Grnd Trth"])
         # plt.plot(Yreal - np.mean(Yreal[0:30]))
-        # plt.legend(["Calculated", "Grnd Trth"])
-        plt.plot(Yreal - np.mean(Yreal[0:30]))
-        plt.plot(Ycalc - np.mean(Ycalc[0:30]))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("Y COP")
-        plt.xlabel("Time (s)")
-        plt.ylabel("COP Y (mm)")
-        plt.grid()
+        # plt.plot(Ycalc - np.mean(Ycalc[0:30]))
+        # plt.legend(["Grnd Trth", "Calculated"])
+        # plt.title("Y COP")
+        # plt.xlabel("Time (s)")
+        # plt.ylabel("COP Y (mm)")
+        # plt.grid()
 
-        plt.tight_layout()
-        plt.show()
+        # plt.tight_layout()
+        # plt.show()
 
 
 test = sim_COP()
 test.calc_COP()
+# test.calc_COP_full()
 print("calculation done")
-test.plot_cop_anim()
-# test.compare_COP()
+# test.plot_cop_anim()
+test.compare_COP()

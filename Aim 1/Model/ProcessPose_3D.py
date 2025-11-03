@@ -57,7 +57,7 @@ class processpose:
         self.Z = Z
         self.idx = idx
 
-        zrarm, zlarm, zrleg, zlleg = Z[:, 3], Z[:, 6], Z[:, 10], Z[:, 13]
+        # zrarm, zlarm, zrleg, zlleg = Z[:, 3], Z[:, 6], Z[:, 10], Z[:, 13]
 
         # print(
         #     np.mean(zrarm[3000:]) * 1000,

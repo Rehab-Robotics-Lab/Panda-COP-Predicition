@@ -75,3 +75,39 @@ zer=[0;0;0];
 cop_eqn=Ft3+Ft4+T==[0;0;0]
 
 solve(cop_eqn(1:2),[TX,TY])
+
+%% UPPER TRUNK
+
+syms f1x f1y f1z T1x T1y T1z
+syms f2x f2y f2z T2x T2y T2z
+syms f3x f3y f3z T3x T3y T3z
+syms f4x f4y f4z T4x T4y T4z
+syms mg Cx Cy Cz TX TY TZ dx dy dz
+
+p1x=dx+Cx;
+p2x=dx-Cx;
+p3x=dx+Cx;
+p4x=dx-Cx;
+p1y=dy-Cy;
+p2y=dy-Cy;
+p3y=dy+Cy;
+p4y=dy+Cy;
+p1z=dz;
+p2z=dz;
+p3z=dz;
+p4z=dz;
+
+% syms p1x p2x p1y p2y p1z p2z
+
+
+Ft1=cross([-p1x;p1y;p1z],[f1x;f1y;f1z])
+Ft2=cross([p2x;p2y;p2z],[f2x;f2y;f2z])
+Ft3=cross([-p3x;-p3y;p3z],[f3x;f3y;f3z])
+Ft4=cross([p4x;-p4y;p4z],[f4x;f4y;f4z])
+mg_t=cross([-Cx;-Cy;0],[0;0;-mg])
+T=([T1x;T1y;T1z]+[T2x;T2y;T2z]+[T3x;T3y;T3z]+[T4x;T4y;T4z])
+zer=[0;0;0]; 
+
+cop_eqn=Ft1+Ft2+Ft3+Ft4+mg_t+T==[0;0;0]
+
+solve(cop_eqn(1:2),[Cx,Cy])
