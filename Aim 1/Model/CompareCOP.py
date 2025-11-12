@@ -379,11 +379,17 @@ class compareCOP:
         plt.show()
 
     def mse(self):
-        Xr = self.Xreal - np.mean(self.Xreal)
-        Yr = self.Yreal - np.mean(self.Yreal)
+        # Xr = self.Xreal - np.mean(self.Xreal)
+        # Yr = self.Yreal - np.mean(self.Yreal)
 
-        dX = self.Xcalc_sync
-        dY = self.Ycalc_sync
+        # dX = self.Xcalc_sync
+        # dY = self.Ycalc_sync
+
+        Xr = self.Xreal - np.mean(self.Xreal[0:15])
+        Yr = self.Yreal - np.mean(self.Yreal[0:15])
+
+        dX = self.Xcalc - np.mean(self.Xcalc[0:15])
+        dY = self.Ycalc - np.mean(self.Ycalc[0:15])
 
         mseX = np.mean((Xr - dX) ** 2)
         mseY = np.mean((Yr - dY) ** 2)
@@ -391,11 +397,17 @@ class compareCOP:
         return mseX, mseY
 
     def mae(self):
-        Xr = self.Xreal - np.mean(self.Xreal)
-        Yr = self.Yreal - np.mean(self.Yreal)
+        # Xr = self.Xreal - np.mean(self.Xreal)
+        # Yr = self.Yreal - np.mean(self.Yreal)
 
-        dX = self.Xcalc_sync
-        dY = self.Ycalc_sync
+        # dX = self.Xcalc_sync
+        # dY = self.Ycalc_sync
+
+        Xr = self.Xreal - np.mean(self.Xreal[0:15])
+        Yr = self.Yreal - np.mean(self.Yreal[0:15])
+
+        dX = self.Xcalc - np.mean(self.Xcalc[0:15])
+        dY = self.Ycalc - np.mean(self.Ycalc[0:15])
 
         maeX = np.mean(np.abs(Xr - dX))
         maeY = np.mean(np.abs(Yr - dY))
@@ -432,8 +444,10 @@ class compareCOP:
 
         return avg_pathLen
 
-    def diff_metric(self):
-        self.dtw()
+    def diff_metric(self, dtw=0):
+        if dtw == 1:
+            self.dtw()
+
         maeX, maeY = self.mae()
         mseX, mseY = self.mse()
 

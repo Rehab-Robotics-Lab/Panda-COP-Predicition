@@ -599,7 +599,7 @@ class c_manage:
 
         return start, stop
 
-    def tringulate(self, vidnum, delay=0):
+    def tringulate(self, vidnum, delay=0, num1=None, num2=None):
         # stat_vid, names_vid = self.check_vids(vidnum)
         stat, names = self.check_csv(vidnum)
 
@@ -640,9 +640,12 @@ class c_manage:
             extrinsics=self.extrinsics_final,
         )
 
-        # T.check_combos()
-        T.trinagulate_all(2, 4)
-        T.SBA()
+        if num1 != None and num2 != None:
+            T.trinagulate_all(num1, num2)
+            T.SBA_anipose()
+        else:
+            T.check_combos()
+        # T.SBA()
         self.T = T
 
     def overlay_reproj(self, vidnum):
@@ -824,18 +827,18 @@ class c_manage:
         self.extrinsics_final = pd.read_json(savefolder + "\\" + self.vid_name + "_extrinsics.json").to_dict()
 
 
-# sim = c_manage(
-#     cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
-#     vid_name="sim",
-#     csv_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\pose",
-# )
+sim = c_manage(
+    cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
+    vid_name="sim",
+    csv_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\pose",
+)
 
 # sim.overlay_pose(camnum=7, vidnum=4)
 
-# vidn = 3
-# sim.tringulate(vidn)
+vidn = 3
+sim.tringulate(vidn, num1=2, num2=3)
+sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras")
 # sim.overlay_reproj(vidn)
-# sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras")
 
 # nme = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 2\sim_trunk_cam2_vid5.MP4"
 # sim.manual_synch(nme, 140)

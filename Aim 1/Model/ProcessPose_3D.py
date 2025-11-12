@@ -190,15 +190,13 @@ class processpose:
         ani = animation.FuncAnimation(self.fig, self.plotskel, frames=frms[start:], interval=1)
         plt.show()
 
-    def arms(self, k):
+    def arms(self, k, left=0):
         ls = np.matrix([self.X[:, k], self.Y[:, k], self.Z[:, k]])
         le = np.matrix([self.X[:, k + 1], self.Y[:, k + 1], self.Z[:, k + 1]])
         lh = np.matrix([self.X[:, k + 2], self.Y[:, k + 2], self.Z[:, k + 2]])
 
         L1 = np.linalg.norm(le - ls, axis=0)
         L2 = np.linalg.norm(le - lh, axis=0)
-
-        # print(k, np.mean(L2) * 100)
 
         s1 = np.divide(le[0, :] - ls[0, :], L1)
         c1 = np.divide(ls[1, :] - le[1, :], L1)
@@ -207,7 +205,11 @@ class processpose:
         s1 = np.sin(thet1)
         c1 = np.cos(thet1)
 
-        s2 = np.divide(le[2, :] - ls[2, :], L1)
+        if left == 0:
+            s2 = np.divide(le[2, :] - ls[2, :], L1)
+        elif left == 1:
+            s2 = np.divide(ls[2, :] - le[2, :], L1)
+
         c2 = np.divide((ls[1, :] - le[1, :]), np.multiply(c1, L1))
 
         thet2 = np.arctan2(s2, c2)
@@ -247,8 +249,11 @@ class processpose:
         thet4 = np.arctan2(s4, c4)
 
         ##THETA 3
+        if left == 0:
+            X = np.divide(lh[0, :] - le[0, :], L2)
+        elif left == 1:
+            X = -np.divide(lh[0, :] - le[0, :], L2)
 
-        X = np.divide(lh[0, :] - le[0, :], L2)
         Y = np.divide(lh[1, :] - le[1, :], L2)
         Z = np.divide(lh[2, :] - le[2, :], L2)
 
@@ -258,15 +263,6 @@ class processpose:
 
         thet3 = np.arctan2(s3, c3)
 
-        # plt.plot(np.rad2deg(thet1.T))
-        # plt.plot(np.rad2deg(thet2.T))
-        # plt.plot(np.rad2deg(thet3.T))
-        # plt.plot(np.rad2deg(thet4.T))
-        # plt.legend(["tz1", "tx2", "ty3", "tx4"])
-        # plt.show()
-
-        # print([np.min(c3), np.max(c3)], [np.min(s3), np.max(s3)])
-        # print([np.min(c4), np.max(c4)], [np.min(s4), np.max(s4)])
         return thet1, thet2, thet3, thet4
 
     def legs(self, k):
@@ -343,15 +339,33 @@ class processpose:
         # s3 = np.sqrt((np.ones_like(c3) - np.power(c3, 2)).T).T
         thet3 = np.arctan2(s3, c3)
 
-        # plt.plot(np.rad2deg(thet1.T))
-        # plt.plot(np.rad2deg(thet2.T))
-        # plt.plot(np.rad2deg(thet3.T))
-        # plt.plot(np.rad2deg(thet4.T))
-        # plt.legend(["tz1", "tx2", "ty3", "tx4"])
-        # #  plt.legend(["thet3", "thet4"])
-        # plt.show()
-
         return thet1, thet2, thet3, thet4
+
+    def limbs_static(self, k):
+        ls = np.matrix([self.X[:, k], self.Y[:, k], self.Z[:, k]])
+        le = np.matrix([self.X[:, k + 1], self.Y[:, k + 1], self.Z[:, k + 1]])
+        lh = np.matrix([self.X[:, k + 2], self.Y[:, k + 2], self.Z[:, k + 2]])
+
+        L1 = np.linalg.norm(le - ls, axis=0)
+        L2 = np.linalg.norm(le - lh, axis=0)
+
+        s1 = np.divide(le[2, :] - ls[2, :], L1)
+        c1 = np.divide(le[1, :] - ls[1, :], L1)
+        thet1 = np.arctan2(s1, c1)
+        s1 = np.sin(thet1)
+        c1 = np.cos(thet1)
+
+        s2 = np.divide(le[0, :] - ls[0, :], L1)
+        c2 = np.divide((le[1, :] - ls[1, :]), np.multiply(c1, L1))
+        thet2 = np.arctan2(s2, c2)
+        s2 = np.sin(thet2)
+        c2 = np.cos(thet2)
+
+        s4 = np.divide(le[0, :] - lh[0, :], np.multiply(s1, L2))
+        c4 = np.divide(le[2, :] - lh[2, :], np.multiply(c1, L2)) - np.divide(np.multiply(c2, c4), np.divide(c1, s1))
+        thet4 = np.arctan2(s4, c4)
+
+        return thet1, thet2, thet4
 
     def face_ang(self):
         reye = np.matrix([self.X[:, 14], self.Y[:, 14], self.Z[:, 14]])
@@ -1212,6 +1226,27 @@ class processpose:
         self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl = self.legs(k=8)
         self.thet1_ll, self.thet2_ll, self.thet3_ll, self.thet4_ll = self.legs(k=11)
 
+    def IK_init_static(self):
+
+        ## SHOULDERS
+        self.shoudler_ang()
+
+        ## HIPS
+        self.hip_ang()
+
+        ## FACE
+        self.face_ang()
+
+        ## HEAD
+        self.head_ang()
+
+        ##ARMS
+        self.thet1_ra, self.thet2_ra, self.thet4_ra = self.limbs_static(k=2)
+        self.thet1_la, self.thet2_la, self.thet4_la = self.arms_static(k=5)
+        ##LEGS
+        self.thet1_rl, self.thet2_rl, self.thet4_rl = self.legs_static(k=8)
+        self.thet1_ll, self.thet2_ll, self.thet4_ll = self.legs_static(k=11)
+
     def ID_init(self):
 
         T_ra = np.array([self.thet1_ra, self.thet2_ra, self.thet3_ra, self.thet4_ra])[:, 0, :]
@@ -1246,6 +1281,9 @@ class processpose:
 
         Fr = np.ones((3, n))
         Tq = np.ones((3, n))
+
+        Fr_m = np.ones((3, n))
+        Tq_m = np.ones((3, n))
 
         for i in range(n):
             t1, t2, t3, t4 = T[0, i], T[1, i], T[2, i], T[3, i]
@@ -1336,6 +1374,8 @@ class processpose:
             # forces transformed to base frame
             fr = (R01 @ f1)[:, 0]
 
+            # Tq_m[:, [i]] = (R01 @ n2)[:, 0]
+
             Tq[:, [i]] = tq
             Fr[:, [i]] = fr
 
@@ -1343,22 +1383,15 @@ class processpose:
 
 
 # fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"
-fi = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_cam_2_6_vid_3.csv"
+# fi = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_cam_2_3_vid_3.csv"
 
 
 # tt = processpose(fi)
 
+# tt.IK_init_static()
+
 # tt.IK_init()
 # tt.ID_init()
-
-# p1 = tt.plo1
-# p2 = tt.plo2
-
-# plt.plot((p1.T))
-# plt.plot((p2.T))
-
-# plt.plot(np.cos(tt4.T))
-# plt.show()
 
 # tt.plotskel_loop(start=0 * 30)
 # tt.check_IK_legs(k=2)

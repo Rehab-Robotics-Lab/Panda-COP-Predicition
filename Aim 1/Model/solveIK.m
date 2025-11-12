@@ -1,19 +1,77 @@
 %%%
-syms t1 t2 t3 t4
+syms t0 t1 t2 t3 t4
+yflip=[-1,0,0;0,1,0;0,0,1];
 r1=rotz(pi)*rotz(t1)
 r2=rotx(t2)
 r3=roty(t3)
 r4=rotx(t4)
 
-R=r1*r2*r3*r4
+R1=r1*r2*r3
+R2=R1*r4
 
-%%  FLSDNS
+%% 
+syms t0 t1 t2 t3 t4
+
+r1=rotz(t0)*rotx(t1)
+% r1=rotx(t1)
+r2=rotz(t2)
+r3=roty(t3)
+r4=rotx(t4)
+
+R1=r1*r2*r3 
+R2=R1*r4
+
+
+%%  solving IK equations for R_04 (static R_z_zxy arms)
+
+syms c1 s1 c2 s2 c3 s3 c4 s4 X Y Z 
+
+ex=c2*s3*s4-s2*c4;
+ey= c1*c2*c4-s4*(s1*c3-c1*s2*s3);
+ez=s1*c2*c4+s4*(c1*c3+s1*s2*s3);
+
+eqn1=[ey ;ez ]==[Y;Z]
+eqn2=[ ex; ez]==[X;Z]
+eqn3=[ex ; ey]==[X;Y]
+
+solve(eqn1,[c3,s3])
+solve(eqn2,[c3,s3])
+solve(eqn3,[c3,s3])
+
+
+%%  solving IK equations for R_03 (static R_z_zxy legs)
+
+syms T1 A B c2 s2 c4 s4 X Y Z 
+
+ex=-B*s2-(A*(Z/T1));
+ey=-A*s2+(B*(Z/T1));
+
+eqn_03=[ex;ey]==[X;Y]
+solve(eqn_03,[T1,s2])
+
+%%  solving IK equations for R_04 (static R_z_zxy_x legs)
+
+syms A B c1 s0 c0 s1 c2 s2 c4 s4 X Y Z
+ex=-c4*(c0*s2 + s0*c1*c2) + s0*s1*s4;
+ey=-c4*(s0*s2 - c0*c1*c2) - c0*s1*s4;
+ez=c1*s4+s1*c2*c4;
+
+eqn1=[ey ;ez ]==[Y;Z]
+eqn2=[ ex; ez]==[X;Z]
+eqn3=[ex ; ey]==[X;Y]
+
+solve(eqn1,[c4,s4])
+solve(eqn2,[c4,s4])
+solve(eqn3,[c4,s4])
+
+%%  solving IK equations for R_04 (normal)
 
 syms c1 s1 c2 s2 c3 s3 c4 s4 X Y Z
 
 % eqn=[s4*(c1*s3 + c3*s1*s2) - c2*c4*s1;s4*(s1*s3 - c1*c3*s2) + c1*c2*c4;c4*s2 + c2*c3*s4]==[X,Y,Z]
-ex=-s4*(c1*s3 + c3*s1*s2) + c2*c4*s1;
-ey=-s4*(s1*s3 +c1*c3*s2) - c1*c2*c4;
+ex=s4*(c1*s3 + s1*s2*c3) -  s1*c2*c4;
+% ex=-s4*(c1*s3 + s1*s2*c3) + s1*c2*c4;
+ey=-s4*(s1*s3 - c1*c3*s2) - c1*c2*c4;
 ez=c4*s2 + c2*c3*s4;
 eqn1=[ey ;ez ]==[Y;Z]
 eqn2=[ ex; ez]==[X;Z]

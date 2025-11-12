@@ -6,17 +6,22 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import pandas as pd
 import scipy
+
 from ProcessPose_3D import processpose
+
+# from ProcessPose_3D_sim import processpose
 
 
 class sim_COP:
     # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
     def __init__(self):
 
-        posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_cam_2_6_vid_3.csv"
+        posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\\3D_vid_2_3.csv"
+        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\\sim_cam_2_4_vid_3.csv"
 
         # LOADING FILE WITH COP VALUES
         cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\2025-6-11_1_55_Sim_each_2_3.csv"
+        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\2025-6-11_2_5_Sim_doube_2_3.csv"
         # self.rate = 60
         # # cop object
         self.COP = processCOP(cop_file, 60)
@@ -33,6 +38,16 @@ class sim_COP:
         # lengths
         uarm_len = (np.mean(pose.get_len(2, 3)) + np.mean(pose.get_len(5, 6))) / 2
         larm_len = (np.mean(pose.get_len(3, 4)) + np.mean(pose.get_len(6, 7))) / 2
+
+        plt.plot(pose.get_len(8, 9) * 1000)
+        plt.plot(pose.get_len(9, 10) * 1000)
+        plt.plot(pose.get_len(11, 12) * 1000)
+        plt.plot(pose.get_len(12, 13) * 1000)
+        plt.legend(["Upp Leg R", "Low Leg R", "Upp Leg L", "Low Leg L"])
+        plt.show()
+        # quit()
+
+        # print(uarm_len, larm_len)
 
         # radius
         uarm_r = 0.20
@@ -59,30 +74,32 @@ class sim_COP:
 
         # Leg paramters
         # lengths
-        uleg_len = (np.mean(pose.get_len(8, 9)) + np.mean(pose.get_len(11, 12))) / 2
-        lleg_len = (np.mean(pose.get_len(9, 10)) + np.mean(pose.get_len(12, 13))) / 2
+        l_uleg_len = np.mean(pose.get_len(11, 12))
+        l_lleg_len = np.mean(pose.get_len(12, 13))
+        r_uleg_len = np.mean(pose.get_len(8, 9))
+        r_lleg_len = np.mean(pose.get_len(9, 10))
         # radius
-        uleg_r = 0.65
-        lleg_r = 0.4
+        uleg_r = 0.6
+        lleg_r = 0.42
         # mass
         l_uleg_m = 0.4
         l_lleg_m = 0.805 - l_uleg_m
-        r_uleg_m = 0.4
-        r_lleg_m = 0.805 - r_uleg_m
+        r_uleg_m = 0.41
+        r_lleg_m = 0.823 - r_uleg_m
         # inertia
-        l_uleg_I = self.I(uleg_len, l_uleg_m, uleg_r)
-        l_lleg_I = self.I(lleg_len, l_lleg_m, lleg_r)
-        r_uleg_I = self.I(uleg_len, r_uleg_m, uleg_r)
-        r_lleg_I = self.I(lleg_len, r_lleg_m, lleg_r)
+        l_uleg_I = self.I(l_uleg_len, l_uleg_m, uleg_r)
+        l_lleg_I = self.I(l_lleg_len, l_lleg_m, lleg_r)
+        r_uleg_I = self.I(r_uleg_len, r_uleg_m, uleg_r)
+        r_lleg_I = self.I(r_lleg_len, r_lleg_m, lleg_r)
 
         # storing left leg parameters
         self.lleg_m = np.array([l_uleg_m, l_lleg_m])
-        self.lleg_len = np.array([uleg_len, lleg_len])
+        self.lleg_len = np.array([l_uleg_len, l_lleg_len])
         self.lleg_I = np.matrix([l_uleg_I, l_lleg_I])
 
         # storing right leg parameters
         self.rleg_m = np.array([r_uleg_m, r_lleg_m])
-        self.rleg_len = self.lleg_len
+        self.rleg_len = np.array([r_uleg_len, r_lleg_len])
         self.rleg_I = np.matrix([r_lleg_I, r_uleg_I])
 
         # Upper Trunk parameters
@@ -109,6 +126,11 @@ class sim_COP:
 
         self.L_full = np.linalg.norm(S - H, axis=0)
         self.zerodegm = np.array([0.253, 0.273, 0.150, 0.155])
+
+        # print("Larm Ground", np.min(pose.Z[:, 6]) * 1000)
+        # print("Rarm Ground", np.min(pose.Z[:, 3]) * 1000)
+        # print("Lleg Ground", np.min(pose.Z[:, 13]) * 1000)
+        # print("Rleg Ground", np.min(pose.Z[:, 10]) * 1000)
 
         self.pose = pose
 
@@ -197,7 +219,7 @@ class sim_COP:
         # quit()
 
         # for i in [0, 1, 2, 3, 4, 5, 6]:
-        for i in range(6):
+        for i in range(3):
             Fn = self.Fn[i, j]
 
             Xcop = np.divide(self.Xcop[i, j], Fn)
@@ -321,6 +343,21 @@ class sim_COP:
         g = 9.81
         pose = self.pose
 
+        # right = np.rad2deg(pose.thet3_ra)
+        # left = np.rad2deg(pose.thet3_la)
+        # right = pose.Y[:, 10] * 1000
+        # left = pose.Y[:, 13] * 1000
+
+        # print("Right", np.mean(right[0:100]))
+        # print("Left", np.mean(left[0:100]))
+
+        # plt.plot(right.T)
+        # plt.plot(left.T)
+        # plt.legend(["T4z_right", "T4z_left"])
+        # plt.grid()
+        # plt.show()
+        # quit()
+
         # right arm dynamics
         T_ra = np.array([pose.thet1_ra, pose.thet2_ra, pose.thet3_ra, pose.thet4_ra])[:, 0, :]
         Trarm, Frarm = pose.inv_dynamics(T_ra, self.rarm_len, self.rarm_m, self.rarm_I)
@@ -380,8 +417,10 @@ class sim_COP:
         # plt.plot(Ty)
         # plt.legend(["Tx", "Ty"])
         # plt.show()
+
         Txx = T1x + T2x + Tx
         Tyy = T1y + T2y + Ty
+
         # plt.plot(Txx)
         # plt.plot(Tyy)
         # plt.legend(["Txx", "Tyy"])
@@ -415,17 +454,6 @@ class sim_COP:
 
         mids_X = (pose.X[:, 2] + pose.X[:, 5]) * 0.5
         mids_Y = (pose.Y[:, 2] + pose.Y[:, 5]) * 0.5
-
-        # plt.plot(mids_Y - dy)
-        # plt.plot(Y_calc)
-        # plt.plot(mids_Y - dy + Y_calc)
-        # plt.plot(mids_X)
-        # plt.plot(X_calc)
-        # plt.plot(X_calc + mids_X + 0.01)
-        # plt.grid()
-        # plt.legend(["Offset COP", "COP change", "Final COP"])
-        # plt.show()
-        # quit()
 
         X_calc = mids_X + X_calc
         Y_calc = mids_Y - dy + Y_calc
@@ -747,11 +775,24 @@ class sim_COP:
         Xreal, Yreal = Xreal[delay:], Yreal[delay:]
         Xcalc, Ycalc = Xcalc[delay:], Ycalc[delay:]
 
-        # Xreal, Yreal = Xreal[2500:], Yreal[2500:]
-        # Xcalc, Ycalc = Xcalc[2500:], Ycalc[2500:]
+        ##Left Arm
+        # start = delay
+        # stop = 1350
 
-        # Xreal, Yreal = Xreal[delay:2500], Yreal[delay:2500]
-        # Xcalc, Ycalc = Xcalc[delay:2500], Ycalc[delay:2500]
+        ##Righ Arm
+        # start = 1350
+        # stop = 2600
+
+        ##Left Leg
+        # start = 2600
+        # stop = 3900
+
+        ##Right Leg
+        start = 3800
+        stop = -1
+
+        # Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
+        # Xcalc, Ycalc = Xcalc[start:stop], Ycalc[start:stop]
 
         win = 5
 
@@ -760,11 +801,11 @@ class sim_COP:
 
         cc = compareCOP(Xcalc, Ycalc, Xreal, Yreal, cam=1)
         cc.comp_XY()
-        cc.comp_ellipse()
+        # cc.comp_ellipse()
         # cc.plot_cop_anim()
 
         # print(cc.metrics())
-        # print(cc.diff_metric())
+        print(cc.diff_metric())
 
         # print(np.mean(Xcalc) - np.mean(Xreal))
         # print(np.mean(Ycalc) - np.mean(Yreal))

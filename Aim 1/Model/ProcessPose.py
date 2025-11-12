@@ -60,6 +60,13 @@ class processPose:
         self.Xfilt = scipy.ndimage.median_filter(Xparts, size=[1, 5])
         self.Yfilt = scipy.ndimage.median_filter(Yparts, size=[1, 5])
 
+        # plt.plot(self.Xfilt[8, :])
+        # plt.plot(self.Yfilt[8, :])
+        # plt.plot(self.Xfilt[11, :])
+        # plt.plot(self.Yfilt[11, :])
+        # plt.legend(["Rhip X", "Rhip Y", "Lhip X", "Lhip Y"])
+        # plt.show()
+
         # # zeroing coords. to neck position
         # Xzero = self.Xfilt - np.mean(self.Xfilt[0, 0:15])
         # Yzero = self.Yfilt - np.mean(self.Yfilt[0, 0:15])
