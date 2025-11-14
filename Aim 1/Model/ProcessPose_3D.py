@@ -73,6 +73,29 @@ class processpose:
         # plt.legend(["Rarm", "Larm", "Rleg", "Lleg"])
         # plt.show()
 
+    def adjust_rleg_len(self):
+        rk = np.matrix([self.X[:, 9], self.Y[:, 9], self.Z[:, 9]])
+        rf = np.matrix([self.X[:, 10], self.Y[:, 10], self.Z[:, 10]])
+
+        left_len = self.get_len(12, 13)
+        right_len = self.get_len(9, 10)
+
+        rf_proj = np.zeros_like(rf)
+
+        # for i in range(self.frames + 1):
+        #     Ts, Th, Tf, Te = self.IK_trunk(i)
+        #     Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(i, Ts, Th)
+        #     # feet
+
+        #     yfR = np.matrix([[0], [left_len[i]], [0], [1]])
+
+        #     rf_proj[:, i] = (Ts_rk @ yfR)[0:3, 0]
+        low_leg_norm = np.divide((rf - rk), right_len)
+        rf_proj = np.multiply(low_leg_norm, left_len) + rk
+
+        # print(np.shape(rf_proj))
+        self.X[:, 10], self.Y[:, 10], self.Z[:, 10] = rf_proj[0, :], rf_proj[1, :], rf_proj[2, :]
+
     def get_len(self, i, j):
         p1 = np.matrix([self.X[:, i], self.Y[:, i], self.Z[:, i]])
         p2 = np.matrix([self.X[:, j], self.Y[:, j], self.Z[:, j]])
@@ -365,7 +388,9 @@ class processpose:
         c4 = np.divide(le[2, :] - lh[2, :], np.multiply(c1, L2)) - np.divide(np.multiply(c2, c4), np.divide(c1, s1))
         thet4 = np.arctan2(s4, c4)
 
-        return thet1, thet2, thet4
+        thet3 = np.zeros_like(thet1)
+
+        return thet1, thet2, thet3, thet4
 
     def face_ang(self):
         reye = np.matrix([self.X[:, 14], self.Y[:, 14], self.Z[:, 14]])
@@ -1241,17 +1266,15 @@ class processpose:
         self.head_ang()
 
         ##ARMS
-        self.thet1_ra, self.thet2_ra, self.thet4_ra = self.limbs_static(k=2)
-        self.thet1_la, self.thet2_la, self.thet4_la = self.arms_static(k=5)
+        self.thet1_ra, self.thet2_ra, self.thet3_ra, self.thet4_ra = self.limbs_static(k=2)
+        self.thet1_la, self.thet2_la, self.thet3_la, self.thet4_la = self.arms_static(k=5)
         ##LEGS
-        self.thet1_rl, self.thet2_rl, self.thet4_rl = self.legs_static(k=8)
-        self.thet1_ll, self.thet2_ll, self.thet4_ll = self.legs_static(k=11)
+        self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl = self.legs_static(k=8)
+        self.thet1_ll, self.thet2_ll, self.thet3_ll, self.thet4_ll = self.legs_static(k=11)
 
     def ID_init(self):
 
         T_ra = np.array([self.thet1_ra, self.thet2_ra, self.thet3_ra, self.thet4_ra])[:, 0, :]
-        print(np.shape(T_ra))
-        # T_ra,F_ra=self.inv_dynamics(T, L, m, I)
         T_la = np.array([self.thet1_la, self.thet2_la, self.thet3_la, self.thet4_la])[:, 0, :]
 
         T_rl = np.array([self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl])[:, 0, :]
@@ -1282,8 +1305,8 @@ class processpose:
         Fr = np.ones((3, n))
         Tq = np.ones((3, n))
 
-        Fr_m = np.ones((3, n))
-        Tq_m = np.ones((3, n))
+        extra1 = np.ones((3, n))
+        extra2 = np.ones((3, n))
 
         for i in range(n):
             t1, t2, t3, t4 = T[0, i], T[1, i], T[2, i], T[3, i]
@@ -1301,12 +1324,13 @@ class processpose:
             Ry3 = self.R_y(t3)
             Rx4 = self.R_x(t4)
 
-            # Rz1 = self.R_z(t1).T @ Rz_180.T
+            # Rz1 = (self.R_z(t1) @ Rz_180).T
             # Rx2 = (self.R_x(t2)).T
             # Ry3 = (self.R_y(t3)).T
             # Rx4 = (self.R_x(t4)).T
 
             R01 = Rz1 @ Rx2 @ Ry3
+            # R01 = Rz_180 @ self.R_zxy(t1, t2, t3)
             R12 = Rx4
 
             p1 = np.matrix([[0], [L1], [0]])
@@ -1374,12 +1398,13 @@ class processpose:
             # forces transformed to base frame
             fr = (R01 @ f1)[:, 0]
 
-            # Tq_m[:, [i]] = (R01 @ n2)[:, 0]
+            extra1[:, [i]] = (R01 @ w1)[:, 0]
+            extra2[:, [i]] = (R01 @ w2)[:, 0]
 
             Tq[:, [i]] = tq
             Fr[:, [i]] = fr
 
-        return Tq, Fr
+        return Tq, Fr, extra1, extra2
 
 
 # fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"

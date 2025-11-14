@@ -1209,7 +1209,7 @@ class tringulatepose:
         n_deriv_smooth=1,
         scores=None,
         verbose=False,
-        n_fixed=[8, 11],
+        n_fixed=0,
     ):
         """
         Take in an array of 2D points of shape CxNxJx2,
@@ -1233,8 +1233,8 @@ class tringulatepose:
         #     len(self.cameras), points.shape
         # )
 
-        constraints = [[2, 3], [3, 4], [5, 6], [6, 7], [8, 9], [9, 10], [11, 12], [12, 13]]
-        constraints_weak = [[1, 2], [1, 5]]
+        constraints = [[2, 3], [3, 4], [5, 6], [6, 7], [8, 9], [9, 10], [11, 12], [12, 13], [8, 11]]
+        constraints_weak = [[1, 2], [1, 5], [2, 5]]
 
         n_cams, n_frames, n_joints, _ = points.shape
         constraints = np.array(constraints)

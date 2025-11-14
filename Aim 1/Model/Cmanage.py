@@ -606,6 +606,8 @@ class c_manage:
         cams = np.array([1, 2, 3, 4, 5, 6, 7])
 
         stat = stat.astype(bool)
+        # stat[6] = False
+        # stat[0] = False
 
         available = cams[stat]
         self.cams = available
@@ -836,8 +838,9 @@ sim = c_manage(
 # sim.overlay_pose(camnum=7, vidnum=4)
 
 vidn = 3
-sim.tringulate(vidn, num1=2, num2=3)
+sim.tringulate(vidn, num1=4, num2=6)
 sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras")
+# sim.overlay_pose(7, vidn)
 # sim.overlay_reproj(vidn)
 
 # nme = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 2\sim_trunk_cam2_vid5.MP4"

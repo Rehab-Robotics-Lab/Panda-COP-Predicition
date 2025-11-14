@@ -60,6 +60,9 @@ class processPose:
         self.Xfilt = scipy.ndimage.median_filter(Xparts, size=[1, 5])
         self.Yfilt = scipy.ndimage.median_filter(Yparts, size=[1, 5])
 
+        self.Xfilt[8, :], self.Yfilt[8, :] = np.mean(self.Xfilt[8, :]), np.mean(self.Yfilt[8, :])
+        self.Xfilt[11, :], self.Yfilt[11, :] = np.mean(self.Xfilt[11, :]), np.mean(self.Yfilt[11, :])
+
         # plt.plot(self.Xfilt[8, :])
         # plt.plot(self.Yfilt[8, :])
         # plt.plot(self.Xfilt[11, :])
