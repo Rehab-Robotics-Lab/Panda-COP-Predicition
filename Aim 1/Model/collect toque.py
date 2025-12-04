@@ -439,11 +439,11 @@ def main():
         0,
         0,
         0,
-        90,
         0,
-        90,
         0,
-        90,
+        0,
+        0,
+        0,
         0,
         0,
         0,
@@ -454,18 +454,6 @@ def main():
 
     rarm_angs = [
         0,
-        90,
-        0,
-        90,
-        0,
-        90,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
         0,
         0,
         0,
@@ -477,6 +465,18 @@ def main():
         90,
         0,
         90,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
     ]
 
     lleg_angs = [
@@ -487,11 +487,11 @@ def main():
         0,
         0,
         0,
-        110,
         0,
-        110,
         0,
-        110,
+        0,
+        0,
+        0,
         0,
         0,
         0,
@@ -514,11 +514,11 @@ def main():
         0,
         0,
         0,
-        110,
         0,
-        110,
         0,
-        110,
+        0,
+        0,
+        0,
         0,
         110,
         0,
@@ -535,7 +535,7 @@ def main():
 
     print(len(larm_angs), len(rarm_angs), len(lleg_angs), len(rleg_angs))
 
-    name = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\double_limb.csv"
+    name = r"C:\Users\franc\Documents\Infant_Sim_data\load tests\side_w_limb.csv"
 
     for k in range(25):
 

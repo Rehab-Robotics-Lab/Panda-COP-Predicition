@@ -41,6 +41,11 @@ class calibrate:
             if FOV == "None":
                 FOV = "regular"
 
+            # print(FOV)
+
+            if FOV == "Super View":
+                FOV = "super"
+
             intrinsics_0 = intrinsic_dict[lensID, FOV.lower(), 0]
             intrinsics_90 = intrinsic_dict[lensID, FOV.lower(), 90]
             intrinsics_180 = intrinsic_dict[lensID, FOV.lower(), 180]
@@ -210,6 +215,28 @@ class calibrate:
             distCoeffs=distCoeffs,
         )
 
+        ## Checking for case of duplicate IDs found(means other tags are visible)
+        u, c = np.unique(ids, return_counts=True)
+        dup = u[c > 1]
+        if (c > 1).any:
+            print("Duplicate IDs found: ", dup)
+            mean_pos = np.mean(np.mean(corners, axis=0), axis=1)[0]
+
+            for r in dup:
+                # locations of specific id number in ID and thus corners matrices
+                idx = np.where(ids == r)[0]
+
+                # findind center of all tag sqaures
+                corner_mean = np.mean(corners, axis=2)[idx, 0, :]
+                # distance from tag centers to mean corner location
+                dists = np.linalg.norm(corner_mean - mean_pos, axis=1)
+                # index of duplicate id that's furthest from mean position
+                furthest = np.where(dists == max(dists))[0]
+                idx_far = idx[furthest]
+                # deleteing row with furthest mean position
+                corners = np.delete(corners, idx_far, axis=0)
+                ids = np.delete(ids, idx_far, axis=0)
+
         # Outline all of the markers detected in our image
         # Uncomment below to show ids as well
         ProjectImage = aruco.drawDetectedMarkers(ProjectImage, corners, borderColor=(0, 0, 255))
@@ -242,6 +269,8 @@ class calibrate:
         rerror = rerror[0][0]
 
         OBJpts, IMGpts = self.matchIDandpts(ids, OBJpts, corners)
+
+        # print(ids)
 
         # success,Rvec,Tvec=cv2.solvePnP(OBJpts, IMGpts, cameraMatrix, distCoeffs, Rvec,Tvec, useExtrinsicGuess=True, flags=cv2.SOLVEPNP_ITERATIVE   )
 
@@ -492,9 +521,17 @@ class calibrate:
         return img
 
     def ShowReproj(self, ProjectImage, imgpts_RPJ, n):
+        height, width = ProjectImage.shape[:2]
+        # print("height and width", height, width)
         for i in range(n):
             for j in range(4):
                 point = imgpts_RPJ[j, i, :].astype(int)
-                ProjectImage = cv2.circle(ProjectImage, tuple(point), 2, 255, -1)
+
+                # Conditional for when found image points are outside image bounds and is a positive nu,ber
+                if (width >= point[0]) and (height >= point[1]) and (0 <= point[0]) and (0 <= point[1]):
+                    # print("point", point)
+                    ProjectImage = cv2.circle(ProjectImage, tuple(point), 2, 255, -1)
+                else:
+                    print("point outisde bounds of image")
 
         return ProjectImage

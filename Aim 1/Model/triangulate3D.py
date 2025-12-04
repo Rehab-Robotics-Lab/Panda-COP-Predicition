@@ -1303,7 +1303,7 @@ class tringulatepose:
         self.Y = pts3D[:, :, 1]
         self.Z = pts3D[:, :, 2]
         # print(np.shape(pts3D))
-        print(np.shape(self.X), np.shape(self.Y), np.shape(self.Z))
+        # print(np.shape(self.X), np.shape(self.Y), np.shape(self.Z))
 
     def SBA(self, disp=1, verbose=2):
         # points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel()))

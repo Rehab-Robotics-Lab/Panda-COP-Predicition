@@ -16,8 +16,8 @@ class sim_COP:
     # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
     def __init__(self):
 
-        posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\\3D_vid_2_4.csv"
-        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\\sim_cam_2_6_vid_4.csv"
+        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\\3D_vid_2_6.csv"
+        posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\\sim_cam_2_4_vid_3.csv"
 
         # LOADING FILE WITH COP VALUES
         cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\2025-6-11_1_55_Sim_each_2_3.csv"
@@ -836,48 +836,18 @@ class sim_COP:
         # Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
         # Xcalc, Ycalc = Xcalc[start:stop], Ycalc[start:stop]
 
-        win = 5
+        win = 2
 
         Xcalc = scipy.ndimage.median_filter(Xcalc, win)
         Ycalc = scipy.ndimage.median_filter(Ycalc, win)
 
         cc = compareCOP(Xcalc, Ycalc, Xreal, Yreal, cam=1)
         cc.comp_XY()
-        # cc.comp_ellipse()
+        cc.comp_ellipse()
         # cc.plot_cop_anim()
 
         # print(cc.metrics())
         print(cc.diff_metric())
-
-        # print(np.mean(Xcalc) - np.mean(Xreal))
-        # print(np.mean(Ycalc) - np.mean(Yreal))
-
-        # plt.subplot(2, 1, 1)
-        # # plt.plot(Xcalc - np.mean(Xcalc[0:30]))
-        # # plt.plot(Xreal - np.mean(Xreal[0:30]))
-        # # plt.legend(["Calculated", "Grnd Trth"])
-        # plt.plot(Xreal - np.mean(Xreal[0:30]))
-        # plt.plot(Xcalc - np.mean(Xcalc[0:30]))
-        # plt.legend(["Grnd Trth", "Calculated"])
-        # plt.title("X COP")
-        # plt.xlabel("Time (s)")
-        # plt.ylabel("COP X (mm)")
-        # plt.grid()
-
-        # plt.subplot(2, 1, 2)
-        # # plt.plot(Ycalc - np.mean(Ycalc[0:30]))
-        # # plt.plot(Yreal - np.mean(Yreal[0:30]))
-        # # plt.legend(["Calculated", "Grnd Trth"])
-        # plt.plot(Yreal - np.mean(Yreal[0:30]))
-        # plt.plot(Ycalc - np.mean(Ycalc[0:30]))
-        # plt.legend(["Grnd Trth", "Calculated"])
-        # plt.title("Y COP")
-        # plt.xlabel("Time (s)")
-        # plt.ylabel("COP Y (mm)")
-        # plt.grid()
-
-        # plt.tight_layout()
-        # plt.show()
 
 
 test = sim_COP()

@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 import datetime as dt
 from Cmanage import c_manage
+from ProcessPose_3D import processpose
 from Calibrate import calibrate
 import scipy
 from CompareCOP import compareCOP
@@ -16,7 +17,7 @@ from matplotlib.animation import FuncAnimation
 
 
 class COP_Tag:
-    def __init__(self, cam_dir, name, calibnum=1, load=0, intrinsics_name=None):
+    def __init__(self, cam_dir, name, ID_up=0, ID_low=25, ID_len=40 / 1000, calibnum=1, load=0):
         self.trial_name = name
         self.cam_dir = cam_dir
 
@@ -28,34 +29,37 @@ class COP_Tag:
         # print(sim.intrinsics_final)
 
         if load == 0:
-            sim.intrinsics_orientation(calib_names, calib_status)
-            self.intrinsics = sim.intrinsics_final
+            sim.intrinsics_orientation(view=0, vidnum=calibnum)
         elif load == 1:
-            self.intrinsics = self.load_intrinsics(name=intrinsics_name).to_dict()
+            sim.load_params()
+
+        self.intrinsics = sim.intrinsics_final
 
         self.calib_names, self.calib_status = calib_names, calib_status
+
+        self.ID_up, self.ID_low, self.ID_len = ID_up, ID_low, ID_len
         self.sim = sim
 
     def showtags(self, j):
         plt.cla()
 
-        tv_0 = self.tv0_glob[j]
-        rv_0 = self.rv0_glob[j]
-        tv_25 = self.tv25_glob[j]
-        rv_25 = self.rv25_glob[j]
+        tv_up = self.tv_up_glob[j]
+        rv_up = self.rv_up_glob[j]
+        tv_low = self.tv_low_glob[j]
+        rv_low = self.rv_low_glob[j]
 
-        self.ax.plot3D([tv_0[0], tv_25[0]], [tv_0[1], tv_25[1]], [tv_0[2], tv_25[2]], "o")
+        self.ax.plot3D([tv_up[0], tv_low[0]], [tv_up[1], tv_low[1]], [tv_up[2], tv_low[2]], "o")
 
-        # print(self.tvec_glob.flatten()[2] - tv_0[2], self.tvec_glob.flatten()[2] - tv_25[2])
+        # print(self.tvec_glob.flatten()[2] - tv_up[2], self.tvec_glob.flatten()[2] - tv_low[2])
         Rg = R.from_matrix(np.eye(3))
         Tg = np.array([0, 0, 0])
 
         self.ax = self.show_Ti(self.ax, Tg, Rg, scale=0.2, ID="G")
         self.ax = self.show_Ti(self.ax, self.tvec_cam.flatten(), self.rvec_cam, scale=0.2, ID="C")
-        self.ax = self.show_Ti(self.ax, tv_0, rv_0, ID=0)
-        # com = tv_25 + rv_25.apply(np.array([0, -10, -50]) / 1000)
-        # self.ax = self.show_Ti(self.ax, com, rv_25, ID="m")
-        self.ax = self.show_Ti(self.ax, tv_25, rv_25, ID=25)
+        self.ax = self.show_Ti(self.ax, tv_up, rv_up, ID=self.ID_up)
+        # com = tv_low + rv_low.apply(np.array([0, -10, -50]) / 1000)
+        # self.ax = self.show_Ti(self.ax, com, rv_low, ID="m")
+        self.ax = self.show_Ti(self.ax, tv_low, rv_low, ID=self.ID_low)
 
         s = "t= " + str(round(j / 60, 2))
 
@@ -71,19 +75,19 @@ class COP_Tag:
     def showtags_loop(self, camnum, vidnum, name=None):
         if name == None:
             (
-                self.rv0_glob,
-                self.tv0_glob,
-                self.rv25_glob,
-                self.tv25_glob,
+                self.rv_up_glob,
+                self.tv_up_glob,
+                self.rv_low_glob,
+                self.tv_low_glob,
                 self.rvec_cam,
                 self.tvec_cam,
             ) = self.glob_pose(camnum, vidnum)
         else:
             (
-                self.rv0_glob,
-                self.tv0_glob,
-                self.rv25_glob,
-                self.tv25_glob,
+                self.rv_up_glob,
+                self.tv_up_glob,
+                self.rv_low_glob,
+                self.tv_low_glob,
                 self.rvec_cam,
                 self.tvec_cam,
             ) = self.glob_pose(camnum, vidnum, name=name, load=1)
@@ -141,37 +145,37 @@ class COP_Tag:
         else:
             tag_pose = self.load_tagpose(name=name)
 
-        tag0 = tag_pose.loc[(tag_pose["ID"] == 0)]
-        tag25 = tag_pose.loc[(tag_pose["ID"] == 25)]
+        tag_up = tag_pose.loc[(tag_pose["ID"] == self.ID_up)]
+        tag_low = tag_pose.loc[(tag_pose["ID"] == self.ID_low)]
 
-        self.max_frames = np.max(tag25["frame"])
+        self.max_frames = np.max(tag_low["frame"])
 
-        rv0 = tag0["rvecs"]
-        tv0 = tag0["tvec"]
+        rv_up = tag_up["rvecs"]
+        tv_up = tag_up["tvec"]
 
-        rv25 = tag25["rvecs"]
-        tv25 = tag25["tvec"]
+        rv_low = tag_low["rvecs"]
+        tv_low = tag_low["tvec"]
 
         print("Adjusting extrinsics")
 
         Rc = R_glob_cor.inv()
         Tc = Rc.apply(-tvec_glob.T)
 
-        rv0 = np.array(rv0.to_list())
-        rv0 = R.from_rotvec(rv0)
-        tv0 = np.array(tv0.to_list())
+        rv_up = np.array(rv_up.to_list())
+        rv_up = R.from_rotvec(rv_up)
+        tv_up = np.array(tv_up.to_list())
 
-        rv25 = np.array(rv25.to_list())
-        rv25 = R.from_rotvec(rv25)
-        tv25 = np.array(tv25.to_list())
+        rv_low = np.array(rv_low.to_list())
+        rv_low = R.from_rotvec(rv_low)
+        tv_low = np.array(tv_low.to_list())
 
-        R0 = R_glob_cor.inv() * rv0
-        R25 = R_glob_cor.inv() * rv25
+        R_up = R_glob_cor.inv() * rv_up
+        R_low = R_glob_cor.inv() * rv_low
 
-        T0 = Rc.apply(-tvec_glob.T + tv0)
-        T25 = Rc.apply(-tvec_glob.T + tv25)
+        T_up = Rc.apply(-tvec_glob.T + tv_up)
+        T_low = Rc.apply(-tvec_glob.T + tv_low)
 
-        return R0, T0, R25, T25, Rc, Tc
+        return R_up, T_up, R_low, T_low, Rc, Tc
 
     def combine_vecs(self, cams, vidnum, folder):
         print("Combining vecs")
@@ -200,10 +204,10 @@ class COP_Tag:
 
             n = min(temp.shape[0], n)
 
-        Rot_0 = np.zeros((n, 3, len(cams)))
-        Tr_0 = np.zeros((n, 3, len(cams)))
-        Rot_25 = np.zeros((n, 3, len(cams)))
-        Tr_25 = np.zeros((n, 3, len(cams)))
+        Rot_up = np.zeros((n, 3, len(cams)))
+        Tr_up = np.zeros((n, 3, len(cams)))
+        Rot_low = np.zeros((n, 3, len(cams)))
+        Tr_low = np.zeros((n, 3, len(cams)))
         # Rot_cam = np.zeros((3, len(cams)))
         # Tr_cam = np.zeros((3, len(cams)))
 
@@ -236,45 +240,45 @@ class COP_Tag:
             start, stop = self.pull_synch_time(camnum, vidnum)
             tag_pose = self.load_tagpose(name, start)
 
-            tag0 = tag_pose.loc[(tag_pose["ID"] == 0)]
-            tag25 = tag_pose.loc[(tag_pose["ID"] == 25)]
+            tag_up = tag_pose.loc[(tag_pose["ID"] == self.ID_up)]
+            tag_low = tag_pose.loc[(tag_pose["ID"] == self.ID_low)]
 
-            # print(tag0.loc[(tag0["rvecs"] == [0, 0, 0]) & (tag0["tvecs"] == [0, 0, 0])])
-            # print(tag0.loc[(tag0["rvecs"] == [0, 0, 0])])
+            # print(tag_up.loc[(tag_up["rvecs"] == [0, 0, 0]) & (tag_up["tvecs"] == [0, 0, 0])])
+            # print(tag_up.loc[(tag_up["rvecs"] == [0, 0, 0])])
 
-            rv0, tv0 = tag0["rvecs"], tag0["tvec"]
-            rv25, tv25 = tag25["rvecs"], tag25["tvec"]
+            rv_up, tv_up = tag_up["rvecs"], tag_up["tvec"]
+            rv_low, tv_low = tag_low["rvecs"], tag_low["tvec"]
 
             if camnum < 4:
-                rv0 = rv0[::2]
-                tv0 = tv0[::2]
+                rv_up = rv_up[::2]
+                tv_up = tv_up[::2]
 
-                rv25 = rv25[::2]
-                tv25 = tv25[::2]
+                rv_low = rv_low[::2]
+                tv_low = tv_low[::2]
 
-            rv0 = np.array(rv0[:n].to_list())
-            rv0 = R.from_rotvec(rv0)
-            tv0 = np.array(tv0[:n].to_list())
+            rv_up = np.array(rv_up[:n].to_list())
+            rv_up = R.from_rotvec(rv_up)
+            tv_up = np.array(tv_up[:n].to_list())
 
-            rv25 = np.array(rv25[:n].to_list())
-            rv25 = R.from_rotvec(rv25)
-            tv25 = np.array(tv25[:n].to_list())
+            rv_low = np.array(rv_low[:n].to_list())
+            rv_low = R.from_rotvec(rv_low)
+            tv_low = np.array(tv_low[:n].to_list())
 
-            R0 = R_glob_cor.inv() * rv0
-            R25 = R_glob_cor.inv() * rv25
+            R_up = R_glob_cor.inv() * rv_up
+            R_low = R_glob_cor.inv() * rv_low
 
-            T0 = Rc.apply(-tvec_glob.T + tv0)
-            T25 = Rc.apply(-tvec_glob.T + tv25)
+            T_up = Rc.apply(-tvec_glob.T + tv_up)
+            T_low = Rc.apply(-tvec_glob.T + tv_low)
 
-            # print(np.shape(R.as_rotvec(R0)), np.shape(T0))
-            # print(R.as_rotvec(R0))
-            # print(T0)
+            # print(np.shape(R.as_rotvec(R_up)), np.shape(T_up))
+            # print(R.as_rotvec(R_up))
+            # print(T_up)
             # exit()
 
-            Rot_0[:, :, i] = R.as_rotvec(R0)
-            Tr_0[:, :, i] = T0
-            Rot_25[:, :, i] = R.as_rotvec(R25)
-            Tr_25[:, :, i] = T25
+            Rot_up[:, :, i] = R.as_rotvec(R_up)
+            Tr_up[:, :, i] = T_up
+            Rot_low[:, :, i] = R.as_rotvec(R_low)
+            Tr_low[:, :, i] = T_low
 
             # print((Rot_cam[:, i]), rvec_glob.flatten())
             # Rot_cam[:, i] = rvec_glob.flatten()
@@ -282,12 +286,12 @@ class COP_Tag:
 
             i = i + 1
 
-        Rot_0 = R.from_rotvec(np.mean(Rot_0, axis=2))
-        Tr_0 = np.mean(Tr_0, axis=2)
-        Rot_25 = R.from_rotvec(np.mean(Rot_25, axis=2))
-        Tr_25 = np.mean(Tr_25, axis=2)
+        Rot_up = R.from_rotvec(np.mean(Rot_up, axis=2))
+        Tr_up = np.mean(Tr_up, axis=2)
+        Rot_low = R.from_rotvec(np.mean(Rot_low, axis=2))
+        Tr_low = np.mean(Tr_low, axis=2)
 
-        return Rot_0, Tr_0, Rot_25, Tr_25
+        return Rot_up, Tr_up, Rot_low, Tr_low
 
     def glob_extrinsics(self, camnum, view, chess=0):
         intrinsics = self.intrinsics["cam" + str(camnum)]
@@ -311,7 +315,7 @@ class COP_Tag:
         return cam_ex, rerror
 
     def get_pose(self, camnum, vidnum, view=0):
-        print("Getting tag extrinsics for camera ", str(camnum), "vidoe ", str(vidnum))
+        print("Getting tag extrinsics for camera ", str(camnum), "video ", str(vidnum))
         tag_pose = pd.DataFrame()
         sim = self.sim
 
@@ -340,36 +344,51 @@ class COP_Tag:
 
                     frame, ids, tvecs, rvecs = self.apriltag_pose(frame, intrinsics)
                     framenum = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+                    ids = np.atleast_1d(ids)
 
-                    if 0 in ids:
-                        row0 = pd.DataFrame(
-                            {"ID": [ids[0, 0]], "tvec": [tvecs[:, 0]], "rvecs": [rvecs[:, 0]], "frame": [framenum]}
+                    if self.ID_up in ids:
+                        idx_up = np.where(ids == self.ID_up)[0].item()
+
+                        row_up = pd.DataFrame(
+                            {
+                                "ID": ids[idx_up],
+                                "tvec": [tvecs[:, idx_up]],
+                                "rvecs": [rvecs[:, idx_up]],
+                                "frame": [framenum],
+                            }
                         )
                     else:
-                        row0 = pd.DataFrame(
+                        row_up = pd.DataFrame(
                             {
-                                "ID": [0],
+                                "ID": [self.ID_up],
                                 "tvec": [[0, 0, 0]],
                                 "rvecs": [[0, 0, 0]],
                                 "frame": [framenum],
                             }
                         )
-                    if 25 in ids:
-                        row25 = pd.DataFrame(
-                            {"ID": [ids[1, 0]], "tvec": [tvecs[:, 1]], "rvecs": [rvecs[:, 1]], "frame": [framenum]}
+                    if self.ID_low in ids:
+                        idx_low = np.where(ids == self.ID_low)[0].item()
+
+                        row_low = pd.DataFrame(
+                            {
+                                "ID": ids[idx_low],
+                                "tvec": [tvecs[:, idx_low]],
+                                "rvecs": [rvecs[:, idx_low]],
+                                "frame": [framenum],
+                            }
                         )
                     else:
-                        row25 = pd.DataFrame(
+                        row_low = pd.DataFrame(
                             {
-                                "ID": [25],
+                                "ID": [self.ID_low],
                                 "tvec": [[0, 0, 0]],
                                 "rvecs": [[0, 0, 0]],
                                 "frame": [framenum],
                             }
                         )
 
-                    tag_pose = pd.concat([tag_pose, row0], ignore_index=True)
-                    tag_pose = pd.concat([tag_pose, row25], ignore_index=True)
+                    tag_pose = pd.concat([tag_pose, row_up], ignore_index=True)
+                    tag_pose = pd.concat([tag_pose, row_low], ignore_index=True)
 
                     # print(framenum)
                     if view == 1:
@@ -405,7 +424,7 @@ class COP_Tag:
 
         # Outline all of the markers detected in our image
         # Uncomment below to show ids as well
-        markerlength = 40 / 1000
+        markerlength = self.ID_len
 
         rvecs = np.zeros((3, len(ids)))
         tvecs = np.zeros((3, len(ids)))
@@ -481,18 +500,6 @@ class COP_Tag:
         print("Saving: ", name)
         tag_pose.to_json(name, orient="split")
 
-    def save_intrinsics(self, folder=None, name=None):
-        if name == None:
-            if folder == None:
-                folder = self.cam_dir
-
-            name = folder + "\\" + self.trial_name + "_intrinsics.json"
-
-        # name='cam3_vid3_tagpose.json'
-        print("Saving: ", name)
-        intrinsics = pd.DataFrame(self.intrinsics)
-        intrinsics.to_json(name, orient="split")
-
     def load_tagpose(self, name, start=None):
         # print("Loading: ", name)
         tag_pose = pd.read_json(name, orient="split")
@@ -516,21 +523,58 @@ class COP_Tag:
         # print(self.intrinsics)
 
     def tag_COP(self, cams, vidnum, folder):
-        R0, T0, R25, T25 = self.combine_vecs(cams, vidnum, folder)
+        R_up, T_up, R_low, T_low = self.combine_vecs(cams, vidnum, folder)
 
         rtrunk = 91.39
 
-        COM_0 = T0
-        COM_25 = T25 + R25.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
+        COM_up = T_up
+        COM_low = T_low + R_low.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
 
-        M0 = 1.564
-        M25 = 2.187
+        M_up = 1.564
+        M_low = 2.187
 
-        COP_0 = COM_0[:, 0:2] * M0
-        COP_25 = COM_25[:, 0:2] * M25
+        COP_up = COM_up[:, 0:2] * M_up
+        COP_low = COM_low[:, 0:2] * M_low
 
-        COP = (COP_0 + COP_25) / (M0 + M25)
+        COP = (COP_up + COP_low) / (M_up + M_low)
 
+        return COP * 1000
+
+    def pose_COP(self, posefile):
+
+        pose = processpose(posefile)
+        pose.IK_init()
+
+        ## SHOULDERS
+        shoulder_angles = np.stack((pose.thet1s[0, :], pose.thet2s[0, :]))
+        R_up = R.from_euler("zy", shoulder_angles.T)
+        T_up = pose.mid_shoulder.T
+
+        ## HIPS
+        hip_angles = np.stack((pose.thet1h[0, :], pose.thet2h[0, :], pose.thet3h[0, :]))
+        R_low = R.from_euler("xzy", hip_angles.T)
+        T_low = pose.mid_hip.T
+
+        T_head = pose.mid_face.T
+
+        rtrunk = 91.39
+
+        COM_head = T_head
+        COM_up = T_up + R_up.apply(np.array([0, -5, 0]) / 1000)
+        COM_low = T_low + R_low.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
+
+        M_head = 1.031
+        M_up = 1.564
+        M_low = 2.187
+
+        COP_head = COM_head[:, 0:2] * M_head
+        COP_up = COM_up[:, 0:2] * M_up
+        COP_low = COM_low[:, 0:2] * M_low
+
+        COP = (COP_head + COP_up + COP_low) / (M_head + M_up + M_low)
+
+        # Tsh = np.linalg.inv(T_ups) @ T_uph
+        # Th = T_ups @ Tsh
         return COP * 1000
 
     def pull_synch_time(self, cam_num, vid_num):
@@ -555,8 +599,9 @@ class COP_Tag:
 
         return start, stop
 
-    def comapre_COP(self, camnum, vidnum, file, folder):
-        COP = self.tag_COP(camnum, vidnum, folder)
+    def comapre_COP(self, camnum, vidnum, file, folder, posefile):
+        # COP = self.tag_COP(camnum, vidnum, folder)
+        COP = self.pose_COP(posefile)
 
         # start, stop = self.pull_synch_time(camnum, vidnum)
 
@@ -587,73 +632,65 @@ class COP_Tag:
         # print(np.mean(Xcalc) - np.mean(Xreal))
         # print(np.mean(Ycalc) - np.mean(Yreal))
 
-        plt.subplot(3, 1, 1)
-        plt.plot(Xreal - np.mean(Xreal))
-        plt.plot(Xcalc - np.mean(Xcalc))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("X COP")
-        plt.xlabel("Time (s)")
-        plt.ylabel("COP X (mm)")
-        plt.grid()
+        cc = compareCOP(Xcalc, Ycalc, Xreal, Yreal, cam=1)
+        cc.comp_XY()
+        cc.comp_ellipse()
+        # cc.plot_cop_anim()
 
-        plt.subplot(3, 1, 2)
-        plt.plot(Yreal - np.mean(Yreal))
-        plt.plot(Ycalc - np.mean(Ycalc))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("Y COP")
-        plt.xlabel("Time (s)")
-        plt.ylabel("COP Y (mm)")
-        plt.grid()
-
-        plt.subplot(3, 1, 3)
-        plt.plot(COP_gc.Rfilt[60:])
-        plt.title("Reaction")
-        plt.xlabel("Time (s)")
-        # plt.ylabel("COP Y (mm)")
-        plt.grid()
-
-        plt.tight_layout()
-        plt.show()
-
+        # print(cc.metrics())
+        print(cc.diff_metric())
         # print(4)
 
 
-cnum = 5
-vnum = 5
+vnum = 3
 
-tt = COP_Tag(cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras", name="sim_trunk", load=1)
+tt = COP_Tag(
+    cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
+    name="sim_trunk_clothed",
+    load=1,
+    ID_up=0,
+    ID_low=50,
+    ID_len=30 / 1000,
+)
 folder = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose"
 
-cams = [1, 2, 3, 4, 5, 7]
-cams = [4]
+# cams = [1, 2, 3, 4, 5]
+cams = [2]
 # tt.combine_vecs(cams, vnum, folder)
 
-copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\sim_trunk_cop_vid5_side.csv"
-# tt.comapre_COP(cams, vnum, file=copfile, folder=folder)
+copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid3_side.csv"
+
+posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_trunk_clothed_cam_2_6_vid_3.csv"
+# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_trunk_clothed_cam_5_6_vid_4.csv"
+# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_trunk_clothed_cam_4_6_vid_5.csv"
+
+tt.comapre_COP(cams, vnum, file=copfile, folder=folder, posefile=posefile)
+
+# tt.save_tagpose(4, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")
 
 
-nme = (
-    r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose\\"
-    + tt.trial_name
-    + "_"
-    + "cam"
-    + str(cnum)
-    + "_"
-    + "vid"
-    + str(vnum)
-    + "_tagpose.json"
-)
+# nme = (
+#     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose\\"
+#     + tt.trial_name
+#     + "_"
+#     + "cam"
+#     + str(cnum)
+#     + "_"
+#     + "vid"
+#     + str(vnum)
+#     + "_tagpose.json"
+# )
 
 
 # tt.comapre_COP(
 #     cnum, vnum, name=nme, file=copfile
 # )
 
-tt.showtags_loop(cnum, vnum, name=nme)
+# tt.showtags_loop(cnum, vnum, name=nme)
 # tt.tag_COP(cnum, vnum, name=nme)
 # tt.get_pose(cnum, vnum, view=0)
 
 
-# for vnum in [3, 4, 5]:
-#     for cnum in [1, 2, 3, 4, 5, 7]:
+# for vnum in [3, 4, 5, 6]:
+#     for cnum in [1, 2, 3, 4, 5]:
 #         tt.save_tagpose(cnum, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")

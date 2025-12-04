@@ -5,7 +5,7 @@ import matplotlib.animation as animation
 from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
 import pandas as pd
-from scipy import constants
+from scipy import stats
 
 # from dtaidistance import dtw
 # from dtaidistance import dtw_visualisation as dtwvis
@@ -397,12 +397,6 @@ class compareCOP:
         return mseX, mseY
 
     def mae(self):
-        # Xr = self.Xreal - np.mean(self.Xreal)
-        # Yr = self.Yreal - np.mean(self.Yreal)
-
-        # dX = self.Xcalc_sync
-        # dY = self.Ycalc_sync
-
         Xr = self.Xreal - np.mean(self.Xreal[0:15])
         Yr = self.Yreal - np.mean(self.Yreal[0:15])
 
@@ -413,6 +407,20 @@ class compareCOP:
         maeY = np.mean(np.abs(Yr - dY))
 
         return maeX, maeY
+
+    def pearson_corr(self):
+        Xr = np.atleast_2d(self.Xreal - np.mean(self.Xreal[0:15])).T
+        Yr = np.atleast_2d(self.Yreal - np.mean(self.Yreal[0:15])).T
+
+        dX = self.Xcalc - np.mean(self.Xcalc[0:15])
+        dY = self.Ycalc - np.mean(self.Ycalc[0:15])
+
+        print(np.shape(Xr), np.shape(dX))
+
+        val_X, p_X = stats.pearsonr(Xr, dX)
+        val_Y, p_Y = stats.pearsonr(Yr, dY)
+
+        return val_X, p_X, val_Y, p_Y
 
     def excursion(self, x):
         excur = np.max(x) - np.min(x)
@@ -449,20 +457,15 @@ class compareCOP:
             self.dtw()
 
         maeX, maeY = self.mae()
-        mseX, mseY = self.mse()
+        # mseX, mseY = self.mse()
+        val_x, p_x, val_y, p_y = self.pearson_corr()
 
         data = {
-            "X": [
-                maeX,
-                mseX,
-            ],
-            "Y": [
-                maeY,
-                mseY,
-            ],
+            "X": [maeX, val_x, p_x],
+            "Y": [maeY, val_y, p_y],
         }
 
-        df = pd.DataFrame(data, index=["MAE", "MSE"])
+        df = pd.DataFrame(data, index=["MAE", "Pearson", "P-value"])
 
         return df
 

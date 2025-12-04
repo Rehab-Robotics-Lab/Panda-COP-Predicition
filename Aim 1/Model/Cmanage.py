@@ -644,10 +644,12 @@ class c_manage:
 
         if num1 != None and num2 != None:
             T.trinagulate_all(num1, num2)
-            T.SBA_anipose()
+
+            # T.SBA_anipose()
+            T.SBA()
         else:
             T.check_combos()
-        # T.SBA()
+
         self.T = T
 
     def overlay_reproj(self, vidnum):
@@ -714,7 +716,7 @@ class c_manage:
     def pkl_to_csv(self, pklpath, csvpath=None):
         # reading in video file
         if csvpath == None:
-            csvpath = self.cam_direct
+            csvpath = self.csv_direct
 
         # filename =
 
@@ -726,14 +728,57 @@ class c_manage:
                     object = pickle.load(f)
                 df = pd.DataFrame(object)
 
-                # print(pklfile)
+                print(pklfile)
                 name = csvpath + "\\" + pklfile[0:-4] + ".csv"
                 print(name)
                 df.to_csv(name)
 
+    def from_json(self, vidnums, jsonpath, csvpath=None):
+        # reading in video file
+        if csvpath == None:
+            csvpath = self.csv_direct
+
+        for vid in vidnums:
+            stat_vid, names_vid = self.check_vids(vid)
+
+            for vid_name in names_vid:
+                file_name = os.path.basename(vid_name)
+                # print(file_name)
+
+                json_name = jsonpath + "\\" + file_name[0:-4] + ".json"
+                pkl_name = csvpath + "\\" + file_name[0:-4] + ".pkl"
+
+                # print(json_name)
+                # print(pkl_name)
+
+                if os.path.exists(json_name):
+                    # Arguments to be passed to the called script
+                    arg1 = json_name
+                    arg2 = pkl_name
+                    arg3 = vid_name
+
+                    # Run the called script with arguments
+                    cwd = os.path.dirname(os.path.abspath(__file__))
+
+                    convert_file = os.path.join(cwd, "json_to_pkl_converter.py")
+                    subprocess.run(
+                        [
+                            "python",
+                            convert_file,
+                            "--input-file",
+                            arg1,
+                            "--output-file",
+                            arg2,
+                            "--video-path",
+                            arg3,
+                        ]
+                    )
+
     # function to find orientation of video based on static calibration
     def intrinsics_orientation(self, view, vidnum=1):
         status, names = self.check_vids(vidnum)
+
+        # print(names)
 
         intrinsics = {}
         extrinsics = {}
@@ -742,12 +787,13 @@ class c_manage:
         for i in range(7):
             # i = 3
             print("Camera: ", i + 1)
-            if status[0] == 1:
+            if status[i] == 1:
                 # make 4 copies of image
                 vid = names[i]
 
                 cam = i + 1
                 fov, lens, rot = self.check_metadata(vid)
+                # print("camera ", cam, ": ", fov, ", ", lens)
 
                 # use 4 images to calibration instatiage calibration object (based on calibration class)
                 calib = calibrate(vid, lens, fov)
@@ -829,26 +875,34 @@ class c_manage:
         self.extrinsics_final = pd.read_json(savefolder + "\\" + self.vid_name + "_extrinsics.json").to_dict()
 
 
-sim = c_manage(
-    cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
-    vid_name="sim",
-    csv_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\pose",
-)
+# sim = c_manage(
+#     cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
+#     vid_name="sim_trunk_clothed",
+#     csv_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\pose",
+# )
 
-# sim.overlay_pose(camnum=7, vidnum=4)
+# sim.intrinsics_orientation(view=0, vidnum=1)
+# sim.save_params()
 
-vidn = 3
-sim.tringulate(vidn, num1=4, num2=6)
-sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras")
-# sim.overlay_pose(7, vidn)
+# sim.pkl_to_csv(
+#     pklpath=r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Personnel\Students & RAs\Francis Sowande\Infant Sim V2□\pose\annotations"
+# )
+
+# sim.from_json(
+#     vidnums=[3, 4, 5, 6, 7],
+#     jsonpath=r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Personnel\Students & RAs\Francis Sowande\Infant Sim V2□\pose\annotations",
+# )
+
+
+# sim.overlay_pose(camnum=3, vidnum=4)
+
+# vidn = 5
+# sim.tringulate(vidn, num1=4, num2=6)
+# sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras")
+# sim.overlay_pose(3, vidn)
 # sim.overlay_reproj(vidn)
 
 # nme = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 2\sim_trunk_cam2_vid5.MP4"
 # sim.manual_synch(nme, 140)
 # _, vid_names = sim.check_vids(4)
 # print(np.array(vid_names))
-# sim.start_stop(r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 1\sim_trunk_cam1_vid3.MP4")
-
-# ppth = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Personnel\Students & RAs\Francis Sowande\Passive Sim Trial\poses\pkl"
-# cpth = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Personnel\Students & RAs\Francis Sowande\Passive Sim Trial\poses\csv"
-# sim.pkl_to_csv(pklpath=ppth, csvpath=cpth)
