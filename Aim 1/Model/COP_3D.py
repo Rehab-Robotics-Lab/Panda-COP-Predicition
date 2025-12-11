@@ -16,12 +16,12 @@ class sim_COP:
     # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
     def __init__(self):
 
-        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\\3D_vid_2_6.csv"
-        posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\\sim_cam_2_4_vid_3.csv"
+        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid3_cams_4_5_both.csv"
+        posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid4_cams_5_6_both.csv"
 
         # LOADING FILE WITH COP VALUES
-        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\2025-6-11_1_55_Sim_each_2_3.csv"
-        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\2025-6-11_2_5_Sim_doube_2_3.csv"
+        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_cop_vid3_each.csv"
+        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_cop_vid4_double.csv"
         # self.rate = 60
         # # cop object
         self.COP = processCOP(cop_file, 60)
@@ -147,7 +147,7 @@ class sim_COP:
         # print("Rleg Ground", np.min(pose.Z[:, 10]) * 1000)
 
         self.pose = pose
-        self.view_limb_len()
+        # self.view_limb_len()
 
     def view_limb_len(self):
         pose = self.pose
@@ -843,7 +843,7 @@ class sim_COP:
 
         cc = compareCOP(Xcalc, Ycalc, Xreal, Yreal, cam=1)
         cc.comp_XY()
-        cc.comp_ellipse()
+        # cc.comp_ellipse()
         # cc.plot_cop_anim()
 
         # print(cc.metrics())

@@ -39,7 +39,7 @@ class processPose:
             idx[p, :] = p
             conf[p, :] = df.c[df.part_idx == p]
 
-        print(start, frames)
+        print("Total Frames: ", frames)
 
         if start != None:
             Xparts = Xparts[:, start:frames]
@@ -57,103 +57,108 @@ class processPose:
         self.frames = frames
 
         # 15 window median filter
-        self.Xfilt = scipy.ndimage.median_filter(Xparts, size=[1, 5])
-        self.Yfilt = scipy.ndimage.median_filter(Yparts, size=[1, 5])
+        Xmean = scipy.ndimage.median_filter(Xparts, size=[1, 5])
+        Ymean = scipy.ndimage.median_filter(Yparts, size=[1, 5])
 
-        # self.Xfilt[8, :], self.Yfilt[8, :] = np.mean(self.Xfilt[8, :]), np.mean(self.Yfilt[8, :])
-        # self.Xfilt[11, :], self.Yfilt[11, :] = np.mean(self.Xfilt[11, :]), np.mean(self.Yfilt[11, :])
+        check_jump = self.find_posejump(Xmean.copy(), Ymean.copy(), view=0)[2]
 
-        # plt.plot(self.Xfilt[8, :])
-        # plt.plot(self.Yfilt[8, :])
-        # plt.plot(self.Xfilt[11, :])
-        # plt.plot(self.Yfilt[11, :])
-        # plt.legend(["Rhip X", "Rhip Y", "Lhip X", "Lhip Y"])
-        # plt.show()
+        # print(self.find_posejump(Xmean, Ymean, view=0)[2])
+        if check_jump > 0:
+            print("Number of frames with pose jumping Before: ", check_jump)
+            x, y = self.Zscore(Xmean, Ymean)
+            self.Xfilt, self.Yfilt, tot = self.find_posejump(x, y, view=0)
 
-        # # zeroing coords. to neck position
-        # Xzero = self.Xfilt - np.mean(self.Xfilt[0, 0:15])
-        # Yzero = self.Yfilt - np.mean(self.Yfilt[0, 0:15])
-        # # global variable for zeroed coords.
-        # self.Xzero = Xzero
-        # self.Yzero = Yzero
+            print("Number of frames with pose jumping After: ", tot)
 
-        # # midpoint between both hips
-        # midpointX = (Xzero[7, :] + Xzero[10, :]) / 2
-        # midpointY = (Yzero[7, :] + Yzero[10, :]) / 2
+        else:
+            self.Xfilt, self.Yfilt = Xmean, Ymean
+        # self.find_posejump(self.Xfilt, self.Yfilt)
 
-        # # trunk length (from neck to hip midpoint)
-        # tlengthX = Xzero[0, :] - midpointX
-        # tlengthY = Yzero[0, :] - midpointY
+    def find_posejump(self, X, Y, thresh=300, view=1):
+        X_diff = np.diff(X, axis=1)
+        Y_diff = np.diff(Y, axis=1)
 
-        # # angle and corresponding rotatation matrix for
-        # angle = np.arctan2(np.mean(tlengthX[0:15]), np.mean(tlengthY[0:15]))
-        # rot_mat = np.matrix([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+        diff_norm = np.linalg.norm([X_diff, Y_diff], axis=0)
 
-        # # flattening/formatting X and Y coords for multiplication with rotation matrix
-        # flat_rot = rot_mat @ np.matrix([Xzero.flatten(), Yzero.flatten()])
+        jump = np.where(diff_norm >= thresh)
 
-        # # reshape coordinated back to original shape after rortation
-        # Xrot = -np.reshape(flat_rot[0, :], [13, frames + 1])
-        # Yrot = np.reshape(flat_rot[1, :], [13, frames + 1])
-        # # global varibale for rotated points
-        # self.Xrot = Xrot
-        # self.Yrot = Yrot
+        X[jump[0], jump[1] + 1] = np.nan
+        Y[jump[0], jump[1] + 1] = np.nan
 
-        # # empty matrix for scaled coordinates
-        # Xscaled = np.zeros((13, frames + 1))
-        # Yscaled = np.zeros((13, frames + 1))
+        if view == 1:
+            plt.plot(diff_norm.T)
+            plt.legend(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "16", "17"])
+            plt.show()
 
-        # # length of trunk
-        # len = np.mean(np.sqrt((tlengthX[0:15] ** 2) + (tlengthY[0:15] ** 2)))
+        X_interp, Y_interp = self.interpolate_nans(X, Y)
 
-        # # adding scaling factor for trunk length of simaulator
-        # ltrunk = 0.18
-        # len = len / ltrunk
+        return X_interp, Y_interp, len(np.unique(jump[1]))
 
-        # Xscaled[0, :] = Xrot[0, :] / len
-        # Yscaled[0, :] = Yrot[0, :] / len
+    def Zscore(self, X, Y, thresh=2.5):
+        z_x = np.abs(scipy.stats.zscore(X, axis=1))
+        z_y = np.abs(scipy.stats.zscore(Y, axis=1))
 
-        # # scaling all points so trunk has length 1
-        # for i in range(2, 12, 3):
-        #     Xscaled[i - 1, :] = ((Xrot[i - 1, :] - Xrot[0, :]) / len) + Xscaled[0, :]
-        #     Xscaled[i, :] = ((Xrot[i, :] - Xrot[i - 1, :]) / len) + Xscaled[i - 1, :]
-        #     Xscaled[i + 1, :] = ((Xrot[i + 1, :] - Xrot[i, :]) / len) + Xscaled[i, :]
+        jump = np.where((z_x >= thresh) | (z_y >= thresh))
 
-        #     Yscaled[i - 1, :] = ((Yrot[i - 1, :] - Yrot[0, :]) / len) + Yscaled[0, :]
-        #     Yscaled[i, :] = ((Yrot[i, :] - Yrot[i - 1, :]) / len) + Yscaled[i - 1, :]
-        #     Yscaled[i + 1, :] = ((Yrot[i + 1, :] - Yrot[i, :]) / len) + Yscaled[i, :]
+        X[jump] = np.nan
+        Y[jump] = np.nan
 
-        # self.Xscaled = Xscaled
-        # self.Yscaled = Yscaled
+        X_z, Y_z = self.interpolate_nans(X, Y)
 
-        # # print(self.Xscaled[0, -1], self.Xscaled[0, 0])
-        # # print(self.Yscaled[0, -1], self.Yscaled[0, 0])
+        # print("Z", len(np.unique(jump[1])))
 
-        # # midpoinp after everything is processed
-        # self.midpointX = (Xscaled[7, :] + Xscaled[10, :]) / 2
-        # self.midpointY = (Yscaled[7, :] + Yscaled[10, :]) / 2
+        return X_z, Y_z
 
-        # Ut_angle=
+    def interpolate_nans(self, x, y):
+        X = pd.DataFrame(x).interpolate(method="linear", axis=1, limit_direction="both").to_numpy()
+        Y = pd.DataFrame(y).interpolate(method="linear", axis=1, limit_direction="both").to_numpy()
+
+        return X, Y
 
     def plotskel(self, i):
-        i = i + 210
-        colors = [
-            [255, 0, 0],
-            [255, 170, 0],
-            [255, 255, 0],
-            [255, 85, 0],
-            [170, 255, 0],
-            [85, 255, 0],
-            [0, 255, 0],
-            [0, 255, 85],
-            [0, 255, 170],
-            [0, 255, 255],
-            [0, 170, 255],
-            [0, 85, 255],
-        ]
+
+        colors = np.matrix(
+            [
+                [255, 0, 0],
+                [255, 170, 0],
+                [255, 255, 0],
+                [255, 85, 0],
+                [170, 255, 0],
+                [85, 255, 0],
+                [0, 255, 0],
+                [0, 255, 85],
+                [0, 255, 170],
+                [0, 255, 255],
+                [0, 170, 255],
+                [0, 85, 255],
+                [0, 0, 255],
+                [170, 0, 255],
+                [255, 0, 255],
+                [85, 0, 255],
+                [85, 85, 255],
+            ]
+        )
 
         limbSeq = np.matrix(
-            [[1, 0], [2, 1], [3, 2], [4, 0], [5, 4], [6, 5], [7, 10], [8, 7], [9, 8], [13, 0], [11, 10], [12, 11]]
+            [
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 4],
+                [1, 5],
+                [5, 6],
+                [6, 7],
+                [1, 8],
+                [8, 9],
+                [9, 10],
+                [1, 11],
+                [11, 12],
+                [12, 13],
+                [0, 14],
+                [14, 16],
+                [0, 15],
+                [15, 17],
+            ]
         )
 
         x = self.Xfilt[:, i].T
@@ -166,7 +171,7 @@ class processPose:
 
         plt.cla()
 
-        for p in range(0, 12):
+        for p in range(0, 17):
 
             plt.plot(
                 [x[limbSeq[p, 0]], x[limbSeq[p, 1]]],
@@ -181,9 +186,9 @@ class processPose:
 
         s = "t= " + str(i / 60)
 
-        plt.xlim(-2500, 2500)
-        plt.ylim(-2500, 2500)
-        plt.text(0, 0, s)
+        plt.xlim(np.nanmin(self.Xfilt) - 10, np.nanmax(self.Xfilt) + 10)
+        plt.ylim(np.nanmin(self.Yfilt) - 10, np.nanmax(self.Yfilt) + 10)
+        plt.text(np.nanmean(self.Xfilt), np.nanmean(self.Yfilt), s)
         plt.grid()
         # plt.show()
         # time.sleep(0.05)
@@ -196,9 +201,5 @@ class processPose:
         plt.show()
 
 
-# pp = processpose(
-#     r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim III\833180_252\07-10-2024\Cameras\2024_07_10_833180_252_cam3rec_vid4.csv"
-# )
-# # pp.plotCOM()
+# pp = processPose(r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\pose\sim_trunk_clothed_cam2_vid5.csv")
 # pp.plotskel_loop()
-# # pp.trunk_com()

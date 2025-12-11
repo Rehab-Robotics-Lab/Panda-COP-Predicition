@@ -178,8 +178,6 @@ class calibrate:
         ARUCO_PARAMETERS = self.ARUCO_PARAMETERS
         ARUCO_DICT = self.ARUCO_DICT
 
-        cv2.namedWindow("ProjectImage", cv2.WINDOW_NORMAL)
-
         # Create grid board object we're using in our stream
         aruco_board = self.aruco_board
 
@@ -218,8 +216,10 @@ class calibrate:
         ## Checking for case of duplicate IDs found(means other tags are visible)
         u, c = np.unique(ids, return_counts=True)
         dup = u[c > 1]
+
+        #
         if (c > 1).any:
-            print("Duplicate IDs found: ", dup)
+            # print("Duplicate IDs found: ", dup)
             mean_pos = np.mean(np.mean(corners, axis=0), axis=1)[0]
 
             for r in dup:

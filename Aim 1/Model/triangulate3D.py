@@ -1282,6 +1282,8 @@ class tringulatepose:
             ),
         )
 
+        print("Residual After: ", np.linalg.norm(opt2.fun) / 2)
+
         p3ds_new2 = opt2.x[: p3ds.size].reshape(p3ds.shape)
 
         if n_fixed > 0:
@@ -1333,6 +1335,8 @@ class tringulatepose:
         # params = res.x[0 : 6 * 7]
         ff = res.fun
 
+        print("Residual After: ", np.linalg.norm(res.fun) / 2)
+
         if disp == 1:
 
             plt.plot(f0)
@@ -1349,7 +1353,7 @@ class tringulatepose:
         i = 0
         print("Checking camera combinations")
         for c in self.combos:
-            print("Combo: ", c[0], c[1])
+            # print("Combo: ", c[0], c[1])
 
             self.trinagulate_all(c[0], c[1])
             # self.SBA(disp=0, verbose=0)
@@ -1370,14 +1374,16 @@ class tringulatepose:
 
         # print(sorted)
 
-        print("1st Best reults from cameras: ", num1, "+", num2)
-        print("2nd Best reults from cameras: ", int(sorted[1, 0]), "+", int(sorted[1, 1]))
-        print("3rd Best reults from cameras: ", int(sorted[2, 0]), "+", int(sorted[2, 1]))
+        print("1st Best reults from cameras: ", num1, "+", num2, " Res= ", int(sorted[0, 2]))
+        print("2nd Best reults from cameras: ", int(sorted[1, 0]), "+", int(sorted[1, 1]), " Res= ", int(sorted[1, 2]))
+        print("3rd Best reults from cameras: ", int(sorted[2, 0]), "+", int(sorted[2, 1]), " Res= ", int(sorted[2, 2]))
+        print("4th Best reults from cameras: ", int(sorted[3, 0]), "+", int(sorted[3, 1]), " Res= ", int(sorted[3, 2]))
+        print("5th Best reults from cameras: ", int(sorted[4, 0]), "+", int(sorted[4, 1]), " Res= ", int(sorted[4, 2]))
 
         self.trinagulate_all(num1, num2)
-        self.SBA()
+        return sorted
 
-    def save_3D(self, folder):
+    def save_3D(self, folder, name=None):
         num1 = self.num1
         num2 = self.num2
 
@@ -1403,8 +1409,12 @@ class tringulatepose:
         }
 
         # Create DataFrame
+        if name == None:
+            full_name = folder + "\\3D_vid_" + str(num1) + "_" + str(num2) + ".csv"
+        else:
+            full_name = folder + "\\" + name + "_cams_" + str(num1) + "_" + str(num2) + ".csv"
         df = pd.DataFrame(data)
-        df.to_csv(folder + "\\3D_vid_" + str(num1) + "_" + str(num2) + ".csv", index=False)
+        df.to_csv(full_name, index=False)
 
 
 # tt = tringulatepose()

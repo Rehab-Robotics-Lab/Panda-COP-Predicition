@@ -11,6 +11,7 @@ import scipy
 from CompareCOP import compareCOP
 from ProcessCOP import processCOP
 from scipy.spatial.transform import Rotation as R
+from scipy.interpolate import interp1d
 import json
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -28,12 +29,15 @@ class COP_Tag:
         # sim.intrinsics_orientation(calib_names, calib_status)
         # print(sim.intrinsics_final)
 
-        if load == 0:
-            sim.intrinsics_orientation(view=0, vidnum=calibnum)
-        elif load == 1:
-            sim.load_params()
+        if name == "sim_trunk":
+            self.intrinsics = self.load_intrinsics(name=None).to_dict()
+        else:
+            if load == 0:
+                sim.intrinsics_orientation(view=0, vidnum=calibnum)
+            elif load == 1:
+                sim.load_params()
 
-        self.intrinsics = sim.intrinsics_final
+            self.intrinsics = sim.intrinsics_final
 
         self.calib_names, self.calib_status = calib_names, calib_status
 
@@ -243,9 +247,6 @@ class COP_Tag:
             tag_up = tag_pose.loc[(tag_pose["ID"] == self.ID_up)]
             tag_low = tag_pose.loc[(tag_pose["ID"] == self.ID_low)]
 
-            # print(tag_up.loc[(tag_up["rvecs"] == [0, 0, 0]) & (tag_up["tvecs"] == [0, 0, 0])])
-            # print(tag_up.loc[(tag_up["rvecs"] == [0, 0, 0])])
-
             rv_up, tv_up = tag_up["rvecs"], tag_up["tvec"]
             rv_low, tv_low = tag_low["rvecs"], tag_low["tvec"]
 
@@ -256,13 +257,18 @@ class COP_Tag:
                 rv_low = rv_low[::2]
                 tv_low = tv_low[::2]
 
-            rv_up = np.array(rv_up[:n].to_list())
-            rv_up = R.from_rotvec(rv_up)
-            tv_up = np.array(tv_up[:n].to_list())
+            # print("Big sape ", (np.array(rv_up[:n].to_list())))
 
-            rv_low = np.array(rv_low[:n].to_list())
+            rv_up, tv_up = self.interpolate_tag_pose(rv_up, tv_up, n)
+            rv_low, tv_low = self.interpolate_tag_pose(rv_low, tv_low, n)
+
+            # rv_up = np.array(rv_up[:n].to_list())
+            rv_up = R.from_rotvec(rv_up)
+            # tv_up = np.array(tv_up[:n].to_list())
+
+            # rv_low = np.array(rv_low[:n].to_list())
             rv_low = R.from_rotvec(rv_low)
-            tv_low = np.array(tv_low[:n].to_list())
+            # tv_low = np.array(tv_low[:n].to_list())
 
             R_up = R_glob_cor.inv() * rv_up
             R_low = R_glob_cor.inv() * rv_low
@@ -270,19 +276,10 @@ class COP_Tag:
             T_up = Rc.apply(-tvec_glob.T + tv_up)
             T_low = Rc.apply(-tvec_glob.T + tv_low)
 
-            # print(np.shape(R.as_rotvec(R_up)), np.shape(T_up))
-            # print(R.as_rotvec(R_up))
-            # print(T_up)
-            # exit()
-
             Rot_up[:, :, i] = R.as_rotvec(R_up)
             Tr_up[:, :, i] = T_up
             Rot_low[:, :, i] = R.as_rotvec(R_low)
             Tr_low[:, :, i] = T_low
-
-            # print((Rot_cam[:, i]), rvec_glob.flatten())
-            # Rot_cam[:, i] = rvec_glob.flatten()
-            # Tr_cam[:, i] = tvec_glob.flatten()
 
             i = i + 1
 
@@ -292,6 +289,33 @@ class COP_Tag:
         Tr_low = np.mean(Tr_low, axis=2)
 
         return Rot_up, Tr_up, Rot_low, Tr_low
+
+    def interpolate_tag_pose(self, Rvec, Tvec, n):
+
+        Rv = np.array(Rvec[:n].to_list())
+        Tv = np.array(Tvec[:n].to_list())
+
+        Rv_sum = np.sum(Rv, axis=1)
+
+        if (Rv_sum == 0).any():
+            # print("Interpolation detected")
+            idx = np.where(Rv_sum == 0)[0]
+            # print(idx)
+
+            nan_array = [np.nan, np.nan, np.nan]
+
+            Rv[idx, :] = nan_array
+            Tv[idx, :] = nan_array
+
+            Rv = pd.DataFrame(Rv)
+            Rvec_corrected = Rv.interpolate(method="linear", axis=0).to_numpy()
+            Tv = pd.DataFrame(Tv)
+            Tvec_corrected = Tv.interpolate(method="linear", axis=0).to_numpy()
+
+        else:
+            Rvec_corrected, Tvec_corrected = Rv, Tv
+
+        return Rvec_corrected, Tvec_corrected
 
     def glob_extrinsics(self, camnum, view, chess=0):
         intrinsics = self.intrinsics["cam" + str(camnum)]
@@ -522,21 +546,141 @@ class COP_Tag:
 
         # print(self.intrinsics)
 
-    def tag_COP(self, cams, vidnum, folder):
+    def adjust_Fn(self, M_low, M, Fn):
+        # calib_weight = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\2025-6-11_3_51_Calib_weight_2_3.csv"
+        # lower = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\2025-6-11_3_52_Lower_2_3.csv"
+
+        # calib = processCOP(calib_weight, 60)
+        # lower = processCOP(lower, 60)
+
+        # offset = np.mean(lower.Rfilt[0:100] - 0.138 - 1.325)
+        # print(offset)
+
+        # m_lower_dynamic = lower.Rfilt - 0.138 - 1.325
+
+        # plt.plot(lower.Xfilt / m_lower_dynamic)
+        # plt.plot(lower.Yfilt / m_lower_dynamic)
+        # # plt.plot(lower.Rfilt)
+        # # plt.plot(m_lower_dynamic)
+        # # print(np.mean(lower.Rfilt))
+        # plt.show()
+        # quit()
+
+        m_head, m_up, m_low = M[0], M[1], M[2]
+
+        Fn_mean = np.mean(Fn[0])
+        # Fn_mean = np.mean(Fn)
+        m_mat = 1.325
+
+        # Fn_tot = Fn / Fn_mean * (m_head + m_up + m_low)
+        # Fn_tot = Fn - Fn_mean + (m_head + m_up + m_low + m_mat)
+        # F_mat=Fn-(m_head + m_up + m_low)
+
+        # or
+
+        # plt.plot(Fn_tot / Fn_mean * (M_head + M_up + M_low))
+        # plt.plot(np.ones_like(Fn_tot) * (M_head + M_up + M_low))
+        # plt.show()
+        # quit()
+
+        M_low_d = Fn - (m_head + m_up + m_mat)
+        # print(np.mean(M_low_d))
+        # print(Fn_mean, m_low)
+        # M_low_d = Fn - Fn_mean + m_low
+
+        n = min(np.shape(M_low)[0], np.shape(M_low_d)[0])
+
+        M_low_d = M_low_d[0:n]
+
+        # plt.plot(Fn)
+        # plt.plot(np.ones_like(Fn) * (m_head + m_up + m_low + m_mat))
+        # plt.plot(Fn - m_mat)
+        # plt.plot(M_low_d + m_up + m_head)
+        # plt.show()
+        # quit()
+
+        return M_low_d
+
+    def tag_COP(self, cams, vidnum, folder, posefile=None, copfile=None):
         R_up, T_up, R_low, T_low = self.combine_vecs(cams, vidnum, folder)
 
         rtrunk = 91.39
+        g = 9.81
+
+        posefile = None
+        # copfile = None
+
+        m_head = 1.031 * int(posefile != None)
+        m_up = 1.564
+        m_low = 2.187
+        # m_low = 1.175
+
+        M = [m_head, m_up, m_low]
+
+        n_tag = np.shape(T_low)[0]
+
+        M_head = np.ones((n_tag)) * m_head
+        M_up = np.ones((n_tag)) * m_up
+        M_low = np.ones((n_tag)) * m_low
 
         COM_up = T_up
         COM_low = T_low + R_low.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
 
-        M_up = 1.564
-        M_low = 2.187
+        COP_up = COM_up[:, 0:2].T * M_up
+        COP_low = COM_low[:, 0:2].T * M_low
 
-        COP_up = COM_up[:, 0:2] * M_up
-        COP_low = COM_low[:, 0:2] * M_low
+        # #Adjust Fn
+        # if copfile is not None:
+        #     ADJUST
 
-        COP = (COP_up + COP_low) / (M_up + M_low)
+        n = n_tag
+
+        if copfile != None:
+            COP_gc = processCOP(copfile, 60)
+            Fn_tot = COP_gc.Rfilt[::2]
+
+            temp_COP = COM_low[:, 0:2].T * M_low
+
+            M_low_d = self.adjust_Fn(M_low, M, Fn_tot)
+            n = np.shape(M_low_d)[0]
+
+            COP_low = COM_low[0:n, 0:2].T * M_low_d
+            M_low = M_low_d
+
+        if posefile == None:
+            COP_head = np.zeros_like(COP_up)
+        else:
+            # initilazlise pose file
+            pose = processpose(posefile)
+            pose.IK_init()
+
+            # find head location
+            T_head = pose.mid_face.T
+            n_pose = np.shape(T_head)[0]
+
+            # find minimum length
+            n = min(n, n_pose)
+
+            # find location of neck in pose and tag frames
+            T_neck_pose = np.matrix([pose.X[:, 1], pose.Y[:, 1], pose.Z[:, 1]]).T
+
+            T_neck_tag = T_up + R_up.apply(np.array([0, -55, 0]) / 1000)
+
+            # find offset of neck locations
+            # T_h_tag-T_h_pose==T_n_tag-T_n_pose
+            T_diff = np.mean(T_neck_pose[0:15, :]) - np.mean(T_neck_tag[0:15, :])
+
+            # Offset head location to be in the tag frame
+            T_head_off = T_head[0:n, :] - T_diff
+            # COM_head = np.ones_like(T_head_off) * np.mean(T_head_off, axis=0).T
+            COM_head = scipy.ndimage.median_filter(T_head_off, size=[50, 1])
+            COP_head = COM_head[:, 0:2].T * m_head
+
+        COP = (COP_head[:, 0:n] * g + COP_up[:, 0:n] * g + COP_low[:, 0:n] * g) / (
+            M_head[0:n] * g + M_up[0:n] * g + M_low[0:n] * g
+        )
+
+        COP = COP.T
 
         return COP * 1000
 
@@ -544,6 +688,11 @@ class COP_Tag:
 
         pose = processpose(posefile)
         pose.IK_init()
+
+        # plt.plot(pose.X[:, 0].T)
+        # plt.plot(pose.mid_shoulder[0, :].T)
+        # plt.plot(pose.mid_hip[0, :].T)
+        # plt.show()
 
         ## SHOULDERS
         shoulder_angles = np.stack((pose.thet1s[0, :], pose.thet2s[0, :]))
@@ -560,7 +709,10 @@ class COP_Tag:
         rtrunk = 91.39
 
         COM_head = T_head
-        COM_up = T_up + R_up.apply(np.array([0, -5, 0]) / 1000)
+
+        # COM_up = T_up
+        COM_up = T_up + R_up.apply(np.array([0, -55, 0]) / 1000)
+
         COM_low = T_low + R_low.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
 
         M_head = 1.031
@@ -576,6 +728,84 @@ class COP_Tag:
         # Tsh = np.linalg.inv(T_ups) @ T_uph
         # Th = T_ups @ Tsh
         return COP * 1000
+
+    def compare_angles(self, cams, folder, vidnum, posefile):
+        Rup_tag, Tup_tag, Rlow_tag, Tlow_tag = self.combine_vecs(cams, vidnum, folder)
+
+        tag_to_world = R.from_matrix(np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]]))
+
+        # print(np.shape(Rup_tag))
+
+        Rup_tag = Rup_tag * tag_to_world
+        Rlow_tag = Rlow_tag * tag_to_world
+
+        pose = processpose(posefile)
+        pose.IK_init()
+
+        ## SHOULDERS
+        shoulder_angles = np.stack((pose.thet1s[0, :], pose.thet2s[0, :]))
+        Rup_pose = R.from_euler("zy", shoulder_angles.T)
+        Tup_pose = pose.mid_shoulder.T
+
+        ## HIPS
+        hip_angles = np.stack((pose.thet1h[0, :], pose.thet2h[0, :], pose.thet3h[0, :]))
+        Rlow_pose = R.from_euler("xzy", hip_angles.T)
+        Tlow_pose = pose.mid_hip.T
+
+        pose_ang_low = Rlow_pose.as_euler("xzy", degrees=True)
+        tag_ang_low = Rlow_tag.as_euler("xzy", degrees=True)
+        tag_ang_low = self.interp_tagpose(tag_ang_low)
+
+        # print(Rup_tag[0], Rup_pose[0])
+
+        n = min(np.shape(pose_ang_low)[0], np.shape(tag_ang_low)[0])
+
+        t = (np.linspace(0, n / 30, num=n)).reshape(n, 1)
+
+        plt.subplot(3, 1, 1)
+        plt.plot(t, pose_ang_low[0:n, 0])
+        plt.plot(t, tag_ang_low[0:n, 0])
+        plt.legend(["Pose", "Tag"])
+        plt.title("X")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Angle (deg)")
+        plt.grid()
+
+        plt.subplot(3, 1, 2)
+        plt.plot(t, pose_ang_low[0:n, 1])
+        plt.plot(t, tag_ang_low[0:n, 1])
+        plt.legend(["Pose", "Tag"])
+        plt.title("Z")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Angle (deg)")
+        plt.grid()
+
+        plt.subplot(3, 1, 3)
+        plt.plot(t, pose_ang_low[0:n, 2])
+        plt.plot(t, tag_ang_low[0:n, 2])
+        plt.legend(["Pose", "Tag"])
+        plt.title("Y")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Angle (deg)")
+        plt.grid()
+
+        plt.tight_layout()
+        plt.show()
+
+        # print(np.shape(pose_ang_low), np.shape(tag_ang_low))
+
+    def interp_tagpose(self, angles, thresh=2.5):
+        z_ang = np.abs(scipy.stats.zscore(angles, axis=0))
+        # z_y = np.abs(scipy.stats.zscore(Y, axis=1))
+
+        jump = np.where((z_ang >= thresh))
+
+        angles[jump] = np.nan
+
+        ang_interp = angles
+        ang_interp = pd.DataFrame(angles).interpolate(method="linear", axis=1, limit_direction="both").to_numpy()
+
+        return ang_interp
 
     def pull_synch_time(self, cam_num, vid_num):
         col_names = [
@@ -600,7 +830,7 @@ class COP_Tag:
         return start, stop
 
     def comapre_COP(self, camnum, vidnum, file, folder, posefile):
-        # COP = self.tag_COP(camnum, vidnum, folder)
+        # COP = self.tag_COP(camnum, vidnum, folder, posefile=posefile, copfile=file)
         COP = self.pose_COP(posefile)
 
         # start, stop = self.pull_synch_time(camnum, vidnum)
@@ -634,7 +864,7 @@ class COP_Tag:
 
         cc = compareCOP(Xcalc, Ycalc, Xreal, Yreal, cam=1)
         cc.comp_XY()
-        cc.comp_ellipse()
+        # cc.comp_ellipse()
         # cc.plot_cop_anim()
 
         # print(cc.metrics())
@@ -642,8 +872,7 @@ class COP_Tag:
         # print(4)
 
 
-vnum = 3
-
+vnum = 6
 tt = COP_Tag(
     cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
     name="sim_trunk_clothed",
@@ -652,43 +881,41 @@ tt = COP_Tag(
     ID_low=50,
     ID_len=30 / 1000,
 )
+
 folder = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose"
 
-# cams = [1, 2, 3, 4, 5]
+cams = [1, 2, 3, 4, 5]
 cams = [2]
-# tt.combine_vecs(cams, vnum, folder)
 
-copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid3_side.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid3_side.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid4_flex.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid5_rot.csv"
+copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid6_all.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid7_side_limbs.csv"
 
-posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_trunk_clothed_cam_2_6_vid_3.csv"
-# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_trunk_clothed_cam_5_6_vid_4.csv"
-# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_trunk_clothed_cam_4_6_vid_5.csv"
+posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid6_cams_2_4_none.csv"
+
+
+# tt = COP_Tag(
+#     cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
+#     name="sim_trunk",
+#     load=1,
+#     ID_up=0,
+#     ID_low=25,
+#     ID_len=40 / 1000,
+# )
+
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_cop_vid3_flex.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_cop_vid4_rot.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_cop_vid5_side.csv"
+
+# posefile = None
+
 
 tt.comapre_COP(cams, vnum, file=copfile, folder=folder, posefile=posefile)
+# tt.compare_angles(cams, vidnum=vnum, folder=folder, posefile=posefile)
 
 # tt.save_tagpose(4, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")
-
-
-# nme = (
-#     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose\\"
-#     + tt.trial_name
-#     + "_"
-#     + "cam"
-#     + str(cnum)
-#     + "_"
-#     + "vid"
-#     + str(vnum)
-#     + "_tagpose.json"
-# )
-
-
-# tt.comapre_COP(
-#     cnum, vnum, name=nme, file=copfile
-# )
-
-# tt.showtags_loop(cnum, vnum, name=nme)
-# tt.tag_COP(cnum, vnum, name=nme)
-# tt.get_pose(cnum, vnum, view=0)
 
 
 # for vnum in [3, 4, 5, 6]:

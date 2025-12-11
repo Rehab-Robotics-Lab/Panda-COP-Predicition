@@ -645,8 +645,8 @@ class c_manage:
         if num1 != None and num2 != None:
             T.trinagulate_all(num1, num2)
 
-            # T.SBA_anipose()
-            T.SBA()
+            T.SBA(disp=0)
+            T.SBA_anipose()
         else:
             T.check_combos()
 
@@ -666,11 +666,8 @@ class c_manage:
             self.T.overlay_pose(available[j], vidname=names[available[j] - 1], compare=1)
 
     def save_3D(self, vidnum, folder):
-
-        available = self.cams
-        stat, names = self.check_vids(vidnum)
-
-        self.T.save_3D(folder=folder)
+        filename = self.vid_name + "_vid" + str(vidnum)
+        self.T.save_3D(folder=folder, name=filename)
 
     def overlay_pose(self, camnum, vidnum):
 
@@ -896,10 +893,17 @@ class c_manage:
 
 # sim.overlay_pose(camnum=3, vidnum=4)
 
-# vidn = 5
-# sim.tringulate(vidn, num1=4, num2=6)
-# sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras")
-# sim.overlay_pose(3, vidn)
+# vidn = 6
+
+# combos = np.matrix([[5, 6], [2, 6], [4, 5], [1, 6], [2, 4]])
+
+# sim.tringulate(vidn, num1=None, num2=None)
+
+# for i in range(5):
+#     sim.tringulate(vidn, num1=int(combos[i, 0]), num2=int(combos[i, 1]))
+#     sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test")
+
+# sim.overlay_pose(2, vidn)
 # sim.overlay_reproj(vidn)
 
 # nme = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\Camera 2\sim_trunk_cam2_vid5.MP4"

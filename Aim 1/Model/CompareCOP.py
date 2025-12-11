@@ -16,11 +16,11 @@ class compareCOP:
         if cam == 1:
             n = min(Xcalc.shape[0], Xreal.shape[0])
             self.n = n
-            self.Xcalc = Xcalc[0:n]
-            self.Ycalc = Ycalc[0:n]
+            self.Xcalc = Xcalc[0:n].reshape((n, 1))
+            self.Ycalc = Ycalc[0:n].reshape((n, 1))
 
-            self.Xreal = Xreal[0:n]
-            self.Yreal = Yreal[0:n]
+            self.Xreal = Xreal[0:n].reshape((n, 1))
+            self.Yreal = Yreal[0:n].reshape((n, 1))
         else:
 
             self.Xcalc = Xcalc
@@ -195,7 +195,7 @@ class compareCOP:
 
         X, Y = self.Xreal, self.Yreal
         n = self.n
-        t = (np.linspace(0, n / 30, num=n)).T
+        t = (np.linspace(0, n / 30, num=n)).reshape(n, 1)
 
         Xcalc = self.Xcalc
         Ycalc = self.Ycalc
@@ -409,18 +409,16 @@ class compareCOP:
         return maeX, maeY
 
     def pearson_corr(self):
-        Xr = np.atleast_2d(self.Xreal - np.mean(self.Xreal[0:15])).T
-        Yr = np.atleast_2d(self.Yreal - np.mean(self.Yreal[0:15])).T
+        Xr = self.Xreal - np.mean(self.Xreal[0:15])
+        Yr = self.Yreal - np.mean(self.Yreal[0:15])
 
         dX = self.Xcalc - np.mean(self.Xcalc[0:15])
         dY = self.Ycalc - np.mean(self.Ycalc[0:15])
 
-        print(np.shape(Xr), np.shape(dX))
+        val_X, p_X = stats.pearsonr(Xr, dX, axis=0)
+        val_Y, p_Y = stats.pearsonr(Yr, dY, axis=0)
 
-        val_X, p_X = stats.pearsonr(Xr, dX)
-        val_Y, p_Y = stats.pearsonr(Yr, dY)
-
-        return val_X, p_X, val_Y, p_Y
+        return val_X[0], p_X[0], val_Y[0], p_Y[0]
 
     def excursion(self, x):
         excur = np.max(x) - np.min(x)
