@@ -893,11 +893,12 @@ class c_manage:
 
 # sim.overlay_pose(camnum=3, vidnum=4)
 
-# vidn = 6
+# vidn = 7
 
 # combos = np.matrix([[5, 6], [2, 6], [4, 5], [1, 6], [2, 4]])
 
-# sim.tringulate(vidn, num1=None, num2=None)
+# sim.tringulate(vidn, num1=2, num2=4)
+# sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test")
 
 # for i in range(5):
 #     sim.tringulate(vidn, num1=int(combos[i, 0]), num2=int(combos[i, 1]))

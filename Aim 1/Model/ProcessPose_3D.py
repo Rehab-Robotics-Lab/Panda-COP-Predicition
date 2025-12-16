@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import scipy
+from scipy.spatial.transform import Rotation as R
 import pandas as pd
 from numpy import radians as radians
 import matplotlib.pyplot as plt
@@ -73,28 +74,28 @@ class processpose:
         # plt.legend(["Rarm", "Larm", "Rleg", "Lleg"])
         # plt.show()
 
-    def adjust_rleg_len(self):
-        rk = np.matrix([self.X[:, 9], self.Y[:, 9], self.Z[:, 9]])
-        rf = np.matrix([self.X[:, 10], self.Y[:, 10], self.Z[:, 10]])
+    # def adjust_rleg_len(self):
+    #     rk = np.matrix([self.X[:, 9], self.Y[:, 9], self.Z[:, 9]])
+    #     rf = np.matrix([self.X[:, 10], self.Y[:, 10], self.Z[:, 10]])
 
-        left_len = self.get_len(12, 13)
-        right_len = self.get_len(9, 10)
+    #     left_len = self.get_len(12, 13)
+    #     right_len = self.get_len(9, 10)
 
-        rf_proj = np.zeros_like(rf)
+    #     rf_proj = np.zeros_like(rf)
 
-        # for i in range(self.frames + 1):
-        #     Ts, Th, Tf, Te = self.IK_trunk(i)
-        #     Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(i, Ts, Th)
-        #     # feet
+    #     # for i in range(self.frames + 1):
+    #     #     Ts, Th, Tf, Te = self.IK_trunk(i)
+    #     #     Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(i, Ts, Th)
+    #     #     # feet
 
-        #     yfR = np.matrix([[0], [left_len[i]], [0], [1]])
+    #     #     yfR = np.matrix([[0], [left_len[i]], [0], [1]])
 
-        #     rf_proj[:, i] = (Ts_rk @ yfR)[0:3, 0]
-        low_leg_norm = np.divide((rf - rk), right_len)
-        rf_proj = np.multiply(low_leg_norm, left_len) + rk
+    #     #     rf_proj[:, i] = (Ts_rk @ yfR)[0:3, 0]
+    #     low_leg_norm = np.divide((rf - rk), right_len)
+    #     rf_proj = np.multiply(low_leg_norm, left_len) + rk
 
-        # print(np.shape(rf_proj))
-        self.X[:, 10], self.Y[:, 10], self.Z[:, 10] = rf_proj[0, :], rf_proj[1, :], rf_proj[2, :]
+    #     # print(np.shape(rf_proj))
+    #     self.X[:, 10], self.Y[:, 10], self.Z[:, 10] = rf_proj[0, :], rf_proj[1, :], rf_proj[2, :]
 
     def get_len(self, i, j):
         p1 = np.matrix([self.X[:, i], self.Y[:, i], self.Z[:, i]])
@@ -213,7 +214,7 @@ class processpose:
         ani = animation.FuncAnimation(self.fig, self.plotskel, frames=frms[start:], interval=1)
         plt.show()
 
-    def arms(self, k, left=0):
+    def arm_ang(self, k):
         ls = np.matrix([self.X[:, k], self.Y[:, k], self.Z[:, k]])
         le = np.matrix([self.X[:, k + 1], self.Y[:, k + 1], self.Z[:, k + 1]])
         lh = np.matrix([self.X[:, k + 2], self.Y[:, k + 2], self.Z[:, k + 2]])
@@ -228,11 +229,7 @@ class processpose:
         s1 = np.sin(thet1)
         c1 = np.cos(thet1)
 
-        if left == 0:
-            s2 = np.divide(le[2, :] - ls[2, :], L1)
-        elif left == 1:
-            s2 = np.divide(ls[2, :] - le[2, :], L1)
-
+        s2 = np.divide(le[2, :] - ls[2, :], L1)
         c2 = np.divide((ls[1, :] - le[1, :]), np.multiply(c1, L1))
 
         thet2 = np.arctan2(s2, c2)
@@ -257,26 +254,12 @@ class processpose:
         magnitude_cross = np.linalg.norm(cross_product, axis=0)
 
         s4 = np.divide(magnitude_cross, np.multiply(magnitude_u, magnitude_v))
-        # # s4 = np.clip(s4, -1, 1)
         c4 = np.divide(dot_product, np.multiply(magnitude_u, magnitude_v))
-        # # c4 = np.clip(c4, -1, 1)
-
-        # fining c4 with law of cosines
-        # c4 = np.divide(
-        #     (np.power(magnitude_u, 2) + np.power(magnitude_v, 2) - np.power(magnitude_q, 2)),
-        #     (2 * np.multiply(magnitude_u, magnitude_v)),
-        # )
-        # s4 = np.sqrt((np.ones_like(c4) - np.power(c4, 2))).T
-        # thet4 = np.pi - np.arccos(c4)
 
         thet4 = np.arctan2(s4, c4)
 
         ##THETA 3
-        if left == 0:
-            X = np.divide(lh[0, :] - le[0, :], L2)
-        elif left == 1:
-            X = -np.divide(lh[0, :] - le[0, :], L2)
-
+        X = np.divide(lh[0, :] - le[0, :], L2)
         Y = np.divide(lh[1, :] - le[1, :], L2)
         Z = np.divide(lh[2, :] - le[2, :], L2)
 
@@ -288,7 +271,7 @@ class processpose:
 
         return thet1, thet2, thet3, thet4
 
-    def legs(self, k):
+    def leg_ang(self, k):
         ls = np.matrix([self.X[:, k], self.Y[:, k], self.Z[:, k]])
         le = np.matrix([self.X[:, k + 1], self.Y[:, k + 1], self.Z[:, k + 1]])
         lh = np.matrix([self.X[:, k + 2], self.Y[:, k + 2], self.Z[:, k + 2]])
@@ -1245,43 +1228,22 @@ class processpose:
         self.head_ang()
 
         ##ARMS
-        self.thet1_ra, self.thet2_ra, self.thet3_ra, self.thet4_ra = self.arms(k=2)
-        self.thet1_la, self.thet2_la, self.thet3_la, self.thet4_la = self.arms(k=5)
+        self.thet1_ra, self.thet2_ra, self.thet3_ra, self.thet4_ra = self.arm_ang(k=2)
+        self.thet1_la, self.thet2_la, self.thet3_la, self.thet4_la = self.arm_ang(k=5)
         ##LEGS
-        self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl = self.legs(k=8)
-        self.thet1_ll, self.thet2_ll, self.thet3_ll, self.thet4_ll = self.legs(k=11)
-
-    def IK_init_static(self):
-
-        ## SHOULDERS
-        self.shoudler_ang()
-
-        ## HIPS
-        self.hip_ang()
-
-        ## FACE
-        self.face_ang()
-
-        ## HEAD
-        self.head_ang()
-
-        ##ARMS
-        self.thet1_ra, self.thet2_ra, self.thet3_ra, self.thet4_ra = self.limbs_static(k=2)
-        self.thet1_la, self.thet2_la, self.thet3_la, self.thet4_la = self.arms_static(k=5)
-        ##LEGS
-        self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl = self.legs_static(k=8)
-        self.thet1_ll, self.thet2_ll, self.thet3_ll, self.thet4_ll = self.legs_static(k=11)
+        self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl = self.leg_ang(k=8)
+        self.thet1_ll, self.thet2_ll, self.thet3_ll, self.thet4_ll = self.leg_ang(k=11)
 
     def ID_init(self):
-
         T_ra = np.array([self.thet1_ra, self.thet2_ra, self.thet3_ra, self.thet4_ra])[:, 0, :]
         T_la = np.array([self.thet1_la, self.thet2_la, self.thet3_la, self.thet4_la])[:, 0, :]
 
         T_rl = np.array([self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl])[:, 0, :]
         T_ll = np.array([self.thet1_ll, self.thet2_ll, self.thet3_ll, self.thet4_ll])[:, 0, :]
 
-    def inv_dynamics(self, T, L, m, I):
+    def inv_dynamics_upper(self, L, i1):
         dt = 1 / 30
+        T = np.array([self.thet1s, self.thet2s])[:, 0, :]
         TD = np.gradient(T, dt, axis=1)
         TDD = np.gradient(TD, dt, axis=1)
 
@@ -1292,15 +1254,188 @@ class processpose:
         v0_d = np.zeros([3, 1])
         v0_d[2] = -9.81
 
+        n = self.frames + 1
+
+        Tq = np.ones((3, n))
+
+        W = np.ones((3, n))
+        W_d = np.ones((3, n))
+        Vls_d = np.ones((3, n))
+        Vrs_d = np.ones((3, n))
+
+        for i in range(n):
+            t1, t2 = T[0, i], T[1, i]
+            t1d, t2d = TD[0, i], TD[1, i]
+            t1dd, t2dd = TDD[0, i], TDD[1, i]
+
+            # # initializing paramteres from refrence to first frame
+
+            ## ANGULAR
+            # angular velocity
+
+            Ry1 = self.R_y(t1)
+            Rz2 = self.R_z(t2)
+
+            R01 = Ry1 @ Rz2
+
+            p_ls = np.matrix([[L], [0], [0]])
+            p_rs = np.matrix([[-L], [0], [0]])
+
+            w1 = Ry1.T @ w0 + np.matrix([[0], [t1d], [0]])
+            w2 = Rz2.T @ w1 + np.matrix([[0], [0], [t2d]])
+
+            # angular accelearation
+            w1_d = (
+                (Ry1.T @ w0_d)
+                + np.cross(Ry1.T @ w0, np.matrix([[0], [t1d], [0]]), axis=0)
+                + np.matrix([[0], [t1dd], [0]])
+            )
+            w2_d = (
+                (Rz2.T @ w1_d)
+                + np.cross(Rz2.T @ w1, np.matrix([[0], [0], [t2d]]), axis=0)
+                + np.matrix([[0], [0], [t2dd]])
+            )
+
+            ## LINEAR
+            # linear accelearation
+            vls_d = np.cross(w2_d, p_ls / 2, axis=0) + np.cross(w2, np.cross(w2, p_ls / 2, axis=0), axis=0) + v0_d
+            vrs_d = np.cross(w2_d, p_rs / 2, axis=0) + np.cross(w2, np.cross(w2, p_rs / 2, axis=0), axis=0) + v0_d
+
+            ##MOMENTS
+            I = np.diag(np.ravel(i1))
+            N = (I @ w2_d) + np.cross(w2, (I @ w2), axis=0)
+
+            Tq[:, [i]] = (N)[:, 0]
+
+            W[:, [i]] = (w2)[:, 0]
+            W_d[:, [i]] = (w2_d)[:, 0]
+
+            Vls_d[:, [i]] = vls_d
+            Vrs_d[:, [i]] = vrs_d
+
+        return Tq, W, W_d, Vls_d, Vrs_d
+
+    def inv_dynamics_lower(self, L, i1, to_upper=False, i=None):
+        dt = 1 / 30
+        T = np.array([self.thet1h, self.thet2h, self.thet3h])[:, 0, :]
+        TD = np.gradient(T, dt, axis=1)
+        TDD = np.gradient(TD, dt, axis=1)
+
+        # print(np.shape(TD))
+        ###### FORWARD ITERATION
+        w0 = np.zeros([3, 1])
+        w0_d = np.zeros([3, 1])
+        v0_d = np.zeros([3, 1])
+        v0_d[2] = -9.81
+
+        n = self.frames + 1
+
+        Tq = np.ones((3, n))
+
+        W = np.ones((3, n))
+        W_d = np.ones((3, n))
+        Vlh_d = np.ones((3, n))
+        Vrh_d = np.ones((3, n))
+
+        for i in range(n):
+            t1, t2, t3 = T[0, i], T[1, i], T[2, i]
+            t1d, t2d, t3d = TD[0, i], TD[1, i], TD[2, i]
+            t1dd, t2dd, t3dd = TDD[0, i], TDD[1, i], TDD[2, i]
+
+            # # initializing paramteres from refrence to first frame
+
+            ## ANGULAR
+            # angular velocity
+
+            Rx1 = self.R_x(t1)
+            Rz2 = self.R_z(t2)
+            Ry3 = self.R_y(t3)
+
+            R01 = Rx1 @ Rz2 @ Ry3
+
+            p_lh = np.matrix([[L], [0], [0]])
+            p_rh = np.matrix([[-L], [0], [0]])
+
+            w1 = Rx1.T @ w0 + np.matrix([[t1d], [0], [0]])
+            w2 = Rz2.T @ w1 + np.matrix([[0], [0], [t2d]])
+            w3 = Ry3.T @ w2 + np.matrix([[0], [t3d], [0]])
+
+            # angular accelearation
+            w1_d = (
+                (Rx1.T @ w0_d)
+                + np.cross(Rx1.T @ w0, np.matrix([[t1d], [0], [0]]), axis=0)
+                + np.matrix([[t1dd], [0], [0]])
+            )
+            w2_d = (
+                (Rz2.T @ w1_d)
+                + np.cross(Rz2.T @ w1, np.matrix([[0], [0], [t2d]]), axis=0)
+                + np.matrix([[0], [0], [t2dd]])
+            )
+            w3_d = (
+                (Ry3.T @ w2_d)
+                + np.cross(Ry3.T @ w2, np.matrix([[0], [t3d], [0]]), axis=0)
+                + np.matrix([[0], [t3dd], [0]])
+            )
+
+            ## LINEAR
+            # linear accelearation
+            vlh_d = np.cross(w3_d, p_lh / 2, axis=0) + np.cross(w3, np.cross(w3, p_lh / 2, axis=0), axis=0) + v0_d
+            vrh_d = np.cross(w3_d, p_rh / 2, axis=0) + np.cross(w3, np.cross(w3, p_rh / 2, axis=0), axis=0) + v0_d
+
+            ##MOMENTS
+            I = np.diag(np.ravel(i1))
+            N = (I @ w3_d) + np.cross(w3, (I @ w3), axis=0)
+
+            Tq[:, [i]] = (N)[:, 0]
+
+            W[:, [i]] = (w2)[:, 0]
+            W_d[:, [i]] = (w2_d)[:, 0]
+
+            if to_upper:
+                T0s, T0h, T0f, T0e = self.IK_trunk(i)
+
+                Vlh_d[:, [i]] = T0s[0:3, 0:3] @ vlh_d
+                Vrh_d[:, [i]] = T0s[0:3, 0:3] @ vrh_d
+            else:
+                Vlh_d[:, [i]] = vlh_d
+                Vrh_d[:, [i]] = vrh_d
+
+        return Tq, W, W_d, Vlh_d, Vrh_d
+
+    def inv_dynamics(self, k, L, m, I, W0=None, W0_d=None, V0_d=None, to_upper=False, to_lower=False):
+
+        if k == 2 or k == 5:
+            thet1, thet2, thet3, thet4 = self.arm_ang(k)
+        elif k == 8 or k == 11:
+            thet1, thet2, thet3, thet4 = self.leg_ang(k)
+
+        dt = 1 / 30
+
+        T = np.array([thet1, thet2, thet3, thet4])[:, 0, :]
+        TD = np.gradient(T, dt, axis=1)
+        TDD = np.gradient(TD, dt, axis=1)
+
+        n = self.frames + 1
+
+        # print(np.shape(TD))
+        ###### FORWARD ITERATION
+
         # t1, t2, t3, t4 = T[:, 0], T[:, 1], T[:, 2], T[:, 3]
         # t1d, t2d, t3d, t4d = TD[:, 0], TD[:, 1], TD[:, 2], TD[:, 3]
         # t1dd, t2dd, t3dd, t4dd = TDD[:, 0], TDD[:, 1], TDD[:, 2], TDD[:, 3]
 
+        ###### FORWARD ITERATION
+        if W0 is None:
+            W0 = np.zeros((3, n))
+        if W0_d is None:
+            W0_d = np.zeros((3, n))
+        if V0_d is None:
+            V0_d = np.zeros((3, n))
+            V0_d[2, :] = -9.81
+
         L1, L2 = L[0], L[1]
         m1, m2 = m[0], m[1]
         i1, i2 = I[0, :], I[1, :]
-
-        n = self.frames + 1
 
         Fr = np.ones((3, n))
         Tq = np.ones((3, n))
@@ -1313,6 +1448,10 @@ class processpose:
             t1d, t2d, t3d, t4d = TD[0, i], TD[1, i], TD[2, i], TD[3, i]
             t1dd, t2dd, t3dd, t4dd = TDD[0, i], TDD[1, i], TDD[2, i], TDD[3, i]
 
+            w0 = W0[:, i].reshape(3, 1)
+            w0_d = W0_d[:, i].reshape(3, 1)
+            v0_d = V0_d[:, i].reshape(3, 1)
+
             # # initializing paramteres from refrence to first frame
 
             ## ANGULAR
@@ -1324,13 +1463,7 @@ class processpose:
             Ry3 = self.R_y(t3)
             Rx4 = self.R_x(t4)
 
-            # Rz1 = (self.R_z(t1) @ Rz_180).T
-            # Rx2 = (self.R_x(t2)).T
-            # Ry3 = (self.R_y(t3)).T
-            # Rx4 = (self.R_x(t4)).T
-
-            R01 = Rz1 @ Rx2 @ Ry3
-            # R01 = Rz_180 @ self.R_zxy(t1, t2, t3)
+            R01 = Rz_180 @ self.R_zxy(t1, t2, t3)
             R12 = Rx4
 
             p1 = np.matrix([[0], [L1], [0]])
@@ -1400,6 +1533,18 @@ class processpose:
 
             extra1[:, [i]] = (R01 @ w1)[:, 0]
             extra2[:, [i]] = (R01 @ w2)[:, 0]
+
+            if to_upper:
+                T0s, T0h, Tf, Te = self.IK_trunk(i)
+
+                tq = T0s[0:3, 0:3] @ tq
+                fr = T0s[0:3, 0:3] @ fr
+
+            if to_lower:
+                T0s, T0h, Tf, Te = self.IK_trunk(i)
+
+                tq = T0h[0:3, 0:3] @ tq
+                fr = T0h[0:3, 0:3] @ fr
 
             Tq[:, [i]] = tq
             Fr[:, [i]] = fr
