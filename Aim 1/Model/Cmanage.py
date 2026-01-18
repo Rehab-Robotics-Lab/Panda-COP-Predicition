@@ -599,7 +599,7 @@ class c_manage:
 
         return start, stop
 
-    def tringulate(self, vidnum, delay=0, num1=None, num2=None):
+    def tringulate(self, vidnum, delay=0, num1=None, num2=None, disp=1):
         # stat_vid, names_vid = self.check_vids(vidnum)
         stat, names = self.check_csv(vidnum)
 
@@ -629,7 +629,7 @@ class c_manage:
         ):
             self.load_params()
         else:
-            self.intrinsics_orientation(view=0)
+            self.intrinsics_orientation(view=1)
             self.save_params()
         # intrinsics = self.intrinsics_final
         # extrinsics = self.extrinsics_final
@@ -645,7 +645,7 @@ class c_manage:
         if num1 != None and num2 != None:
             T.trinagulate_all(num1, num2)
 
-            T.SBA(disp=0)
+            T.SBA(disp=disp)
             T.SBA_anipose()
         else:
             T.check_combos()
@@ -665,9 +665,9 @@ class c_manage:
             print(available[j], names[available[j] - 1])
             self.T.overlay_pose(available[j], vidname=names[available[j] - 1], compare=1)
 
-    def save_3D(self, vidnum, folder):
+    def save_3D(self, vidnum, folder, suffix=None):
         filename = self.vid_name + "_vid" + str(vidnum)
-        self.T.save_3D(folder=folder, name=filename)
+        self.T.save_3D(folder=folder, name=filename, suffix=suffix)
 
     def overlay_pose(self, camnum, vidnum):
 
@@ -874,11 +874,11 @@ class c_manage:
 
 # sim = c_manage(
 #     cam_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
-#     vid_name="sim_trunk_clothed",
+#     vid_name="sim_trunk_limbs2",
 #     csv_direct=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\pose",
 # )
 
-# sim.intrinsics_orientation(view=0, vidnum=1)
+# sim.intrinsics_orientation(view=1, vidnum=1)
 # sim.save_params()
 
 # sim.pkl_to_csv(
@@ -893,16 +893,29 @@ class c_manage:
 
 # sim.overlay_pose(camnum=3, vidnum=4)
 
-# vidn = 7
+# vidn = 3
 
-# combos = np.matrix([[5, 6], [2, 6], [4, 5], [1, 6], [2, 4]])
+# sim.tringulate(vidn, num1=2, num2=6)
+# sim.save_3D(
+#     vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test", suffix="_smooth_3d"
+# )
 
-# sim.tringulate(vidn, num1=2, num2=4)
-# sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test")
+# for vidn in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]:
+#     sim.tringulate(vidn, num1=2, num2=6)
+#     sim.save_3D(
+#         vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test", suffix="_both"
+#     )
 
-# for i in range(5):
-#     sim.tringulate(vidn, num1=int(combos[i, 0]), num2=int(combos[i, 1]))
-#     sim.save_3D(vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test")
+
+# combos = np.matrix([[4, 7], [5, 6], [4, 5], [2, 4], [6, 7]])
+# for vidn in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]:
+#     for i in range(5):
+#         sim.tringulate(vidn, num1=int(combos[i, 0]), num2=int(combos[i, 1]), disp=0)
+#         sim.save_3D(
+#             vidnum=vidn,
+#             folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test",
+#             suffix="_both_smooth1d",
+#         )
 
 # sim.overlay_pose(2, vidn)
 # sim.overlay_reproj(vidn)

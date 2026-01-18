@@ -37,14 +37,24 @@ class processpose:
             Z[:, p] = df.z[df.part_idx == p].T
             idx[:, p] = p
 
-        order = 3
-        fcut = 5
+        # Butterworth Filter
 
-        b, a = scipy.signal.butter(order, fcut, fs=60)
+        # order = 3
+        # fcut = 5
+        # b, a = scipy.signal.butter(order, fcut, fs=60)
 
         # X = scipy.signal.filtfilt(b, a, X)
         # Y = scipy.signal.filtfilt(b, a, Y)
         # Z = scipy.signal.filtfilt(b, a, Z)
+
+        # Sgolay Filter
+
+        # win = 10
+        # order = 5
+
+        # X = scipy.signal.savgol_filter(X, win, order, axis=0)
+        # Y = scipy.signal.savgol_filter(Y, win, order, axis=0)
+        # Z = scipy.signal.savgol_filter(Z, win, order, axis=0)
 
         # creating global variables
         win = 5
@@ -1263,6 +1273,11 @@ class processpose:
         Vls_d = np.ones((3, n))
         Vrs_d = np.ones((3, n))
 
+        # plt.plot(np.rad2deg(T[0, :]))
+        # plt.plot(np.rad2deg(T[1, :]))
+        # plt.legend(["t1", "t2"])
+        # plt.show()
+
         for i in range(n):
             t1, t2 = T[0, i], T[1, i]
             t1d, t2d = TD[0, i], TD[1, i]
@@ -1315,7 +1330,7 @@ class processpose:
 
         return Tq, W, W_d, Vls_d, Vrs_d
 
-    def inv_dynamics_lower(self, L, i1, to_upper=False, i=None):
+    def inv_dynamics_lower(self, L, i1, to_upper=False):
         dt = 1 / 30
         T = np.array([self.thet1h, self.thet2h, self.thet3h])[:, 0, :]
         TD = np.gradient(T, dt, axis=1)
@@ -1336,6 +1351,12 @@ class processpose:
         W_d = np.ones((3, n))
         Vlh_d = np.ones((3, n))
         Vrh_d = np.ones((3, n))
+
+        # plt.plot(np.rad2deg(T[0, :]))
+        # plt.plot(np.rad2deg(T[1, :]))
+        # plt.plot(np.rad2deg(T[2, :]))
+        # plt.legend(["t1", "t2", "t3"])
+        # plt.show()
 
         for i in range(n):
             t1, t2, t3 = T[0, i], T[1, i], T[2, i]
@@ -1391,29 +1412,42 @@ class processpose:
             W[:, [i]] = (w2)[:, 0]
             W_d[:, [i]] = (w2_d)[:, 0]
 
+            # torque from shoulder flextion/extension
+            vlh_d = R01 @ vlh_d
+            # forces transformed to base frame
+            vrh_d = R01 @ vrh_d
+
             if to_upper:
                 T0s, T0h, T0f, T0e = self.IK_trunk(i)
 
-                Vlh_d[:, [i]] = T0s[0:3, 0:3] @ vlh_d
-                Vrh_d[:, [i]] = T0s[0:3, 0:3] @ vrh_d
+                Vlh_d[:, [i]] = T0s[0:3, 0:3].T @ vlh_d
+                Vrh_d[:, [i]] = T0s[0:3, 0:3].T @ vrh_d
             else:
                 Vlh_d[:, [i]] = vlh_d
                 Vrh_d[:, [i]] = vrh_d
 
         return Tq, W, W_d, Vlh_d, Vrh_d
 
-    def inv_dynamics(self, k, L, m, I, W0=None, W0_d=None, V0_d=None, to_upper=False, to_lower=False):
+    def inv_dynamics(self, T, L, m, I, W0=None, W0_d=None, V0_d=None, to_upper=False, to_lower=False):
 
-        if k == 2 or k == 5:
-            thet1, thet2, thet3, thet4 = self.arm_ang(k)
-        elif k == 8 or k == 11:
-            thet1, thet2, thet3, thet4 = self.leg_ang(k)
+        # if k == 2 or k == 5:
+        #     thet1, thet2, thet3, thet4 = self.arm_ang(k)
+        # elif k == 8 or k == 11:
+        #     thet1, thet2, thet3, thet4 = self.leg_ang(k)
 
         dt = 1 / 30
 
-        T = np.array([thet1, thet2, thet3, thet4])[:, 0, :]
-        TD = np.gradient(T, dt, axis=1)
-        TDD = np.gradient(TD, dt, axis=1)
+        # T = np.array([thet1, thet2, thet3, thet4])[:, 0, :]
+
+        # TD = np.gradient(T, dt, axis=1)
+        # TDD = np.gradient(TD, dt, axis=1)
+
+        win = 5
+        order = 1
+
+        T = scipy.signal.savgol_filter(T, win, order, axis=1)
+        TD = scipy.signal.savgol_filter(T, win, order, axis=1, deriv=1, delta=dt)
+        TDD = scipy.signal.savgol_filter(T, win, order, axis=1, deriv=2, delta=dt)
 
         n = self.frames + 1
 
@@ -1537,14 +1571,14 @@ class processpose:
             if to_upper:
                 T0s, T0h, Tf, Te = self.IK_trunk(i)
 
-                tq = T0s[0:3, 0:3] @ tq
-                fr = T0s[0:3, 0:3] @ fr
+                tq = T0s[0:3, 0:3].T @ tq
+                fr = T0s[0:3, 0:3].T @ fr
 
             if to_lower:
                 T0s, T0h, Tf, Te = self.IK_trunk(i)
 
-                tq = T0h[0:3, 0:3] @ tq
-                fr = T0h[0:3, 0:3] @ fr
+                tq = T0h[0:3, 0:3].T @ tq
+                fr = T0h[0:3, 0:3].T @ fr
 
             Tq[:, [i]] = tq
             Fr[:, [i]] = fr

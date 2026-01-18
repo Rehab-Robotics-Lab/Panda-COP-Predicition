@@ -547,25 +547,6 @@ class COP_Tag:
         # print(self.intrinsics)
 
     def adjust_Fn(self, M_low, M, Fn):
-        # calib_weight = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\2025-6-11_3_51_Calib_weight_2_3.csv"
-        # lower = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\2025-6-11_3_52_Lower_2_3.csv"
-
-        # calib = processCOP(calib_weight, 60)
-        # lower = processCOP(lower, 60)
-
-        # offset = np.mean(lower.Rfilt[0:100] - 0.138 - 1.325)
-        # print(offset)
-
-        # m_lower_dynamic = lower.Rfilt - 0.138 - 1.325
-
-        # plt.plot(lower.Xfilt / m_lower_dynamic)
-        # plt.plot(lower.Yfilt / m_lower_dynamic)
-        # # plt.plot(lower.Rfilt)
-        # # plt.plot(m_lower_dynamic)
-        # # print(np.mean(lower.Rfilt))
-        # plt.show()
-        # quit()
-
         m_head, m_up, m_low = M[0], M[1], M[2]
 
         Fn_mean = np.mean(Fn[0])
@@ -586,52 +567,48 @@ class COP_Tag:
         M_low_d = Fn - (m_head + m_up + m_mat)
         # print(np.mean(M_low_d))
         # print(Fn_mean, m_low)
-        # M_low_d = Fn - Fn_mean + m_low
-
+        # M_low_d = Fn - Fn_mean + m_low\
+        # print((np.shape(M_low)[0], np.shape(M_low_d)[0]))
         n = min(np.shape(M_low)[0], np.shape(M_low_d)[0])
 
         M_low_d = M_low_d[0:n]
 
-        # plt.plot(Fn)
-        # plt.plot(np.ones_like(Fn) * (m_head + m_up + m_low + m_mat))
-        # plt.plot(Fn - m_mat)
-        # plt.plot(M_low_d + m_up + m_head)
-        # plt.show()
-        # quit()
-
         return M_low_d
 
-    def tag_COP(self, cams, vidnum, folder, posefile=None, copfile=None):
+    def tag_COP(self, cams, vidnum, folder, posefile=None, copfile=None, addHead=True):
         R_up, T_up, R_low, T_low = self.combine_vecs(cams, vidnum, folder)
 
         rtrunk = 91.39
         g = 9.81
 
-        posefile = None
-        # copfile = None
+        # posefile = None
+        copfile = None
 
-        m_head = 1.031 * int(posefile != None)
+        m_head = 1.031
         m_up = 1.564
         m_low = 2.187
         # m_low = 1.175
 
+        # print(m_head)
+
         M = [m_head, m_up, m_low]
 
         n_tag = np.shape(T_low)[0]
+        # print(n_tag)
 
         M_head = np.ones((n_tag)) * m_head
         M_up = np.ones((n_tag)) * m_up
         M_low = np.ones((n_tag)) * m_low
 
         COM_up = T_up
-        COM_low = T_low + R_low.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
+        COM_low = T_low + R_low.apply(np.array([0, 7.7, (rtrunk - 80)]) / 1000)
 
         COP_up = COM_up[:, 0:2].T * M_up
         COP_low = COM_low[:, 0:2].T * M_low
 
-        # #Adjust Fn
-        # if copfile is not None:
-        #     ADJUST
+        COM_head_proj = T_up + R_up.apply(np.array([0, -130, 0]) / 1000)
+        # COM_head2 = scipy.ndimage.median_filter(COM_head2, size=[150, 1])
+        COM_head_proj = scipy.ndimage.median_filter(COM_head_proj, size=[60, 1])
 
         n = n_tag
 
@@ -639,7 +616,7 @@ class COP_Tag:
             COP_gc = processCOP(copfile, 60)
             Fn_tot = COP_gc.Rfilt[::2]
 
-            temp_COP = COM_low[:, 0:2].T * M_low
+            # temp_COP = COM_low[:, 0:2].T * M_low
 
             M_low_d = self.adjust_Fn(M_low, M, Fn_tot)
             n = np.shape(M_low_d)[0]
@@ -647,8 +624,11 @@ class COP_Tag:
             COP_low = COM_low[0:n, 0:2].T * M_low_d
             M_low = M_low_d
 
-        if posefile == None:
+        if posefile == None and addHead == False:
             COP_head = np.zeros_like(COP_up)
+            m_head = 0
+        elif posefile == None and addHead == True:
+            COP_head = COM_head_proj[:, 0:2].T * m_head
         else:
             # initilazlise pose file
             pose = processpose(posefile)
@@ -674,17 +654,35 @@ class COP_Tag:
             T_head_off = T_head[0:n, :] - T_diff
             # COM_head = np.ones_like(T_head_off) * np.mean(T_head_off, axis=0).T
             COM_head = scipy.ndimage.median_filter(T_head_off, size=[50, 1])
+            # COM_head = COM_head + (70 / 1000)
             COP_head = COM_head[:, 0:2].T * m_head
+
+            # plt.plot(COM_head[0:n, 0].T * 1000)
+            # plt.plot(COM_head2[0:n, 0].T * 1000)
+
+            # plt.legend(["pose", "proj"])
+            # plt.show()
+            # COP_head[0:n, 0] = COP_up[0:n, 0]
 
         COP = (COP_head[:, 0:n] * g + COP_up[:, 0:n] * g + COP_low[:, 0:n] * g) / (
             M_head[0:n] * g + M_up[0:n] * g + M_low[0:n] * g
         )
 
-        COP = COP.T
+        # COP2 = COP_head[:, 0:n] + COP_up[:, 0:n] + COP_low[:, 0:n]
+        # COP[0, :] = COP2[0, :]
 
-        return COP * 1000
+        # plt.plot(COP_head[0, 0:n] * 1000)
+        # plt.plot(COP_up[0, 0:n].T * 1000)
+        # plt.plot(COP_low[0, 0:n].T * 1000)
+        # plt.plot(COP[0, 0:n].T * 1000)
 
-    def pose_COP(self, posefile):
+        # plt.legend(["head", "up", "lower", "tot"])
+        # plt.show()
+        # quit()
+
+        return COP.T * 1000
+
+    def pose_COP(self, posefile, copfile=None):
 
         pose = processpose(posefile)
         pose.IK_init()
@@ -705,31 +703,50 @@ class COP_Tag:
         T_low = pose.mid_hip.T
 
         T_head = pose.mid_face.T
+        n_pose = np.shape(T_head)[0]
 
         rtrunk = 91.39
 
         COM_head = T_head
 
         # COM_up = T_up
-        COM_up = T_up + R_up.apply(np.array([0, -55, 0]) / 1000)
+        COM_up = T_up + R_up.apply(np.array([0, -75, 0]) / 1000)
 
         COM_low = T_low + R_low.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
 
-        M_head = 1.031
-        M_up = 1.564
-        M_low = 2.187
+        m_head = 1.031
+        m_up = 1.564
+        m_low = 2.187
 
-        COP_head = COM_head[:, 0:2] * M_head
-        COP_up = COM_up[:, 0:2] * M_up
-        COP_low = COM_low[:, 0:2] * M_low
+        M_head = np.ones((n_pose)) * m_head
+        M_up = np.ones((n_pose)) * m_up
+        M_low = np.ones((n_pose)) * m_low
 
-        COP = (COP_head + COP_up + COP_low) / (M_head + M_up + M_low)
+        # copfile = None
+
+        if copfile != None:
+            M = [m_head, m_up, m_low]
+
+            COP_gc = processCOP(copfile, 60)
+            Fn_tot = COP_gc.Rfilt[::2]
+
+            M_low = self.adjust_Fn(M_low, M, Fn_tot)
+
+            n = np.shape(M_low)[0]
+        else:
+            n = n_pose
+
+        COP_head = COM_head[0:n, 0:2].T * m_head
+        COP_up = COM_up[0:n, 0:2].T * m_up
+        COP_low = np.multiply(COM_low[0:n, 0:2].T, M_low)
+
+        COP = (COP_head + COP_up + COP_low) / (M_head[0:n] + M_up[0:n] + M_low[0:n])
 
         # Tsh = np.linalg.inv(T_ups) @ T_uph
         # Th = T_ups @ Tsh
-        return COP * 1000
+        return COP.T * 1000
 
-    def compare_angles(self, cams, folder, vidnum, posefile):
+    def compare_angles(self, cams, folder, vidnum, posefile, filter_window=10):
         Rup_tag, Tup_tag, Rlow_tag, Tlow_tag = self.combine_vecs(cams, vidnum, folder)
 
         tag_to_world = R.from_matrix(np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]]))
@@ -754,13 +771,16 @@ class COP_Tag:
 
         pose_ang_low = Rlow_pose.as_euler("xzy", degrees=True)
         tag_ang_low = Rlow_tag.as_euler("xzy", degrees=True)
-        tag_ang_low = self.interp_tagpose(tag_ang_low)
+        tag_ang_low = scipy.ndimage.median_filter(self.interp_tagpose(tag_ang_low), [filter_window, 1])
 
         # print(Rup_tag[0], Rup_pose[0])
 
         n = min(np.shape(pose_ang_low)[0], np.shape(tag_ang_low)[0])
 
         t = (np.linspace(0, n / 30, num=n)).reshape(n, 1)
+
+        print(np.mean(pose_ang_low, axis=0), np.nanmean(tag_ang_low, axis=0))
+        # plt.plot(t, tag_ang_low[0:n, 2])
 
         plt.subplot(3, 1, 1)
         plt.plot(t, pose_ang_low[0:n, 0])
@@ -830,18 +850,18 @@ class COP_Tag:
         return start, stop
 
     def comapre_COP(self, camnum, vidnum, file, folder, posefile):
-        # COP = self.tag_COP(camnum, vidnum, folder, posefile=posefile, copfile=file)
-        COP = self.pose_COP(posefile)
+        COP = self.tag_COP(camnum, vidnum, folder, posefile=posefile, copfile=file)
+        # COP = self.pose_COP(posefile, copfile=file)
 
         # start, stop = self.pull_synch_time(camnum, vidnum)
 
         Xcalc = COP[:, 0]
         Ycalc = COP[:, 1]
 
-        order = 3
-        fcut = 5
+        # order = 3
+        # fcut = 5
 
-        b, a = scipy.signal.butter(order, fcut, fs=60)
+        # b, a = scipy.signal.butter(order, fcut, fs=60)
 
         # Xcalc = signal.filtfilt(b, a, Xcalc)
         # Ycalc = signal.filtfilt(b, a, Ycalc)
@@ -853,13 +873,24 @@ class COP_Tag:
         Xreal = COP_gc.Xfilt[::2]
         Yreal = COP_gc.Yfilt[::2]
 
+        # plt.plot(Xreal)
+        # plt.show()
+        # quit()
+
         # cc = compareCOP(COP_X, COP_Y, X_gc, Y_gc)
 
-        # fig, ax = plt.subplots(2, 1)
-        Xreal, Yreal = Xreal[60:], Yreal[60:]
-        Xcalc, Ycalc = Xcalc[60:], Ycalc[60:]
+        start = 200
+        stop = -1
 
-        # print(np.mean(Xcalc) - np.mean(Xreal))
+        Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
+        Xcalc, Ycalc = Xcalc[start:stop], Ycalc[start:stop]
+
+        # win = 2
+
+        # Xcalc = scipy.ndimage.median_filter(Xcalc, win)
+        # Ycalc = scipy.ndimage.median_filter(Ycalc, win)
+
+        # print(np.mean(Xcalc), np.mean(Xreal))
         # print(np.mean(Ycalc) - np.mean(Yreal))
 
         cc = compareCOP(Xcalc, Ycalc, Xreal, Yreal, cam=1)
@@ -872,10 +903,9 @@ class COP_Tag:
         # print(4)
 
 
-vnum = 6
 tt = COP_Tag(
     cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
-    name="sim_trunk_clothed",
+    name="sim_trunk_limbs2",
     load=1,
     ID_up=0,
     ID_low=50,
@@ -884,40 +914,36 @@ tt = COP_Tag(
 
 folder = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose"
 
-cams = [1, 2, 3, 4, 5]
-cams = [2]
+# cams = [1, 2, 3, 4, 5]
+cams = [4]
 
-# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid3_side.csv"
-# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid4_flex.csv"
-# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid5_rot.csv"
-copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid6_all.csv"
+
+copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid12_flex_nolimb.csv"
+posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs2_vid12_cams_2_6_both.csv"
+vnum = 12
+
+
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid4_side.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid5_rot.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid6_flex.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid6_all.csv"
+
 # copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid7_side_limbs.csv"
+# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid7_cams_5_6_both.csv"
 
-posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid6_cams_2_4_none.csv"
+# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs_vid4_cams_2_6_both.csv"
 
+# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs_vid4_cams_2_6_both.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid4_side.csv"
 
-# tt = COP_Tag(
-#     cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
-#     name="sim_trunk",
-#     load=1,
-#     ID_up=0,
-#     ID_low=25,
-#     ID_len=40 / 1000,
-# )
-
-# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_cop_vid3_flex.csv"
-# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_cop_vid4_rot.csv"
-# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_cop_vid5_side.csv"
 
 # posefile = None
-
-
 tt.comapre_COP(cams, vnum, file=copfile, folder=folder, posefile=posefile)
-# tt.compare_angles(cams, vidnum=vnum, folder=folder, posefile=posefile)
+tt.compare_angles(cams, vidnum=vnum, folder=folder, posefile=posefile)
 
-# tt.save_tagpose(4, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")
+# tt.save_tagpose(2, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")
 
 
-# for vnum in [3, 4, 5, 6]:
-#     for cnum in [1, 2, 3, 4, 5]:
+# for vnum in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]:
+#     for cnum in [1, 2, 3, 4, 5, 7]:
 #         tt.save_tagpose(cnum, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")

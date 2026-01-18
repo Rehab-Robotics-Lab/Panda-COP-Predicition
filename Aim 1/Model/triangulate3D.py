@@ -1383,11 +1383,9 @@ class tringulatepose:
         self.trinagulate_all(num1, num2)
         return sorted
 
-    def save_3D(self, folder, name=None):
+    def save_3D(self, folder, name=None, suffix=None):
         num1 = self.num1
         num2 = self.num2
-
-        print("Saving As:" + folder + "\\3D_vid_" + str(num1) + "_" + str(num2) + ".csv")
 
         # initialize data of lists.
         part_idx = np.ones((self.n, 18))
@@ -1410,11 +1408,13 @@ class tringulatepose:
 
         # Create DataFrame
         if name == None:
-            full_name = folder + "\\3D_vid_" + str(num1) + "_" + str(num2) + ".csv"
+            full_name = folder + "\\3D_vid_" + str(num1) + "_" + str(num2) + suffix + ".csv"
         else:
-            full_name = folder + "\\" + name + "_cams_" + str(num1) + "_" + str(num2) + ".csv"
+            full_name = folder + "\\" + name + "_cams_" + str(num1) + "_" + str(num2) + suffix + ".csv"
         df = pd.DataFrame(data)
         df.to_csv(full_name, index=False)
+
+        print("Saved As:" + full_name)
 
 
 # tt = tringulatepose()

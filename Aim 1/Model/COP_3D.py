@@ -10,31 +10,42 @@ from scipy.spatial.transform import Rotation as R
 
 from ProcessPose_3D import processpose
 
-# from ProcessPose_3D_sim import processpose
-
 
 class sim_COP:
-    # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
     def __init__(self):
 
-        posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid3_cams_2_4_both.csv"
+        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid3_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid4_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid3_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid4_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid5_cams_1_4_both.csv"
-        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid7_cams_2_4.csv"
+        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid7_cams_2_4_both.csv"
+
+        # posefile = (
+        #     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs_vid7_cams_2_4_both.csv"
+        # )
 
         # LOADING FILE WITH COP VALUES
-        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_cop_vid3_each.csv"
+        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_cop_vid3_each.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_cop_vid4_double.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid3_side.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid4_flex.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid5_rot.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid7_side_limbs.csv"
 
+        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid7_side_static.csv"
+        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid10_all_dynamic.csv"
+
+        posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs2_vid12_cams_2_4_both.csv"
+
+        cop_file = (
+            r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid12_flex_nolimb.csv"
+        )
+
         # self.rate = 60
         # # cop object
         self.COP = processCOP(cop_file, 60)
+        self.Fn_tot = self.COP.Rfilt[::2]
 
         pose = processpose(posefile)
 
@@ -45,7 +56,14 @@ class sim_COP:
         self.R0h = R.from_euler("xzy", np.stack((pose.thet1h[0, :], pose.thet2h[0, :], pose.thet3h[0, :])).T)
         self.R0s = R.from_euler("zy", np.stack((pose.thet1s[0, :], pose.thet2s[0, :])).T)
 
-        self.frames = pose.frames
+        self.frames = pose.frames + 1
+
+        self.filter_win = [30, 30, 30, 30]
+
+        self.to_trunk = True
+        self.include_limbs = True
+        self.fix_Fn = True
+        self.plot_dynamics = True
 
         # self.pose.ID_init()
 
@@ -146,6 +164,8 @@ class sim_COP:
         h2 = np.matrix([pose.X[:, 11], pose.Y[:, 11], pose.Z[:, 11]])
         H = (h1 + h2) / 2
 
+        self.m_head = 1.033
+
         self.L_full = np.linalg.norm(S - H, axis=0)
         self.zerodegm = np.array([0.253, 0.273, 0.150, 0.155])
 
@@ -155,6 +175,8 @@ class sim_COP:
         # print("Rleg Ground", np.min(pose.Z[:, 10]) * 1000)
 
         self.pose = pose
+        # self.plot_limbs()
+        # quit()
         # self.view_limb_len()
 
     def view_limb_len(self):
@@ -355,7 +377,9 @@ class sim_COP:
 
         return np.array([I2, I1, I2])
 
-    def plot_ID(self, T, F):
+    def plot_ID(self, T, F, title=None):
+        fig = plt.figure()
+
         plt.subplot(2, 1, 1)
         plt.plot(T.T)
         plt.title("Torque")
@@ -366,9 +390,40 @@ class sim_COP:
         plt.title("Force")
         plt.legend(["Fx", "Fy", "Fz"])
 
+        if title != None:
+            fig.suptitle(title)
+
         plt.show()
 
-    def adjust_IK(self, T, F, check):
+    def plot_ID_LR(self, TL, FL, TR, FR, title=None):
+        fig = plt.figure(figsize=(15, 5))
+
+        plt.subplot(2, 2, 1)
+        plt.plot(TL.T)
+        plt.title("Left Torque")
+        plt.legend(["Tx", "Ty", "Tz"])
+
+        plt.subplot(2, 2, 3)
+        plt.plot(FL.T)
+        plt.title("Left Force")
+        plt.legend(["Fx", "Fy", "Fz"])
+
+        plt.subplot(2, 2, 2)
+        plt.plot(TR.T)
+        plt.title("Right Torque")
+        plt.legend(["Tx", "Ty", "Tz"])
+
+        plt.subplot(2, 2, 4)
+        plt.plot(FR.T)
+        plt.title("Right Force")
+        plt.legend(["Fx", "Fy", "Fz"])
+
+        if title != None:
+            fig.suptitle(title)
+
+        plt.show()
+
+    def adjust_ID(self, T, F, check):
         T[0, check] = np.ones_like(T[0, check]) * np.mean(T[0, check])
         T[1, check] = np.ones_like(T[1, check]) * np.mean(T[1, check])
         T[2, check] = np.ones_like(T[2, check]) * np.mean(T[2, check])
@@ -389,22 +444,115 @@ class sim_COP:
 
         return T, F
 
-    def plot_alpha(self, T):
-        dt = 1 / 30
-        TD = np.gradient(T, dt, axis=1)
-        TDD = np.gradient(TD, dt, axis=1)
+    def plot_limbs(self):
+        pose = self.pose
 
-        plt.plot(TDD[0, :])
-        plt.plot(TDD[1, :])
-        plt.plot(TDD[2, :])
-        plt.plot(TDD[3, :])
+        plt.figure(figsize=(10, 9))
 
-        plt.legend(["t1", "t2", "t3", "t4"])
+        plt.subplot(2, 2, 2)
+        plt.plot(np.rad2deg(pose.thet1_ra.T))
+        plt.plot(np.rad2deg(pose.thet2_ra.T))
+        plt.plot(np.rad2deg(pose.thet3_ra.T))
+        plt.plot(np.rad2deg(pose.thet4_ra.T))
+        plt.legend(["thet1", "thet2", "thet3", "thet4"])
+        plt.title("Right Arm")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Degrees")
+
+        plt.subplot(2, 2, 1)
+        plt.plot(np.rad2deg(pose.thet1_la.T))
+        plt.plot(np.rad2deg(pose.thet2_la.T))
+        plt.plot(np.rad2deg(pose.thet3_la.T))
+        plt.plot(np.rad2deg(pose.thet4_la.T))
+        plt.legend(["thet1", "thet2", "thet3", "thet4"])
+        plt.title("Left Arm")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Degrees")
+
+        plt.subplot(2, 2, 4)
+        plt.plot(np.rad2deg(pose.thet1_rl.T))
+        plt.plot(np.rad2deg(pose.thet2_rl.T))
+        plt.plot(np.rad2deg(pose.thet3_rl.T))
+        plt.plot(np.rad2deg(pose.thet4_rl.T))
+        plt.legend(["thet1", "thet2", "thet3", "thet4"])
+        plt.title("Right Leg")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Degrees")
+
+        plt.subplot(2, 2, 3)
+        plt.plot(np.rad2deg(pose.thet1_ll.T))
+        plt.plot(np.rad2deg(pose.thet2_ll.T))
+        plt.plot(np.rad2deg(pose.thet3_ll.T))
+        plt.plot(np.rad2deg(pose.thet4_ll.T))
+        plt.legend(["thet1", "thet2", "thet3", "thet4"])
+        plt.title("Left Leg")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Degrees")
+
         plt.show()
+
+    def step_Theta(self, T, F, Theta, t1, t2, filt_window=1, left=False):
+        thet3 = scipy.ndimage.median_filter(np.rad2deg(Theta[2, :]), [filt_window])
+
+        if left:
+            thet3 = -thet3
+
+        for i in range(3):
+            # Theta[i, thet3 < t1] = np.mean(Theta[i, thet3 < t1]) * np.ones_like(Theta[i, thet3 < t1])
+            # check = np.logical_and(thet3 > t1, thet3 < t2)
+            # Theta[i, check] = np.mean(Theta[i, check])
+            # Theta[i, thet3 > t2] = np.mean(Theta[i, thet3 > t2]) * np.ones_like(Theta[i, thet3 > t2])
+
+            check1 = thet3 < t1
+            check2 = np.logical_and(thet3 > t1, thet3 < t2)
+            check3 = thet3 > t2
+
+            T[i, check1] = np.ones_like(T[i, check1]) * np.mean(T[i, check1])
+            F[i, check1] = np.ones_like(F[i, check1]) * np.mean(F[i, check1])
+
+            T[i, check2] = np.ones_like(T[i, check2]) * np.mean(T[i, check2])
+            F[i, check2] = np.ones_like(F[i, check2]) * np.mean(F[i, check2])
+
+            T[i, check3] = np.ones_like(T[i, check3]) * np.mean(T[i, check3])
+            F[i, check3] = np.ones_like(F[i, check3]) * np.mean(F[i, check3])
+
+        # plt.plot(np.rad2deg(Theta[0, :]))
+        # plt.plot(np.rad2deg(Theta[1, :]))
+        # plt.plot(np.rad2deg(Theta[2, :]))
+        # plt.plot(np.rad2deg(Theta[3, :]))
+        # plt.legend(["thet1", "thet2", "thet3", "thet4"])
+        # plt.xlabel("Time (s)")
+        # plt.ylabel("Degrees")
+
+        # plt.show()
+        # quit()
+
+        return T, F
+
+    def filter_dynamics(self, T, F, win):
+        T, F = scipy.ndimage.median_filter(T, [1, win]), scipy.ndimage.median_filter(F, [1, win])
+
+        return T, F
+
+    def get_theta(self, k):
+        pose = self.pose
+
+        if k == 2 or k == 5:
+            thet1, thet2, thet3, thet4 = pose.arm_ang(k)
+        elif k == 8 or k == 11:
+            thet1, thet2, thet3, thet4 = pose.leg_ang(k)
+
+        Theta = np.array([thet1, thet2, thet3, thet4])[:, 0, :]
+
+        return Theta
 
     def COP_upper(self):
         g = 9.81
         pose = self.pose
+
+        # quit()
+
+        Xlow, Ylow, FnLow, Tx, Ty = self.COP_lower()
 
         # Upper trunk parameters
         l = self.utrunk_l
@@ -417,59 +565,85 @@ class sim_COP:
 
         Tqup, w_up, w_d_up, Vls_d, Vrs_d = pose.inv_dynamics_upper(Lup, Iup)
 
+        # self.plot_ID(Tqup, Tqup)
+        # quit()
+
         # right arm dynamics
+        Theta_rarm = self.get_theta(2)
         Trarm, Frarm, e1r, e2r = pose.inv_dynamics(
-            2, self.rarm_len, self.rarm_m, self.rarm_I, W0=w_up, W0_d=w_d_up, V0_d=Vrs_d, to_upper=True
+            Theta_rarm,
+            self.rarm_len,
+            self.rarm_m,
+            self.rarm_I,
+            W0=w_up,
+            W0_d=w_d_up,
+            V0_d=Vrs_d,
+            to_upper=self.to_trunk,
         )
-        rarm_check = np.ravel((np.rad2deg(pose.thet3_ra) < -45))
+        # Trarm, Frarm = self.step_Theta(Trarm, Frarm, Theta_rarm, t1=-37.5, t2=0, filt_window=1, left=False)
+        Trarm, Frarm = self.filter_dynamics(Trarm, Frarm, self.filter_win[0])
+
+        # rarm_check = np.ravel((np.rad2deg(pose.thet3_ra) < -45))
+        # Trarm, Frarm = self.adjust_ID(Trarm, Frarm, rarm_check)
+
+        # rarm_check = np.ravel((np.rad2deg(pose.thet3_ra) < -45))
+        # rarm_check = np.ravel(scipy.ndimage.median_filter(np.rad2deg(pose.thet3_ra), [1, 100]) < -20)
+        # vid 7
+        # rarm_check = np.ravel((np.rad2deg(pose.thet3_ra) < -35))
+        # vid 8
+        # rarm_check = np.ravel((np.rad2deg(pose.thet3_ra) < -15))
 
         # print(np.mean(Trarm[:, rarm_check], axis=1
-        Trarm, Frarm = self.adjust_IK(Trarm, Frarm, rarm_check)
-
-        # Frarm[2, rarm_check] = -(np.sum(self.rarm_m) - self.zerodegm[0]) * g
-        # self.plot_ID(Trarm, Frarm)
+        # Trarm, Frarm = self.adjust_ID(Trarm, Frarm, rarm_check)
+        # self.plot_ID(Trarm, Frarm, title="Rarm Dynamics")
+        # quit()
 
         # Wrinting dynamic terms for right arm
-        T1x = Trarm[0, :]
-        T1y = Trarm[1, :]
+        T1x = Trarm[0, 0 : self.frames]
+        T1y = Trarm[1, 0 : self.frames]
 
-        F1x = Frarm[0, :]
-        F1y = Frarm[1, :]
-        F1z = Frarm[2, :]
+        F1x = Frarm[0, 0 : self.frames]
+        F1y = Frarm[1, 0 : self.frames]
+        F1z = Frarm[2, 0 : self.frames]
 
         # left arm dynamics
+        # Theta_larm = self.get_theta(5)
+        Theta_larm = self.get_theta(5)
         Tlarm, Flarm, e1l, e2l = pose.inv_dynamics(
-            5, self.larm_len, self.larm_m, self.larm_I, W0=w_up, W0_d=w_d_up, V0_d=Vls_d, to_upper=True
+            Theta_larm,
+            self.larm_len,
+            self.larm_m,
+            self.larm_I,
+            W0=w_up,
+            W0_d=w_d_up,
+            V0_d=Vls_d,
+            to_upper=self.to_trunk,
         )
-        larm_check = np.ravel(np.rad2deg(pose.thet3_la) > 50)
+        # Tlarm, Flarm = self.step_Theta(Tlarm, Flarm, Theta_larm, t1=-50, t2=0, filt_window=1, left=True)
+        Tlarm, Flarm = self.filter_dynamics(Tlarm, Flarm, self.filter_win[1])
 
-        Tlarm, Flarm = self.adjust_IK(Tlarm, Flarm, larm_check)
+        # larm_check = np.ravel(np.rad2deg(pose.thet3_la) > 50)
+        # Tlarm, Flarm = self.adjust_ID(Tlarm, Flarm, larm_check)
+
+        # larm_check = np.ravel(np.rad2deg(pose.thet3_la) > 50)
+        # larm_check = np.ravel(np.rad2deg(pose.thet3_la) > 40)
+
+        # Tlarm, Flarm = self.adjust_ID(Tlarm, Flarm, larm_check)
         self.Tlarm, self.Flarm = Tlarm, Flarm
-        self.plot_ID(Tlarm, Flarm)
+        # self.plot_ID(Tlarm, Flarm, title="Larm Dynamics")
 
         # Wrinting dynamic terms for left arm
-        T2x = Tlarm[0, :]
-        T2y = Tlarm[1, :]
+        T2x = Tlarm[0, 0 : self.frames]
+        T2y = Tlarm[1, 0 : self.frames]
 
-        F2x = Flarm[0, :]
-        F2y = Flarm[1, :]
-        F2z = Flarm[2, :]
+        F2x = Flarm[0, 0 : self.frames]
+        F2y = Flarm[1, 0 : self.frames]
+        F2z = Flarm[2, 0 : self.frames]
 
-        # X_calc = (F2 * 0.5 * w) / (F2 + g * M)
-        # Y_calc = ((F2 * l / 2) - T2) / (F2 + g * M)
-        Xlow, Ylow, FnLow, Tx, Ty = self.COP_lower()
+        self.plot_ID_LR(Tlarm, Flarm, Trarm, Frarm, title="Arm Dynamics")
 
-        # X_calc = ((T1y - T2y - Tt) + ((F1x - F2x) * h * 0.5) + ((F2z - F1z) * w * 0.5)) / (F1z + F2z + (g * M))
-        # Y_calc = (((F1z + F2z) * l * 0.5) - ((F1y + F2y) * h * 0.5) - (T1x + T2x)) / (F1z + F2z + (g * M))
-
-        # print("T1x", np.max(T1x) - np.min(T1x))
-        # print("T1y", np.max(T1y) - np.min(T1y))
-
-        # print("T2x", np.max(T2x) - np.min(T2x))
-        # print("T2y", np.max(T2y) - np.min(T2y))
-
-        Txx = T1x + T2x + Tx
-        Tyy = T1y + T2y + Ty
+        Txx = (T1x + T2x) + Tx - Tqup[0, 0 : self.frames]
+        Tyy = (T1y + T2y) + Ty - Tqup[1, 0 : self.frames]
 
         # plt.plot(Txx)
         # plt.plot(Tyy)
@@ -481,6 +655,8 @@ class sim_COP:
         F12_y = F1y + F2y
         F12_z = F1z + F2z
 
+        # print(np.shape(Tyy),np.shape(F1z))
+
         dx = w / 2
         dy = l / 2
         dz = h / 2
@@ -491,8 +667,12 @@ class sim_COP:
         # X_calc = ((T1y + T2y + Ty) - ((F1x + F2x) * h * 0.5) + ((F1z - F2z) * w * 0.5)) / ((g * M) - (F1z + F2z))
         # Y_calc = ((T1x + T2x + Tx) + ((F1z + F2z) * l * 0.5) - ((F1y + F2y) * h * 0.5)) / ((F1z + F2z) - (g * M))
 
+        # print(np.shape(Txx), np.shape(F1z), self.frames)
+
         X_calc = np.divide((Tyy + ((F1z - F2z) * dx) + (F12_x * dz)), (mg - F12_z))
         Y_calc = np.divide((Txx - (F12_y * dz) + (F12_z * dy)), (F12_z - mg))
+
+        # quit()
 
         # plt.plot((T1y + T2y + Ty))
         # plt.plot(((F1z - F2z) * w * 0.5))
@@ -502,20 +682,24 @@ class sim_COP:
         # X_calc = ((T1y + T2y + Tt) + ((F1z - F2z) * w * 0.5)) / (-F1z - F2z + (g * M))
         # Y_calc = ((T1x - T2x) + ((F1z + F2z) * l * 0.5)) / (F1z + F2z - (g * M))
 
-        mid_proj = self.R0s.apply(np.array([0, -55, 0]) / 1000)
+        mid_proj = self.R0s.apply(np.array([0, -75, 0]) / 1000)
 
-        COM_X = ((pose.X[:, 2] + pose.X[:, 5]) * 0.5) + mid_proj[:, 0]
-        COM_Y = ((pose.Y[:, 2] + pose.Y[:, 5]) * 0.5) + mid_proj[:, 1]
+        COM = (pose.mid_shoulder.T + mid_proj).T
 
-        X_calc = COM_X + X_calc
-        Y_calc = COM_Y - dy + Y_calc
+        # X_calc = COM[0, 0 : self.frames]
+        # Y_calc = COM[1, 0 : self.frames]
+
+        # COM_X = (pose.mid_shoulder.T[:, 0] + mid_proj)[0 : self.frames, 0]
+        # COM_Y = (pose.mid_shoulder.T[:, 1] + mid_proj)[0 : self.frames, 1]
+
+        X_calc = COM[0, 0 : self.frames] + (X_calc * int(self.include_limbs))
+        # Y_calc = COM_Y - dy + Y_calc
+        Y_calc = COM[1, 0 : self.frames] + (Y_calc * int(self.include_limbs))
 
         Fn_up = (g * M * np.ones_like(X_calc)) - F1z - F2z
 
         Xup = np.multiply(X_calc, Fn_up)
         Yup = np.multiply(Y_calc, Fn_up)
-
-        self.rarm_check, self.larm_check = rarm_check, larm_check
 
         return Xup, Yup, Fn_up, Xlow, Ylow, FnLow
 
@@ -529,57 +713,88 @@ class sim_COP:
         M = self.ltrunk_m
         h = self.ltrunk_h
 
-        Ilow = self.I_trunk(L=np.array([0.180, 0.110, 0.080]), m=M)
+        # Ilow = self.I_trunk(L=np.array([0.180, 0.110, 0.080]), m=M)
+        Ilow = self.I_trunk(L=np.array([w, l, h]), m=M)
         Llow = np.mean(pose.get_len(8, 11)) / 2
 
         Tqlow, w_low, w_d_low, Vlh_d, Vrh_d = pose.inv_dynamics_lower(Llow, Ilow, to_upper=True)
-        # self.plot_ID(Tqlow, Tqlow)
+
+        # self.plot_ID(w_low, w_d_low)
+        # self.plot_ID(Vlh_d, Vrh_d)
+        # self.plot_ID(Tqlow, Vrh_d)
 
         # right leg dynamics
+        Theta_rleg = self.get_theta(8)
+
         Trleg, Frleg, e1r, e2r = pose.inv_dynamics(
-            8, self.rleg_len, self.rleg_m, self.rleg_I, W0=w_low, W0_d=w_d_low, V0_d=Vrh_d, to_lower=True
+            Theta_rleg,
+            self.rleg_len,
+            self.rleg_m,
+            self.rleg_I,
+            W0=w_low,
+            W0_d=w_d_low,
+            V0_d=Vrh_d,
+            to_lower=self.to_trunk,
         )
 
-        # zeroing force and torque when leg is at rest
-        rleg_check = np.ravel(np.rad2deg(pose.thet3_rl) < 50)
-        Trleg, Frleg = self.adjust_IK(Trleg, Frleg, rleg_check)
-        # self.plot_ID(e1r, e2r)
+        # Trleg, Frleg = self.step_Theta(Trleg, Frleg, Theta_rleg, t1=25, t2=100, filt_window=45, left=False)
+        Trleg, Frleg = self.filter_dynamics(Trleg, Frleg, self.filter_win[2])
 
-        # print("E1_r", np.max(e1r, axis=1) - np.min(e1r, axis=1))
-        # print("E2_r", np.max(e2r, axis=1) - np.min(e2r, axis=1))
+        # rleg_check = np.ravel(np.rad2deg(pose.thet3_rl) < 50)
+        # Trleg, Frleg = self.adjust_ID(Trleg, Frleg, rleg_check)
+
+        # zeroing force and torque when leg is at rest
+        # rleg_check = np.ravel(np.rad2deg(pose.thet3_rl) < 50)
+
+        # vid 7
+        # rleg_check = np.ravel(scipy.ndimage.median_filter(np.rad2deg(pose.thet3_rl), [1, 100]) < 110)
+        # vid 8
+        # rleg_check = np.ravel(scipy.ndimage.median_filter(np.rad2deg(pose.thet3_rl), [1, 140]) < 125)
+
+        # Trleg, Frleg = self.adjust_ID(Trleg, Frleg, rleg_check)
+        # self.plot_ID(Trleg, Frleg, title="Rleg Dynamics")
 
         # right leg dynamic terms
         T3x, T3y = Trleg[0, :], Trleg[1, :]
         F3x, F3y, F3z = Frleg[0, :], Frleg[1, :], Frleg[2, :]
 
+        Theta_lleg = self.get_theta(11)
+        # Theta_lleg = self.step_Theta(self.get_theta(11), t1=75, t2=125, filt_window=1, left=True)
         Tlleg, Flleg, e1l, e2l = pose.inv_dynamics(
-            11, self.lleg_len, self.lleg_m, self.lleg_I, W0=w_low, W0_d=w_d_low, V0_d=Vlh_d, to_lower=True
+            Theta_lleg,
+            self.lleg_len,
+            self.lleg_m,
+            self.lleg_I,
+            W0=w_low,
+            W0_d=w_d_low,
+            V0_d=Vlh_d,
+            to_lower=self.to_trunk,
         )
 
-        # Adjsuting/smoothing dy
-        lleg_check = np.ravel(np.rad2deg(pose.thet3_ll) > -50)
-        Tlleg, Flleg = self.adjust_IK(Tlleg, Flleg, lleg_check)
-        # self.plot_ID(e1l, e2l)
+        # Tlleg, Flleg = self.step_Theta(Tlleg, Flleg, Theta_lleg, t1=75, t2=125, filt_window=1, left=True)
+        Tlleg, Flleg = self.filter_dynamics(Tlleg, Flleg, self.filter_win[3])
 
-        # print("E1_l", np.max(e1l, axis=1) - np.min(e1l, axis=1))
-        # print("E2_l", np.max(e2l, axis=1) - np.min(e2l, axis=1))
+        # lleg_check = np.ravel(np.rad2deg(pose.thet3_ll) > -50)
+        # Tlleg, Flleg = self.adjust_ID(Tlleg, Flleg, lleg_check)
+
+        # Adjsuting/smoothing dy
+        # lleg_check = np.ravel(np.rad2deg(pose.thet3_ll) > -50)
+        # lleg_check = np.ravel(scipy.ndimage.median_filter(np.rad2deg(pose.thet3_ll), [1, 55]) > -100)
+        # Tlleg, Flleg = self.adjust_ID(Tlleg, Flleg, lleg_check)
+        # self.plot_ID(Tlleg, Flleg, title="Lleg Dynamics")
 
         # left leg dynamic terms
         T4x, T4y = Tlleg[0, :], Tlleg[1, :]
         F4x, F4y, F4z = Flleg[0, :], Flleg[1, :], Flleg[2, :]
 
-        # plt.plot(rleg_check.T)
-        # plt.plot(lleg_check.T)
-        # plt.show()
-        # exit()
+        # win = 15
+        # Tlleg = scipy.ndimage.median_filter(Tlleg, win)
+        # Flleg = scipy.ndimage.median_filter(Flleg, win)
+        # Trleg = scipy.ndimage.median_filter(Trleg, win)
+        # Frleg = scipy.ndimage.median_filter(Frleg, win)
 
-        # print("T3x", np.max(T3x) - np.min(T3x))
-        # print("T3y", np.max(T3y) - np.min(T3y))
-
-        # print("T4x", np.max(T4x) - np.min(T4x))
-        # print("T4y", np.max(T4y) - np.min(T4y))
-
-        # Y_calc = ((T3x - T4x)) / (F3z + F4z - (g * M))
+        self.plot_ID_LR(Tlleg, Flleg, Trleg, Frleg, title="Leg Dynamics")
+        # quit()
 
         F34_x = F3x + F4x
         F34_y = F3y + F4y
@@ -604,45 +819,289 @@ class sim_COP:
         Tx = Tlow_cor[0, :]
         Ty = Tlow_cor[1, :]
 
-        # plt.plot(T3x)
-        # plt.plot(T3y)
+        # plt.plot(np.diff(np.rad2deg(pose.thet3_rl)).T)
+        # # plt.plot(Ty)
         # plt.show()
+        # quit()
 
-        Fn = (g * M * np.ones_like(F3z)) - F3z - F4z
+        # Fn = (g * M * np.ones_like(F3z)) - F3z - F4z
+
+        M_low = M * np.ones_like(F3z)
+
+        M_low_d = self.adjust_Fn(M_low)
+
+        Fn = (M_low_d[0 : self.frames] * g) - F3z[0 : self.frames] - F4z[0 : self.frames]
+
+        # plt.plot((M * np.ones_like(F3z)))
+        # plt.plot(M_low_d)
+        # plt.legend(["b4", "after"])
+        # plt.show()
+        # quit()
 
         rtrunk = 91.39
 
         mid_proj = self.R0h.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
 
-        COM_X = ((pose.X[:, 8] + pose.X[:, 11]) * 0.5) + mid_proj[:, 0]
-        COM_Y = ((pose.Y[:, 8] + pose.Y[:, 11]) * 0.5) + mid_proj[:, 1]
+        COM = (pose.mid_hip.T + mid_proj).T
 
-        X_calc = COM_X
-        Y_calc = COM_Y
+        X_calc = COM[0, 0 : self.frames]
+        Y_calc = COM[1, 0 : self.frames]
 
-        X_calc = np.ones_like(COM_X) * np.mean((pose.X[:, 8] + pose.X[:, 11]) * 0.5)
-        Y_calc = np.ones_like(COM_Y) * np.mean((pose.Y[:, 8] + pose.Y[:, 11]) * 0.5)
+        # X_calc = np.ones_like(COM_X) * np.mean((pose.X[:, 8] + pose.X[:, 11]) * 0.5)
+        # Y_calc = np.ones_like(COM_Y) * np.mean((pose.Y[:, 8] + pose.Y[:, 11]) * 0.5)
 
         # plt.plot(COM_X)
         # plt.plot(COM_Y)
         # plt.show()
 
-        self.rleg_check, self.lleg_check = rleg_check, lleg_check
+        # self.rleg_check, self.lleg_check = rleg_check, lleg_check
 
-        return np.multiply(X_calc, Fn), np.multiply(Y_calc, Fn), Fn, Tx, Ty
+        return (
+            np.multiply(X_calc, Fn),
+            np.multiply(Y_calc, Fn),
+            np.reshape(Fn, [1, self.frames]),
+            Tx[0 : self.frames],
+            Ty[0 : self.frames],
+        )
+
+    def COP_trunk(self):
+        pose = self.pose
+        g = 9.81
+
+        rtrunk = 91.39
+
+        # lower trunk parameters
+        w1, w2 = self.utrunk_w, self.ltrunk_w
+        l1, l2 = self.utrunk_l, self.ltrunk_l
+        h1, h2 = self.utrunk_h, self.ltrunk_h
+        M1, M2 = self.utrunk_m, self.ltrunk_m
+
+        dx_up, dy_up, dz_up = w1 / 2, l1 / 2, h1 / 2
+        dx_low, dy_low, dz_low = w2 / 2, l2 / 4, h2 / 2
+
+        Iup = self.I_trunk(L=np.array([w1, l1, h1]), m=M1)
+        Ilow = self.I_trunk(L=np.array([w2, l2, h2]), m=M2)
+        Lup = np.mean(pose.get_len(2, 5)) / 2
+        Llow = np.mean(pose.get_len(8, 11)) / 2
+
+        mg_up = g * M1
+        mg_low = g * M2
+
+        Tqlow, w_low, w_d_low, Vlh_d, Vrh_d = pose.inv_dynamics_lower(Llow, Ilow, to_upper=True)
+        Tqup, w_up, w_d_up, Vls_d, Vrs_d = pose.inv_dynamics_upper(Lup, Iup)
+
+        # Right Arm dynamics
+        Theta_rarm = self.get_theta(2)
+        Trarm, Frarm, e1r, e2r = pose.inv_dynamics(
+            Theta_rarm,
+            self.rarm_len,
+            self.rarm_m,
+            self.rarm_I,
+            W0=w_up,
+            W0_d=w_d_up,
+            V0_d=Vrs_d,
+            to_upper=self.to_trunk,
+        )
+
+        # Left Arm dynamics
+        Theta_larm = self.get_theta(5)
+        Tlarm, Flarm, e1l, e2l = pose.inv_dynamics(
+            Theta_larm,
+            self.larm_len,
+            self.larm_m,
+            self.larm_I,
+            W0=w_up,
+            W0_d=w_d_up,
+            V0_d=Vls_d,
+            to_upper=self.to_trunk,
+        )
+
+        # Right Leg Dynamics
+        Theta_rleg = self.get_theta(8)
+        Trleg, Frleg, e1r, e2r = pose.inv_dynamics(
+            Theta_rleg,
+            self.rleg_len,
+            self.rleg_m,
+            self.rleg_I,
+            W0=w_low,
+            W0_d=w_d_low,
+            V0_d=Vrh_d,
+            to_lower=self.to_trunk,
+        )
+
+        # Left Leg Dynamics
+        Theta_lleg = self.get_theta(11)
+        Tlleg, Flleg, e1l, e2l = pose.inv_dynamics(
+            Theta_lleg,
+            self.lleg_len,
+            self.lleg_m,
+            self.lleg_I,
+            W0=w_low,
+            W0_d=w_d_low,
+            V0_d=Vlh_d,
+            to_lower=self.to_trunk,
+        )
+
+        # Filtering Dynamics
+        Trarm, Frarm = self.filter_dynamics(Trarm, Frarm, self.filter_win[0])
+        Tlarm, Flarm = self.filter_dynamics(Tlarm, Flarm, self.filter_win[1])
+        Trleg, Frleg = self.filter_dynamics(Trleg, Frleg, self.filter_win[2])
+        Tlleg, Flleg = self.filter_dynamics(Tlleg, Flleg, self.filter_win[3])
+
+        # Wrinting dynamic terms for right arm
+        T1x, T1y = Trarm[0, :], Trarm[1, :]
+        F1x, F1y, F1z = Frarm[0, :], Frarm[1, :], Frarm[2, :]
+
+        # Wrinting dynamic terms for left arm
+        T2x, T2y = Tlarm[0, :], Tlarm[1, :]
+        F2x, F2y, F2z = Flarm[0, :], Flarm[1, :], Flarm[2, :]
+
+        # Wrinting dynamic terms for right leg
+        T3x, T3y = Trleg[0, :], Trleg[1, :]
+        F3x, F3y, F3z = Frleg[0, :], Frleg[1, :], Frleg[2, :]
+
+        # Wrinting dynamic terms for left leg
+        T4x, T4y = Tlleg[0, :], Tlleg[1, :]
+        F4x, F4y, F4z = Flleg[0, :], Flleg[1, :], Flleg[2, :]
+
+        # plt.plot(F1z)
+        # plt.plot(F2z)
+        # plt.plot(F3z)
+        # plt.plot(F4z)
+        # plt.legend(["rarm", "larm", "rleg", "lleg"])
+        # plt.show()
+        # quit()
+
+        # Getting Fn for upper and lower trunk
+
+        M_up = M1 * np.ones_like(F1z)
+        M_low = M2 * np.ones_like(F3z)
+
+        if self.fix_Fn:
+            Fn_limbs = F1z + F2z + F3z + F4z
+            M_low = self.adjust_Fn(M_low, Fn_limbs)
+
+        Fn_up = (M_up[0 : self.frames] * g) - F1z[0 : self.frames] - F2z[0 : self.frames]
+        Fn_low = (M_low[0 : self.frames] * g) - F3z[0 : self.frames] - F4z[0 : self.frames]
+        # Fn_low = M_low[0 : self.frames] * g
+
+        # Precombining Terms
+        F12_x, F12_y, F12_z = F1x + F2x, F1y + F2y, F1z + F2z
+        F34_x, F34_y, F34_z = F3x + F4x, F3y + F4y, F3z + F4z
+        T12_x, T12_y = T1x + T2x, T1y + T2y
+        T34_x, T34_y = T3x + T4x, T3y + T4y
+
+        ## Lower Trunk COP Calculation
+        tx = T34_x + Tqlow[0, :] - (F34_z * dy_low) - (F34_y * dz_low)
+        ty = T34_y + Tqlow[1, :] + ((F3z - F4z) * dx_low) + (F34_x * dz_low)
+        tz = np.zeros_like(tx)
+
+        # Converting Lower Trunk Torque into Upper Trunk ref. frame
+        Tlow = np.stack((tx, ty, tz))
+        Rhs = self.R0h.inv() * self.R0s
+        Tlow_cor = Rhs.apply(Tlow.T).T
+
+        Tx_low = Tlow_cor[0, :]
+        Ty_low = Tlow_cor[1, :]
+
+        # Getting Lower Trunk torque
+        Tx_up = (T12_x) + Tx_low - Tqup[0, :]
+        Ty_up = (T12_y) + Ty_low - Tqup[1, :]
+
+        # calculating COP change from upper limbs on upper trunk
+        X_calc_up = np.divide((Ty_up + ((F1z - F2z) * dx_up) + (F12_x * dz_up)), (mg_up - F12_z))
+        Y_calc_up = np.divide((Tx_up - (F12_y * dz_up) + (F12_z * dy_up)), (F12_z - mg_up))
+
+        # Calculating Projection of COM offest
+        mid_proj_up = self.R0s.apply(np.array([0, -75, 0]) / 1000)
+        mid_proj_low = self.R0h.apply(np.array([0, 0, (rtrunk - 80)]) / 1000)
+
+        # Getting Full COM location by adding offset
+        COM_up = (pose.mid_shoulder.T + mid_proj_up).T
+        COM_low = (pose.mid_hip.T + mid_proj_low).T
+
+        # Calculating unweighted upper trunk COP
+        X_calc_up = (COM_up[0, :] + (X_calc_up * int(self.include_limbs)))[:, 0 : self.frames]
+        Y_calc_up = (COM_up[1, :] + (Y_calc_up * int(self.include_limbs)))[:, 0 : self.frames]
+
+        COP_Xup = np.multiply(X_calc_up, Fn_up)
+        COP_Yup = np.multiply(Y_calc_up, Fn_up)
+
+        COP_Xlow = np.multiply(COM_low[0, 0 : self.frames], Fn_low)
+        COP_Ylow = np.multiply(COM_low[1, 0 : self.frames], Fn_low)
+
+        if self.plot_dynamics:
+            self.plot_ID_LR(Tlarm, Flarm, Trarm, Frarm, title="Arm Dynamics")
+            self.plot_ID_LR(Tlleg, Flleg, Trleg, Frleg, title="Leg Dynamics")
+
+        return COP_Xup, COP_Yup, Fn_up, COP_Xlow, COP_Ylow, Fn_low
+
+    def adjust_Fn(self, M_low, Fn_limbs):
+        g = 9.81
+
+        # M = np.array(
+        #     [
+        #         self.m_head,
+        #         self.utrunk_m,
+        #         np.sum(self.rarm_m),
+        #         np.sum(self.larm_m),
+        #         np.sum(self.rleg_m),
+        #         np.sum(self.lleg_m),
+        #     ]
+        # )
+
+        M = np.array(
+            [
+                self.m_head,
+                self.utrunk_m,
+            ]
+        )
+
+        Fn = self.Fn_tot
+
+        # m_head, m_up, m_low = M[0], M[1], M[2]
+        m_mat = 1.325
+
+        # print(np.shape(M))
+
+        M_low_d = Fn - (np.sum(M) + m_mat)
+
+        # if Fn_limbs != None:
+
+        n = min(np.shape(M_low)[0], np.shape(M_low_d)[0])
+        self.frames = n
+
+        # print(np.sum(self.rarm_m) + np.sum(self.larm_m) + np.sum(self.rleg_m) + np.sum(self.lleg_m))
+        # print(np.mean(-(Fn_limbs[0:n] / 9.8)))
+        # quit()
+
+        M_low_d = (M_low_d[0:n] * g) + Fn_limbs[0:n]
+        # M_low_d = M_low_d[0:n] - (np.sum(self.rarm_m) + np.sum(self.larm_m) + np.sum(self.rleg_m) + np.sum(self.lleg_m))
+
+        # plt.plot(M_low[0:n] * g)
+        # plt.plot(M_low_d[0:n])
+        # plt.plot(-(Fn_limbs[0:n]))
+        # plt.legend(["mg", "comp_nolimbs", "limbs"])
+        # plt.show()
+        # quit()
+        return M_low_d / g
 
     def calc_COP(self):
-        X_up, Y_up, Fn_up, X_low, Y_low, Fn_low = self.COP_upper()
+        # X_up, Y_up, Fn_up, X_low, Y_low, Fn_low = self.COP_upper()
+        X_up, Y_up, Fn_up, X_low, Y_low, Fn_low = self.COP_trunk()
 
-        Fn_head = np.ones_like(X_up) * 1.033 * 9.81
-        X_head = np.multiply(self.pose.X[:, 0], Fn_head)
-        Y_head = np.multiply(self.pose.Y[:, 0], Fn_head)
+        Fn_head = np.ones_like(Fn_up) * self.m_head * 9.81
+        X_head = np.multiply(self.pose.X[0 : self.frames, 0], X_up)
+        Y_head = np.multiply(self.pose.Y[0 : self.frames, 0], Y_up)
 
         ##UPPER/LOWER TRUNK
         Fn_tot = Fn_up + Fn_low + Fn_head
 
         self.Xcalc = (X_low + X_up + X_head) / Fn_tot * 1000
         self.Ycalc = (Y_low + Y_up + Y_head) / Fn_tot * 1000
+
+        # print(np.shape(X_head), np.shape(X_up), np.shape(X_low))
+        # print(np.shape(Fn_head), np.shape(Fn_up), np.shape(Fn_low))
 
         self.Fn = np.array([Fn_low, Fn_up, Fn_head])
         self.Xcop = np.array([X_low, X_up, X_head]) * 1000
@@ -676,10 +1135,6 @@ class sim_COP:
         # cc = compareCOP(COP_X, COP_Y, X_gc, Y_gc)
 
         # fig, ax = plt.subplots(2, 1)
-        delay = 90
-        Xreal, Yreal = Xreal[delay:], Yreal[delay:]
-        Xcalc, Ycalc = Xcalc[delay:], Ycalc[delay:]
-
         ##Left Arm
         # start = delay
         # stop = 1350
@@ -692,12 +1147,16 @@ class sim_COP:
         # start = 2600
         # stop = 3900
 
-        ##Right Leg
-        start = 3800
+        # ##Right Leg
+        # start = 3800
+        # stop = -1
+
+        ##side limbs static
+        start = 200
         stop = -1
 
-        # Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
-        # Xcalc, Ycalc = Xcalc[start:stop], Ycalc[start:stop]
+        Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
+        Xcalc, Ycalc = Xcalc[start:stop], Ycalc[start:stop]
 
         win = 2
 
