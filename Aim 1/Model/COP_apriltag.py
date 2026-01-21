@@ -914,13 +914,14 @@ tt = COP_Tag(
 
 folder = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose"
 
-# cams = [1, 2, 3, 4, 5]
-cams = [4]
+cams = [1, 2, 3, 4, 5]
+# cams = [2]
 
 
-copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid12_flex_nolimb.csv"
-posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs2_vid12_cams_2_6_both.csv"
-vnum = 12
+copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid13_all_dynamic.csv"
+# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs2_vid3_cams_2_6_both.csv"
+posefile = None
+vnum = 13
 
 
 # copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid4_side.csv"
@@ -939,7 +940,7 @@ vnum = 12
 
 # posefile = None
 tt.comapre_COP(cams, vnum, file=copfile, folder=folder, posefile=posefile)
-tt.compare_angles(cams, vidnum=vnum, folder=folder, posefile=posefile)
+# tt.compare_angles(cams, vidnum=vnum, folder=folder, posefile=posefile)
 
 # tt.save_tagpose(2, vnum, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose")
 
