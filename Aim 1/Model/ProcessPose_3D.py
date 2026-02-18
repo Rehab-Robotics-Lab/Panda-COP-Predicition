@@ -61,28 +61,10 @@ class processpose:
 
         X_init, Y_init, Z_init = np.mean(X[0:win, 1]), np.mean(Y[0:win, 1]), np.mean(Z[0:win, 1])
 
-        # Xcalc = scipy.ndimage.median_filter(Xcalc, 15)
-
         self.X = X - X_init
         self.Y = Y - Y_init
         self.Z = Z
         self.idx = idx
-
-        # zrarm, zlarm, zrleg, zlleg = Z[:, 3], Z[:, 6], Z[:, 10], Z[:, 13]
-
-        # print(
-        #     np.mean(zrarm[3000:]) * 1000,
-        #     np.mean(zlarm[3000:]) * 1000,
-        #     np.mean(zrleg[:2000]) * 1000,
-        #     np.mean(zlleg[:2000]) * 1000,
-        # )
-
-        # plt.plot(zrarm)
-        # plt.plot(zlarm)
-        # plt.plot(zrleg)
-        # plt.plot(zlleg)
-        # plt.legend(["Rarm", "Larm", "Rleg", "Lleg"])
-        # plt.show()
 
     # def adjust_rleg_len(self):
     #     rk = np.matrix([self.X[:, 9], self.Y[:, 9], self.Z[:, 9]])
@@ -268,6 +250,9 @@ class processpose:
 
         thet4 = np.arctan2(s4, c4)
 
+        c4 = np.cos(thet4)
+        s4 = np.sin(thet4)
+
         ##THETA 3
         X = np.divide(lh[0, :] - le[0, :], L2)
         Y = np.divide(lh[1, :] - le[1, :], L2)
@@ -319,22 +304,21 @@ class processpose:
         magnitude_q = np.linalg.norm(q, axis=0)
         magnitude_cross = np.linalg.norm(cross_product, axis=0)
 
-        # s4 = [np.divide(magnitude_cross, np.multiply(magnitude_u, magnitude_v))]
-        # c4 = np.divide(dot_product, np.multiply(magnitude_u, magnitude_v))
+        # c4 = [
+        #     np.divide(
+        #         (np.power(L1, 2) + np.power(L2, 2) - np.power(magnitude_q, 2)),
+        #         (2 * np.multiply(L1, L2)),
+        #     )
+        # ]
 
-        c4 = [
-            np.divide(
-                (np.power(L1, 2) + np.power(L2, 2) - np.power(magnitude_q, 2)),
-                (2 * np.multiply(L1, L2)),
-            )
-        ]
-        # s4 = [np.sqrt((np.ones_like(c4) - np.power(c4, 2))).T]
+        s4 = np.divide(magnitude_cross, np.multiply(magnitude_u, magnitude_v))
+        c4 = np.divide(dot_product, np.multiply(magnitude_u, magnitude_v))
 
-        # thet4 = np.arctan2(s4, c4)
-        thet4 = np.arccos(c4)
+        thet4 = np.arctan2(s4, c4)
+        # thet4 = np.arccos(c4)
         thet4 = -(np.pi - thet4)
-        c4 = np.cos(thet4)
-        s4 = np.sin(thet4)
+        # c4 = np.cos(thet4)
+        # s4 = np.sin(thet4)
 
         ##THETA 3
 
@@ -354,34 +338,6 @@ class processpose:
         # c3 = np.sqrt((np.ones_like(s3) - np.power(s3, 2)).T).T
         # s3 = np.sqrt((np.ones_like(c3) - np.power(c3, 2)).T).T
         thet3 = np.arctan2(s3, c3)
-
-        return thet1, thet2, thet3, thet4
-
-    def limbs_static(self, k):
-        ls = np.matrix([self.X[:, k], self.Y[:, k], self.Z[:, k]])
-        le = np.matrix([self.X[:, k + 1], self.Y[:, k + 1], self.Z[:, k + 1]])
-        lh = np.matrix([self.X[:, k + 2], self.Y[:, k + 2], self.Z[:, k + 2]])
-
-        L1 = np.linalg.norm(le - ls, axis=0)
-        L2 = np.linalg.norm(le - lh, axis=0)
-
-        s1 = np.divide(le[2, :] - ls[2, :], L1)
-        c1 = np.divide(le[1, :] - ls[1, :], L1)
-        thet1 = np.arctan2(s1, c1)
-        s1 = np.sin(thet1)
-        c1 = np.cos(thet1)
-
-        s2 = np.divide(le[0, :] - ls[0, :], L1)
-        c2 = np.divide((le[1, :] - ls[1, :]), np.multiply(c1, L1))
-        thet2 = np.arctan2(s2, c2)
-        s2 = np.sin(thet2)
-        c2 = np.cos(thet2)
-
-        s4 = np.divide(le[0, :] - lh[0, :], np.multiply(s1, L2))
-        c4 = np.divide(le[2, :] - lh[2, :], np.multiply(c1, L2)) - np.divide(np.multiply(c2, c4), np.divide(c1, s1))
-        thet4 = np.arctan2(s4, c4)
-
-        thet3 = np.zeros_like(thet1)
 
         return thet1, thet2, thet3, thet4
 

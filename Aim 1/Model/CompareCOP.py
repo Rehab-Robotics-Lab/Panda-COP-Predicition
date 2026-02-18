@@ -31,39 +31,39 @@ class compareCOP:
 
             self.rate = 60
 
-    def comp_XY(self):
+    # def comp_XY(self):
 
-        X, Y = self.Xreal, self.Yreal
-        n = self.n
-        t = (np.linspace(0, n / 30, num=n)).T
+    #     X, Y = self.Xreal, self.Yreal
+    #     n = self.n
+    #     t = (np.linspace(0, n / 30, num=n)).T
 
-        Xcalc = self.Xcalc
-        Ycalc = self.Ycalc
+    #     Xcalc = self.Xcalc
+    #     Ycalc = self.Ycalc
 
-        # print(t.shape, X.shape, Xcalc.shape)
+    #     # print(t.shape, X.shape, Xcalc.shape)
 
-        # fig, ax = plt.subplots(2, 1)
+    #     # fig, ax = plt.subplots(2, 1)
 
-        plt.subplot(2, 1, 1)
-        plt.plot(t, X - np.mean(X[0:15]))
-        plt.plot(t, Xcalc - np.mean(Xcalc[0:15]))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("X COP")
-        plt.xlabel("Time (s)")
-        plt.ylabel("COP X (mm)")
-        plt.grid()
+    #     plt.subplot(2, 1, 1)
+    #     plt.plot(t, X - np.mean(X[0:15]))
+    #     plt.plot(t, Xcalc - np.mean(Xcalc[0:15]))
+    #     plt.legend(["Grnd Trth", "Calculated"])
+    #     plt.title("X COP")
+    #     plt.xlabel("Time (s)")
+    #     plt.ylabel("COP X (mm)")
+    #     plt.grid()
 
-        plt.subplot(2, 1, 2)
-        plt.plot(t, Y - np.mean(Y[0:15]))
-        plt.plot(t, Ycalc - np.mean(Ycalc[0:15]))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("Y COP")
-        plt.xlabel("Time (s)")
-        plt.ylabel("COP Y (mm)")
-        plt.grid()
+    #     plt.subplot(2, 1, 2)
+    #     plt.plot(t, Y - np.mean(Y[0:15]))
+    #     plt.plot(t, Ycalc - np.mean(Ycalc[0:15]))
+    #     plt.legend(["Grnd Trth", "Calculated"])
+    #     plt.title("Y COP")
+    #     plt.xlabel("Time (s)")
+    #     plt.ylabel("COP Y (mm)")
+    #     plt.grid()
 
-        plt.tight_layout()
-        plt.show()
+    #     plt.tight_layout()
+    #     plt.show()
 
     def ellipse_anim(self, j):
         self.ax1.cla()
@@ -203,24 +203,31 @@ class compareCOP:
         # print(t.shape, X.shape, Xcalc.shape)
 
         # fig, ax = plt.subplots(2, 1)
+        color_real = np.array([10, 35, 175]) / 255
+        color_calc = np.array([255, 0, 30]) / 255
 
         plt.subplot(2, 1, 1)
-        plt.plot(t, X - np.mean(X[0:15]))
-        plt.plot(t, Xcalc - np.mean(Xcalc[0:15]))
+        plt.plot(t, X - np.mean(X[0:15]), color=color_real)
+        plt.plot(t, Xcalc - np.mean(Xcalc[0:15]), color=color_calc)
         plt.legend(["Grnd Trth", "Calculated"])
         plt.title("X COP")
         plt.xlabel("Time (s)")
         plt.ylabel("COP X (mm)")
         plt.grid()
 
+        plt.ylim(-40, 40)
+
         plt.subplot(2, 1, 2)
-        plt.plot(t, Y - np.mean(Y[0:15]))
-        plt.plot(t, Ycalc - np.mean(Ycalc[0:15]))
+        plt.plot(t, Y - np.mean(Y[0:15]), color=color_real)
+        plt.plot(t, Ycalc - np.mean(Ycalc[0:15]), color=color_calc)
         plt.legend(["Grnd Trth", "Calculated"])
         plt.title("Y COP")
         plt.xlabel("Time (s)")
         plt.ylabel("COP Y (mm)")
         plt.grid()
+
+        # plt.xlim(-40, 40)
+        plt.ylim(-40, 40)
 
         plt.tight_layout()
         plt.show()
@@ -237,8 +244,8 @@ class compareCOP:
         Xcalc = self.Xcalc
         Ycalc = self.Ycalc
 
-        Xc = Xcalc - np.mean(Xcalc[0:15])
-        Yc = Ycalc - np.mean(Ycalc[0:15])
+        Xc = (Xcalc - np.mean(Xcalc[0:15])).T
+        Yc = (Ycalc - np.mean(Ycalc[0:15])).T
 
         xmax, xmin = np.max([np.max(Xc), np.max(Xr)]), np.min([np.min(Xc), np.min(Xr)])
         ymax, ymin = np.max([np.max(Yc), np.max(Yr)]), np.min([np.min(Yc), np.min(Yr)])
@@ -255,7 +262,7 @@ class compareCOP:
 
         ##Ellpise plot for model data
         self.confidence_ellipse(Xc, Yc, ax2, edgecolor="red")
-        ax2.scatter([Xc], [Yc], s=0.5)
+        ax2.scatter(Xc, Yc, s=0.5)
         ax2.grid()
         # plt.xlabel("COP X (mm)")
         # plt.ylabel("COP Y (mm)")

@@ -105,8 +105,6 @@ class processPose:
 
         X_z, Y_z = self.interpolate_nans(X, Y)
 
-        # print("Z", len(np.unique(jump[1])))
-
         return X_z, Y_z
 
     def interpolate_nans(self, x, y):

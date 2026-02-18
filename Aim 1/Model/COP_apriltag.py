@@ -582,7 +582,7 @@ class COP_Tag:
         g = 9.81
 
         # posefile = None
-        copfile = None
+        # copfile = None
 
         m_head = 1.031
         m_up = 1.564
@@ -722,7 +722,7 @@ class COP_Tag:
         M_up = np.ones((n_pose)) * m_up
         M_low = np.ones((n_pose)) * m_low
 
-        # copfile = None
+        copfile = None
 
         if copfile != None:
             M = [m_head, m_up, m_low]
@@ -850,8 +850,8 @@ class COP_Tag:
         return start, stop
 
     def comapre_COP(self, camnum, vidnum, file, folder, posefile):
-        COP = self.tag_COP(camnum, vidnum, folder, posefile=posefile, copfile=file)
-        # COP = self.pose_COP(posefile, copfile=file)
+        # COP = self.tag_COP(camnum, vidnum, folder, posefile=posefile, copfile=file)
+        COP = self.pose_COP(posefile, copfile=file)
 
         # start, stop = self.pull_synch_time(camnum, vidnum)
 
@@ -879,7 +879,7 @@ class COP_Tag:
 
         # cc = compareCOP(COP_X, COP_Y, X_gc, Y_gc)
 
-        start = 200
+        start = 60
         stop = -1
 
         Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
@@ -895,7 +895,7 @@ class COP_Tag:
 
         cc = compareCOP(Xcalc, Ycalc, Xreal, Yreal, cam=1)
         cc.comp_XY()
-        # cc.comp_ellipse()
+        cc.comp_ellipse()
         # cc.plot_cop_anim()
 
         # print(cc.metrics())
@@ -905,7 +905,7 @@ class COP_Tag:
 
 tt = COP_Tag(
     cam_dir=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras",
-    name="sim_trunk_limbs2",
+    name="sim_trunk_clothed",
     load=1,
     ID_up=0,
     ID_low=50,
@@ -914,14 +914,14 @@ tt = COP_Tag(
 
 folder = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\tagpose"
 
-cams = [1, 2, 3, 4, 5]
-# cams = [2]
+# cams = [1, 2, 3, 4, 5]
+cams = [2]
 
 
-copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid13_all_dynamic.csv"
+# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid13_all_dynamic.csv"
 # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs2_vid3_cams_2_6_both.csv"
 posefile = None
-vnum = 13
+vnum = 4
 
 
 # copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid4_side.csv"
@@ -929,12 +929,12 @@ vnum = 13
 # copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid6_flex.csv"
 # copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid6_all.csv"
 
-# copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid7_side_limbs.csv"
-# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid7_cams_5_6_both.csv"
+copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid6_all.csv"
+posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid6_cams_2_4_both.csv"
 
-# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs_vid4_cams_2_6_both.csv"
+# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs_vid6_cams_2_6_both.csv"
 
-# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs_vid4_cams_2_6_both.csv"
+# posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid6_reproj_idx.csv"
 # copfile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid4_side.csv"
 
 

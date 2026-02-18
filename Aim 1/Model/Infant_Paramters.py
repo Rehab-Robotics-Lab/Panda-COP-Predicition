@@ -7,12 +7,7 @@ from scipy.spatial.transform import Rotation as R
 
 
 class infant_parameters:
-    def __init__(self, age=None, months=False):
-
-        if months:
-            age = age * 4
-
-        self.age = age
+    def __init__(self):
         self.bodyparts = np.array(
             [
                 "head",

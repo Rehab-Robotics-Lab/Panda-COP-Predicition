@@ -648,7 +648,12 @@ class c_manage:
             T.SBA(disp=disp)
             T.SBA_anipose()
         else:
-            T.check_combos()
+            # T.check_combos()
+
+            T.check_combos_idx()
+            T.SBA_anipose()
+
+        T.reproj_check()
 
         self.T = T
 
@@ -890,20 +895,20 @@ class c_manage:
 #     jsonpath=r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Personnel\Students & RAs\Francis Sowande\Infant Sim V2□\pose\annotations",
 # )
 
-
 # sim.overlay_pose(camnum=3, vidnum=4)
 
 # vidn = 3
+# sim.tringulate(vidn)
 
 # sim.tringulate(vidn, num1=2, num2=6)
 # sim.save_3D(
-#     vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test", suffix="_smooth_3d"
+#     vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test", suffix="_reproj_idx"
 # )
 
 # for vidn in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]:
-#     sim.tringulate(vidn, num1=2, num2=6)
+#     sim.tringulate(vidn)
 #     sim.save_3D(
-#         vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test", suffix="_both"
+#         vidnum=vidn, folder=r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test", suffix="_reproj_idx"
 #     )
 
 

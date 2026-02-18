@@ -130,7 +130,7 @@ class tringulatepose:
 
         # all X for kp1, cam1, then kp2, cam1 ..... then kp1, cam 2
 
-    def trinagulate_each(self, pt1, pt2, num1, num2):
+    def triangulate(self, pt1, pt2, num1, num2):
         n = self.n
 
         intrinsics = self.intrinsics
@@ -197,47 +197,29 @@ class tringulatepose:
             self.Y[:, i] = y.ravel()
             self.Z[:, i] = z.ravel()
 
-            # print(i)
+    # def trinagulat_i(self, num1, num2, j):
+    #     num1 = self.num1
+    #     num2 = self.num2
 
-        # Updating dynmic X,Y,Z with first guess from trinagulation
-        # self.X = self.X0
-        # self.Y = self.Y0
-        # self.Z = self.Z0
+    #     X1, Y1 = self.XA[num1 - 1, :, :], self.YA[num1 - 1, :, :]
+    #     X2, Y2 = self.XA[num2 - 1, :, :], self.YA[num2 - 1, :, :]
 
-        # print(np.shape(self.X))  # N,13
-        # pt = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel()))  # (3,(13*3626))
-        # 13, N
+    #     X = np.zeros((18, 1))
+    #     Y = np.zeros((18, 1))
+    #     Z = np.zeros((18, 1))
 
-        # all X for kp1, then kp2,... kp13
-        # print("XA", self.X.T[1, 0:26])
-        # print("YA", self.Y.T[0, 0:26])
-        # print("ZA", self.Z.T[0, 0:26])
-        # print("-------------------------")
-        # print(pt[0, self.n : self.n + 26])
+    #     for i in range(18):
 
-    def trinagulat_i(self, num1, num2, j):
-        num1 = self.num1
-        num2 = self.num2
+    #         pt_c1 = np.vstack((X1[i, j], Y1[i, j]))
+    #         pt_c2 = np.vstack((X2[i, j], Y2[i, j]))
 
-        X1, Y1 = self.XA[num1 - 1, :, :], self.YA[num1 - 1, :, :]
-        X2, Y2 = self.XA[num2 - 1, :, :], self.YA[num2 - 1, :, :]
+    #         x, y, z = self.trinagulate_each(pt_c1, pt_c2, num1, num2)
 
-        X = np.zeros((18, 1))
-        Y = np.zeros((18, 1))
-        Z = np.zeros((18, 1))
+    #         X[i] = x
+    #         Y[i] = y
+    #         Z[i] = z
 
-        for i in range(18):
-
-            pt_c1 = np.vstack((X1[i, j], Y1[i, j]))
-            pt_c2 = np.vstack((X2[i, j], Y2[i, j]))
-
-            x, y, z = self.trinagulate_each(pt_c1, pt_c2, num1, num2)
-
-            X[i] = x
-            Y[i] = y
-            Z[i] = z
-
-        return X, Y, Z
+    #     return X, Y, Z
 
     def trinagulat_conf(self):
         # X1, Y1 = self.XA[num1 - 1, :, :], self.YA[num1 - 1, :, :]
@@ -322,7 +304,60 @@ class tringulatepose:
 
         return np.mean(tot_error)
 
-    def reproj_each(self, num):
+    def triangulate_idx(self, num1, num2, idx):
+        self.num1 = num1
+        self.num2 = num2
+
+        idx1 = np.where(self.cams == num1)[0][0]
+        idx2 = np.where(self.cams == num2)[0][0]
+
+        X1, Y1 = self.XA[idx1, :, :], self.YA[idx1, :, :]
+        X2, Y2 = self.XA[idx2, :, :], self.YA[idx2, :, :]
+
+        pt_c1 = np.vstack((X1[idx, :], Y1[idx, :]))
+        pt_c2 = np.vstack((X2[idx, :], Y2[idx, :]))
+
+        x, y, z = self.triangulate(pt_c1, pt_c2, num1, num2)
+
+        return x, y, z
+
+    def triangulate_idx_i(self, num1, num2, idx, i):
+        x, y, z = self.triangulate_idx(num1, num2, idx)
+
+        return x[i, 0], y[i, 0], z[i, 0]
+
+    def reproj_each_idx(self, X, Y, Z, idx):
+        intrinsics = self.intrinsics
+
+        error = np.zeros((self.n, self.n_cams))
+
+        for i in range(self.n_cams):
+            num = self.cams[i]
+            cam_int = intrinsics["cam" + str(num)]
+
+            cam_mat = np.asmatrix(cam_int["Mat"])
+            cam_dist = np.asarray(cam_int["Dist"])
+
+            id = np.where(self.cams == num)[0][0]
+
+            cam_ext = self.ext_params[id, :, :]  # (7,2,3)
+
+            cam_rvec = cam_ext[0, :]
+            cam_tvec = cam_ext[1, :]
+
+            pts = np.hstack((X, Y, Z)).T
+
+            # reproj[:, :, [i]] = cv2.projectPoints(pts, cam_rvec, cam_tvec, cam_mat, cam_dist)
+            R, _ = cv2.projectPoints(pts, cam_rvec, cam_tvec, cam_mat, cam_dist)
+            Rpt = R.reshape(-1, 2).T
+
+            pt = np.vstack((self.XA[i, idx, :], self.YA[i, idx, :]))
+
+            error[:, i] = np.linalg.norm(Rpt - pt, axis=0)
+
+        return error
+
+    def reproj_each_cam(self, num):
         intrinsics = self.intrinsics
 
         cam_int = intrinsics["cam" + str(num)]
@@ -376,7 +411,7 @@ class tringulatepose:
         E = np.zeros((18))
 
         for i in range(ncams):
-            X, Y, e = self.reproj_each(self.cams[i])
+            X, Y, e = self.reproj_each_cam(self.cams[i])
 
             XAr[i, :, :] = X
             YAr[i, :, :] = Y
@@ -848,7 +883,7 @@ class tringulatepose:
         thresh = 15
 
         for j in range(self.n_cams):
-            X, Y, E = self.reproj_each(self.cams[j])
+            X, Y, E = self.reproj_each_cam(self.cams[j])
             rpj = np.vstack((X.ravel(), Y.ravel())).T
 
             xg, yg = self.XA[j, :, :], self.YA[j, :, :]
@@ -895,11 +930,18 @@ class tringulatepose:
 
         self.ext_params = ext_params
 
+        # updating extrinscs for cameras (golbally)
+
+        # XAr, YAr, E = self.reproj_all()
+
+        # pts_rpj = np.vstack((XAr.ravel(), YAr.ravel())).T
+
+        # # res2 = np.hstack(((self.XA - XAr).ravel(), (self.YA - YAr).ravel()))
+        # res = (pts_rpj - self.pt2D).ravel()
         m = 18 * n * 2
 
         for j in range(ncams):
-
-            X, Y, E = self.reproj_each(self.cams[j])
+            X, Y, E = self.reproj_each_cam(self.cams[j])
             rpj = np.vstack((X.ravel(), Y.ravel())).T
 
             xg, yg = self.XA[j, :, :], self.YA[j, :, :]
@@ -924,7 +966,7 @@ class tringulatepose:
 
             # fig = plt.figure()
 
-            Xreproj, Yreproj, mean_error = self.reproj_each(camnum)
+            Xreproj, Yreproj, mean_error = self.reproj_each_cam(camnum)
             # Create new rows as separate DataFrames
 
             error[i] = mean_error
@@ -935,6 +977,8 @@ class tringulatepose:
             j = camnum * 2 - 1
 
             t = np.linspace(0, Xreproj.size, num=Xreproj.size)
+
+            print(j)
 
             plt.subplot(ncams, 2, j)
             plt.plot(t, Xreproj.ravel() - self.XA[i].ravel(), linewidth=0.75)
@@ -962,21 +1006,6 @@ class tringulatepose:
     def jacob(self):
         ncams = self.n_cams
 
-        #     num_observations = camera_inds.size
-        # m = num_observations * 2  # total number of residuals (2 * num_observations)
-        # n = num_cameras * 9 + num_points * 3  # total number of parameters (all camera parameters and locations of 3D points)
-        # A = lil_matrix((m, n), dtype=int)
-
-        # # Indicate non-zero relationships between each camera and its parameters (rotation, translation, focal length, distortion parameters) and 3D points
-        # i = np.arange(num_observations)
-        # for s in range(9):
-        #     A[2 * i, camera_inds * 9 + s] = 1
-        #     A[2 * i + 1, camera_inds * 9 + s] = 1
-
-        # for s in range(3):
-        #     A[2 * i, num_cameras * 9 + point_inds * 3 + s] = 1
-        #     A[2 * i + 1, num_cameras * 9 + point_inds * 3 + s] = 1
-
         cameraIndices = self.camidx
         pointIndices = self.ptidx
         numCameras = ncams
@@ -988,13 +1017,6 @@ class tringulatepose:
         A = lil_matrix((m, n), dtype=int)
 
         i = np.arange(cameraIndices.size)
-        # print(i)
-
-        # print(np.shape(A[2 * i, :]))
-        # print(np.shape(A[2 * i, cameraIndices * 6]))
-        # print(np.shape(cameraIndices))
-        # print(np.shape(A[2 * i + 1, numCameras * 6 + pointIndices * 3]))
-        # print(np.shape(A))
 
         for s in range(6):
             A[2 * i, cameraIndices * 6 + s] = 1
@@ -1007,6 +1029,43 @@ class tringulatepose:
         # print("J")
 
         return A
+
+    def SBA(self, disp=1, verbose=2):
+        # points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel()))
+        points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel())).T
+
+        x0 = np.hstack((self.ext_params.ravel(), points_3d.ravel()))
+
+        f0 = self.residual(x0)
+        A = self.jacob()
+        # print(np.any(np.isnan(f0)), np.any(np.isinf(f0)))
+
+        print("Optimizing")
+
+        # res = least_squares(self.residual, x0, loss="linear", jac_sparsity=A, verbose=2, ftol=1e-3)
+        res = least_squares(
+            self.residual,
+            x0,
+            jac_sparsity=A,
+            verbose=verbose,
+            x_scale="jac",
+            ftol=1e-4,
+            method="trf",
+        )
+
+        # print(res)
+
+        # params = res.x[0 : 6 * 7]
+        ff = res.fun
+
+        if disp == 1:
+
+            plt.plot(f0)
+            plt.plot(ff)
+            plt.ylim(-1000, 1000)
+            plt.show()
+
+        # print(self.ext_params)
 
     def _initialize_params_triangulation(self, p3ds, constraints=[], constraints_weak=[]):
         joint_lengths = np.empty(len(constraints), dtype="float64")
@@ -1201,12 +1260,12 @@ class tringulatepose:
         self,
         points,
         p3ds,
-        scale_smooth=0,
+        scale_smooth=0.5,
         scale_length=2,
         scale_length_weak=0.5,
         reproj_error_threshold=15,
         reproj_loss="soft_l1",
-        n_deriv_smooth=1,
+        n_deriv_smooth=4,
         scores=None,
         verbose=False,
         n_fixed=0,
@@ -1282,8 +1341,6 @@ class tringulatepose:
             ),
         )
 
-        print("Residual After: ", np.linalg.norm(opt2.fun) / 2)
-
         p3ds_new2 = opt2.x[: p3ds.size].reshape(p3ds.shape)
 
         if n_fixed > 0:
@@ -1307,45 +1364,61 @@ class tringulatepose:
         # print(np.shape(pts3D))
         # print(np.shape(self.X), np.shape(self.Y), np.shape(self.Z))
 
-    def SBA(self, disp=1, verbose=2):
-        # points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel()))
-        points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel())).T
+    def reproj_check(self):
+        n = self.n
+        ncams = self.n_cams
 
-        x0 = np.hstack((self.ext_params.ravel(), points_3d.ravel()))
+        diff = np.zeros((ncams, 18, n))
 
-        f0 = self.residual(x0)
-        A = self.jacob()
-        # print(np.any(np.isnan(f0)), np.any(np.isinf(f0)))
+        cams_names = np.empty(ncams, dtype="S4")
 
-        print("Optimizing")
+        for j in range(ncams):
+            X, Y, E = self.reproj_each_cam(self.cams[j])
 
-        # res = least_squares(self.residual, x0, loss="linear", jac_sparsity=A, verbose=2, ftol=1e-3)
-        res = least_squares(
-            self.residual,
-            x0,
-            jac_sparsity=A,
-            verbose=verbose,
-            x_scale="jac",
-            ftol=1e-4,
-            method="trf",
-        )
+            xg, yg = self.XA[j, :, :], self.YA[j, :, :]
 
-        # print(res)
+            # print(np.shape(np.linalg.norm(np.stack((X, Y)) - np.stack((xg, yg)), axis=0)))
 
-        # params = res.x[0 : 6 * 7]
-        ff = res.fun
+            diff[j, :, :] = np.linalg.norm(np.stack((X, Y)) - np.stack((xg, yg)), axis=0)
 
-        print("Residual After: ", np.linalg.norm(res.fun) / 2)
+            cams_names[j] = "Cam" + str(self.cams[j])
 
-        if disp == 1:
+        # plt.plot(Xd)
+        diff_mean = np.mean(diff, axis=2)
+        # print(cams_names)
 
-            plt.plot(f0)
-            plt.plot(ff)
-            plt.show()
+        bodyparts = [
+            "nose",
+            "neck",
+            "rshldr",
+            "relbw",
+            "rwrst",
+            "lshldr",
+            "lelbw",
+            "lwrst",
+            "rhip",
+            "rknee",
+            "rfoot",
+            "lhip",
+            "lknee",
+            "lfoot",
+            "reye",
+            "leye",
+            "rear",
+            "lear",
+        ]
+        # print(np.shape(diff_mean))
+        for i in range(18):
+            plt.scatter(cams_names, diff_mean[:, i], label=bodyparts[i])
 
-        # self.SBA_anipose()
+        plt.plot(np.mean(diff_mean, axis=1), label="AVERAGE", marker="D", markersize=12, color="gold")
 
-        # print(self.ext_params)
+        plt.plot(diff_mean, color="black", alpha=0.5, linewidth=1)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        plt.grid()
+        plt.tight_layout(pad=1)
+
+        plt.show()
 
     def check_combos(self):
         results = np.zeros((len(self.combos), 3))
@@ -1355,7 +1428,7 @@ class tringulatepose:
         for c in self.combos:
             # print("Combo: ", c[0], c[1])
 
-            self.trinagulate_all(c[0], c[1])
+            self.triangulate_all(c[0], c[1])
             # self.SBA(disp=0, verbose=0)
             points_3d = np.vstack((self.X.T.ravel(), self.Y.T.ravel(), self.Z.T.ravel())).T
 
@@ -1372,20 +1445,121 @@ class tringulatepose:
         num1 = int(sorted[0, 0])
         num2 = int(sorted[0, 1])
 
-        # print(sorted)
-
         print("1st Best reults from cameras: ", num1, "+", num2, " Res= ", int(sorted[0, 2]))
         print("2nd Best reults from cameras: ", int(sorted[1, 0]), "+", int(sorted[1, 1]), " Res= ", int(sorted[1, 2]))
         print("3rd Best reults from cameras: ", int(sorted[2, 0]), "+", int(sorted[2, 1]), " Res= ", int(sorted[2, 2]))
-        print("4th Best reults from cameras: ", int(sorted[3, 0]), "+", int(sorted[3, 1]), " Res= ", int(sorted[3, 2]))
-        print("5th Best reults from cameras: ", int(sorted[4, 0]), "+", int(sorted[4, 1]), " Res= ", int(sorted[4, 2]))
+        # print("4th Best reults from cameras: ", int(sorted[3, 0]), "+", int(sorted[3, 1]), " Res= ", int(sorted[3, 2]))
+        # print("5th Best reults from cameras: ", int(sorted[4, 0]), "+", int(sorted[4, 1]), " Res= ", int(sorted[4, 2]))
 
-        self.trinagulate_all(num1, num2)
-        return sorted
+        self.triangulate_all(num1, num2)
+
+    def check_combos_idx(self):
+
+        print("Checking camera combinations idx")
+
+        pairs = np.zeros((2, 18))
+        error_cams = np.zeros((len(self.combos), self.n_cams))
+
+        for i in range(18):
+            results = np.zeros((len(self.combos), 3))
+            # i = 12
+            j = 0
+
+            col_names = ["num1", "num2", "mean_wght"]
+            # print(col_names)
+            num_names = []
+            for cam in self.cams:
+                num_names.append(str(cam))
+                col_names.append(str(cam))
+
+            # weights = pd.DataFrame(index=num_names, columns=["weight1", "weight2"])
+
+            df = pd.DataFrame(columns=col_names.append("mean"))
+
+            # print(col_names)
+
+            # pair_weight=np.zeros((len(self.combos),self.n_cams))
+
+            for c in self.combos:
+                # print("COMBO--------------------------------------- ", c[0], " ", c[1])
+                X, Y, Z = self.triangulate_idx(c[0], c[1], idx=i)
+                error = np.mean(self.reproj_each_idx(X, Y, Z, idx=i), axis=0)
+                # self.SBA(disp=0, verbose=0)
+                # print(error, int(np.mean(error)))
+
+                error_cams[j, :] = error
+
+                # df = pd.concat([df, pd.DataFrame({"num1": [c[0]], "num2": [c[1]], "mean": [np.mean(error)]})])
+                df = pd.concat([df, pd.DataFrame({"num1": [c[0]], "num2": [c[1]]})])
+
+                df.loc[(df["num1"] == c[0]) & (df["num2"] == c[1]), num_names] = error
+
+                df.loc[(df["num1"] == c[0]) & (df["num2"] == c[1]), "mean"] = np.mean(
+                    df.loc[(df["num1"] == c[0]) & (df["num2"] == c[1]), num_names]
+                )
+
+                # df[(df.loc[:, num_names] < 50) & (df.loc[:, num_names] >= 25)] = (
+                #     df[(df.loc[:, num_names] < 50) & (df.loc[:, num_names] >= 25)] * -1
+                # )
+                # df[df.loc[:, num_names] < 25] = df[df.loc[:, num_names] < 25] * -2
+
+                df.loc[(df["num1"] == c[0]) & (df["num2"] == c[1]), str(c[0])] = (
+                    df.loc[(df["num1"] == c[0]) & (df["num2"] == c[1]), str(c[0])] * 2
+                )
+                df.loc[(df["num1"] == c[0]) & (df["num2"] == c[1]), str(c[1])] = (
+                    df.loc[(df["num1"] == c[0]) & (df["num2"] == c[1]), str(c[1])] * 2
+                )
+
+                mean_weighted = np.mean(df.loc[(df["num1"] == c[0]) & (df["num2"] == c[1]), num_names])
+                df.loc[(df["num1"] == c[0]) & (df["num2"] == c[1]), "mean_wght"] = mean_weighted
+
+                # results[j, :] = np.array([(c[0]), (c[1]), np.mean(error)])
+
+                # print(mean_weighted)
+                # quit()
+
+                results[j, :] = np.array([(c[0]), (c[1]), mean_weighted])
+                j = j + 1
+
+                srt = np.argsort(results[:, 2])
+                sorted = results[srt, :]
+
+                pairs[0, i] = int(sorted[0, 0])
+                pairs[1, i] = int(sorted[0, 1])
+
+            # print(df)
+            # quit()
+
+            # tb = df.loc[:, num_names]
+            # tb[df.loc[:, num_names] >= 100] = 3
+            # tb[(df.loc[:, num_names] < 100) & (df.loc[:, num_names] >= 50)] = 1
+            # tb[(df.loc[:, num_names] < 50) & (df.loc[:, num_names] >= 25)] = -1
+            # tb[df.loc[:, num_names] < 25] = -3
+
+            # # print(int(num_names))
+            # for num in self.cams:
+            #     tb.loc[(df["num1"] == num) | (df["num2"] == num), str(num)] = (
+            #         tb.loc[(df["num1"] == num) | (df["num2"] == num), str(num)] * 2
+            #     )
+
+            #     weights.loc[str(num), "weight2"] = np.mean(df.loc[(df["num1"] == num) | (df["num2"] == num), "mean"])
+
+            # weights["weight1"] = tb.sum(axis=0)
+
+            # weights.plot(kind="bar")
+            # plt.show()
+
+            # tb.loc[(tb["num1"] == c[0]) & (df["num2"] == c[1]), num_names] = error
+
+            # print(tb)
+
+            x, y, z = self.triangulate_idx(int(sorted[0, 0]), int(sorted[0, 1]), i)
+
+            self.X[:, i], self.Y[:, i], self.Z[:, i] = x[:, 0], y[:, 0], z[:, 0]
 
     def save_3D(self, folder, name=None, suffix=None):
-        num1 = self.num1
-        num2 = self.num2
+        # num1 = self.num1
+        # num2 = self.num2
 
         # initialize data of lists.
         part_idx = np.ones((self.n, 18))
@@ -1408,9 +1582,9 @@ class tringulatepose:
 
         # Create DataFrame
         if name == None:
-            full_name = folder + "\\3D_vid_" + str(num1) + "_" + str(num2) + suffix + ".csv"
+            full_name = folder + "\\3D_vid_" + suffix + ".csv"
         else:
-            full_name = folder + "\\" + name + "_cams_" + str(num1) + "_" + str(num2) + suffix + ".csv"
+            full_name = folder + "\\" + name + suffix + ".csv"
         df = pd.DataFrame(data)
         df.to_csv(full_name, index=False)
 

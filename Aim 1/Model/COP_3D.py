@@ -14,11 +14,12 @@ from ProcessPose_3D import processpose
 class sim_COP:
     def __init__(self):
 
-        posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid3_cams_2_4_both.csv"
+        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid3_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid4_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid3_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid4_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid5_cams_1_4_both.csv"
+        # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid6_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid7_cams_2_4_both.csv"
 
         # posefile = (
@@ -26,20 +27,29 @@ class sim_COP:
         # )
 
         # LOADING FILE WITH COP VALUES
-        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_cop_vid3_each.csv"
+        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_cop_vid3_each.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_cop_vid4_double.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid3_side.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid4_flex.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid5_rot.csv"
+        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid6_all.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid7_side_limbs.csv"
 
-        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid10_all_dynamic.csv"
+        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid6_flex.csv"
 
         # posefile = (
-        #     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs2_vid8_cams_2_4_both.csv"
+        #     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs2_vid9_cams_2_4_both.csv"
         # )
 
-        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid8_rot_dynamic.csv"
+        # cop_file = (
+        #     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid9_flex_dynamic.csv"
+        # )
+
+        posefile = (
+            r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid6_reproj_idx.csv"
+        )
+
+        # posefile = r"C:\Users\franc\Downloads\sim_trunk_clothed_cam6_vid4_3D_raw.csv"
 
         # self.rate = 60
         # # cop object
@@ -178,6 +188,7 @@ class sim_COP:
         # self.plot_limbs()
         # quit()
         # self.view_limb_len()
+        print("done init")
 
     def view_limb_len(self):
         pose = self.pose
@@ -586,11 +597,22 @@ class sim_COP:
             to_lower=self.to_trunk,
         )
 
+        print("done ID")
+
         # Filtering Dynamics
         Trarm, Frarm = self.filter_dynamics(Trarm, Frarm, self.filter_win[0])
         Tlarm, Flarm = self.filter_dynamics(Tlarm, Flarm, self.filter_win[1])
         Trleg, Frleg = self.filter_dynamics(Trleg, Frleg, self.filter_win[2])
         Tlleg, Flleg = self.filter_dynamics(Tlleg, Flleg, self.filter_win[3])
+
+        # rarm_check = np.ravel((np.rad2deg(pose.thet3_ra) < -45))
+        # Trarm, Frarm = self.adjust_ID(Trarm, Frarm, rarm_check)
+        # larm_check = np.ravel(np.rad2deg(pose.thet3_la) > 50)
+        # Tlarm, Flarm = self.adjust_ID(Tlarm, Flarm, larm_check)
+        # rleg_check = np.ravel(np.rad2deg(pose.thet3_rl) < 50)
+        # Trleg, Frleg = self.adjust_ID(Trleg, Frleg, rleg_check)
+        # lleg_check = np.ravel(np.rad2deg(pose.thet3_ll) > -50)
+        # Tlleg, Flleg = self.adjust_ID(Tlleg, Flleg, lleg_check)
 
         # Wrinting dynamic terms for right arm
         T1x, T1y = Trarm[0, :], Trarm[1, :]
