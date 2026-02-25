@@ -10,18 +10,19 @@ import time
 
 
 class processpose:
-    def __init__(self, file):
+    def __init__(self, file, order_theta=1):
 
         # df = pd.read_pickle(file)
         df = pd.read_csv(file)
 
         # print(df)
+        self.order = order_theta
 
         df["x"] = df["x"].astype(float)
         # df["y"] = df["y"].astype(float)
         df["y"] = df["y"].astype(float)
 
-        frames = int(np.max(df.frame))
+        frames = int(np.max(df.frame) - np.min(df.frame))
         self.frames = frames
 
         X = np.zeros((frames + 1, 18))
@@ -976,209 +977,6 @@ class processpose:
 
         return ax
 
-    def plot_upper(self, j, ax, T, scale=[0.1, 0.1, 0.1], color1="black", color2="black", color3="black", alph=0.5):
-        rs = np.matrix([[self.X[j, 2]], [self.Y[j, 2]], [self.Z[j, 2]]])
-        ls = np.matrix([[self.X[j, 5]], [self.Y[j, 5]], [self.Z[j, 5]]])
-
-        lx, ly, lz = scale[0], scale[1], scale[2]
-        # Ri = Ti[0:3, 0:3]
-
-        # percentage of upper trunk length above shoulders (dy)
-        p1 = 0.1
-        # percentage of upper trunk length above shoulders (dz)
-        p2 = 0.5
-
-        dx = 0
-        dy = ly * p1
-        dz = lz * p2
-
-        dy_ = -ly * (1 - p1)
-        dz_ = -lz * (1 - p2)
-
-        R = T[0:3, 0:3]
-
-        # print(rs)
-        # print(R)
-
-        a = rs + (R @ np.matrix([[0], [dy], [dz]]))
-        b = ls + (R @ np.matrix([[0], [dy], [dz]]))
-        c = rs + (R @ np.matrix([[0], [dy], [dz_]]))
-        d = ls + (R @ np.matrix([[0], [dy], [dz_]]))
-        e = rs + (R @ np.matrix([[0], [dy_], [dz]]))
-        f = ls + (R @ np.matrix([[0], [dy_], [dz]]))
-        g = rs + (R @ np.matrix([[0], [dy_], [dz_]]))
-        h = ls + (R @ np.matrix([[0], [dy_], [dz_]]))
-
-        # X lines
-        ax.plot([a[0, 0], b[0, 0]], [a[1, 0], b[1, 0]], [a[2, 0], b[2, 0]], color=color1, alpha=alph)
-        ax.plot([e[0, 0], f[0, 0]], [e[1, 0], f[1, 0]], [e[2, 0], f[2, 0]], color=color1, alpha=alph)
-        ax.plot([c[0, 0], d[0, 0]], [c[1, 0], d[1, 0]], [c[2, 0], d[2, 0]], color=color1, alpha=alph)
-        ax.plot([g[0, 0], h[0, 0]], [g[1, 0], h[1, 0]], [g[2, 0], h[2, 0]], color=color1, alpha=alph)
-
-        # Z lines
-        ax.plot([a[0, 0], c[0, 0]], [a[1, 0], c[1, 0]], [a[2, 0], c[2, 0]], color=color2, alpha=alph)
-        ax.plot([e[0, 0], g[0, 0]], [e[1, 0], g[1, 0]], [e[2, 0], g[2, 0]], color=color2, alpha=alph)
-        ax.plot([b[0, 0], d[0, 0]], [b[1, 0], d[1, 0]], [b[2, 0], d[2, 0]], color=color2, alpha=alph)
-        ax.plot([f[0, 0], h[0, 0]], [f[1, 0], h[1, 0]], [f[2, 0], h[2, 0]], color=color2, alpha=alph)
-
-        # # Y lines
-        ax.plot([a[0, 0], e[0, 0]], [a[1, 0], e[1, 0]], [a[2, 0], e[2, 0]], color=color3, alpha=alph)
-        ax.plot([c[0, 0], g[0, 0]], [c[1, 0], g[1, 0]], [c[2, 0], g[2, 0]], color=color3, alpha=alph)
-        ax.plot([b[0, 0], f[0, 0]], [b[1, 0], f[1, 0]], [b[2, 0], f[2, 0]], color=color3, alpha=alph)
-        ax.plot([d[0, 0], h[0, 0]], [d[1, 0], h[1, 0]], [d[2, 0], h[2, 0]], color=color3, alpha=alph)
-
-        return ax
-
-    def plot_lower(self, j, ax, T, scale=[0.1, 0.1, 0.1], color1="black", color2="black", color3="black", alph=0.5):
-        rs = np.matrix([[self.X[j, 8]], [self.Y[j, 8]], [self.Z[j, 8]]])
-        ls = np.matrix([[self.X[j, 11]], [self.Y[j, 11]], [self.Z[j, 11]]])
-
-        lx, ly, lz = scale[0], scale[1], scale[2]
-        # Ri = Ti[0:3, 0:3]
-
-        # percentage of lower trunk length above shoulders (dy)
-        p1 = 0.65
-        # percentage of lower trunk length above shoulders (dz)
-        p2 = 0.5
-
-        dx = 0.02
-        dy = ly * p1
-        dz = lz * p2
-
-        dy_ = -ly * (1 - p1)
-        dz_ = -lz * (1 - p2)
-
-        R = T[0:3, 0:3]
-
-        # print(rs)
-        # print(R)
-
-        a = rs + (R @ np.matrix([[-dx], [dy], [dz]]))
-        b = ls + (R @ np.matrix([[dx], [dy], [dz]]))
-        c = rs + (R @ np.matrix([[-dx], [dy], [dz_]]))
-        d = ls + (R @ np.matrix([[dx], [dy], [dz_]]))
-        e = rs + (R @ np.matrix([[-dx], [dy_], [dz]]))
-        f = ls + (R @ np.matrix([[dx], [dy_], [dz]]))
-        g = rs + (R @ np.matrix([[-dx], [dy_], [dz_]]))
-        h = ls + (R @ np.matrix([[dx], [dy_], [dz_]]))
-
-        dpx = lx * 0.3
-        dpy = ly * 0.45
-
-        A = e + (R @ np.matrix([[0], [dpy], [0]]))
-        B = f + (R @ np.matrix([[0], [dpy], [0]]))
-        C = e + (R @ np.matrix([[dpx], [0], [0]]))
-        D = f + (R @ np.matrix([[-dpx], [0], [0]]))
-        E = g + (R @ np.matrix([[0], [dpy], [0]]))
-        F = h + (R @ np.matrix([[0], [dpy], [0]]))
-        G = g + (R @ np.matrix([[dpx], [0], [0]]))
-        H = h + (R @ np.matrix([[-dpx], [0], [0]]))
-
-        # X lines
-        ax.plot([a[0, 0], b[0, 0]], [a[1, 0], b[1, 0]], [a[2, 0], b[2, 0]], color=color1, alpha=alph)
-        ax.plot([C[0, 0], D[0, 0]], [C[1, 0], D[1, 0]], [C[2, 0], D[2, 0]], color=color1, alpha=alph)
-        ax.plot([c[0, 0], d[0, 0]], [c[1, 0], d[1, 0]], [c[2, 0], d[2, 0]], color=color1, alpha=alph)
-        ax.plot([G[0, 0], H[0, 0]], [G[1, 0], H[1, 0]], [G[2, 0], H[2, 0]], color=color1, alpha=alph)
-
-        # Y lines
-        ax.plot([a[0, 0], A[0, 0]], [a[1, 0], A[1, 0]], [a[2, 0], A[2, 0]], color=color2, alpha=alph)
-        ax.plot([c[0, 0], E[0, 0]], [c[1, 0], E[1, 0]], [c[2, 0], E[2, 0]], color=color2, alpha=alph)
-        ax.plot([b[0, 0], B[0, 0]], [b[1, 0], B[1, 0]], [b[2, 0], B[2, 0]], color=color2, alpha=alph)
-        ax.plot([d[0, 0], F[0, 0]], [d[1, 0], F[1, 0]], [d[2, 0], F[2, 0]], color=color2, alpha=alph)
-
-        # Z lines
-        ax.plot([a[0, 0], c[0, 0]], [a[1, 0], c[1, 0]], [a[2, 0], c[2, 0]], color=color3, alpha=alph)
-        ax.plot([b[0, 0], d[0, 0]], [b[1, 0], d[1, 0]], [b[2, 0], d[2, 0]], color=color3, alpha=alph)
-
-        # Vertical lines
-        ax.plot([C[0, 0], A[0, 0]], [C[1, 0], A[1, 0]], [C[2, 0], A[2, 0]], color=color3, alpha=alph)
-        ax.plot([G[0, 0], E[0, 0]], [G[1, 0], E[1, 0]], [G[2, 0], E[2, 0]], color=color3, alpha=alph)
-        ax.plot([D[0, 0], B[0, 0]], [D[1, 0], B[1, 0]], [D[2, 0], B[2, 0]], color=color3, alpha=alph)
-        ax.plot([H[0, 0], F[0, 0]], [H[1, 0], F[1, 0]], [H[2, 0], F[2, 0]], color=color3, alpha=alph)
-
-        # More Z lines
-        ax.plot([E[0, 0], A[0, 0]], [E[1, 0], A[1, 0]], [E[2, 0], E[2, 0]], color=color3, alpha=alph)
-        ax.plot([G[0, 0], C[0, 0]], [G[1, 0], C[1, 0]], [G[2, 0], C[2, 0]], color=color3, alpha=alph)
-        ax.plot([F[0, 0], B[0, 0]], [F[1, 0], B[1, 0]], [F[2, 0], B[2, 0]], color=color3, alpha=alph)
-        ax.plot([H[0, 0], D[0, 0]], [H[1, 0], D[1, 0]], [H[2, 0], D[2, 0]], color=color3, alpha=alph)
-
-        return ax
-
-    def plot_head(self, j, ax, T, radius=0.07, color="black", alph=0.5):
-        theta = np.linspace(0, 2 * np.pi, 100)
-        x = np.sin(theta) * radius
-        z = np.cos(theta) * radius
-        y = np.zeros_like(theta)
-
-        # Rotation matrix (rotate around Y-axis)
-        R = T[0:3, 0:3]
-
-        # Upper Limb
-        c_1 = np.dot(R, np.array([x, y, z])) + np.matrix(T[0:3, 3]).T
-        c1 = np.zeros_like(c_1)
-        c2 = np.zeros_like(c_1)
-
-        c1 += c_1 + (R @ np.matrix([[0], [0.05], [0]]))
-        ax.plot(c1[0], c1[1], c1[2], color=color, alpha=alph)
-        c2 += c_1 + (R @ np.matrix([[0], [-0.02], [0]]))
-        ax.plot(c2[0], c2[1], c2[2], color=color, alpha=alph)
-
-        for i in [9, 19, 29, 39, 49, 59, 69, 79, 89, 99]:
-            ax.plot([c1[0, i], c2[0, i]], [c1[1, i], c2[1, i]], [c1[2, i], c2[2, i]], color=color, alpha=alph)
-
-        return ax
-
-    def plot_limbs(self, j, k, ax, T1, T2, radius=0.025, color1="black", color2="black", alph=0.5):
-        r1 = np.matrix([self.X[j, k], self.Y[j, k], self.Z[j, k]])
-        r2 = np.matrix([self.X[j, k + 1], self.Y[j, k + 1], self.Z[j, k + 1]])
-        r3 = np.matrix([self.X[j, k + 2], self.Y[j, k + 2], self.Z[j, k + 2]])
-
-        theta = np.linspace(0, 2 * np.pi, 100)
-        x = np.sin(theta) * radius
-        z = np.cos(theta) * radius
-        y = np.zeros_like(theta)
-
-        # Rotation matrix (rotate around Y-axis)
-        R1 = T1[0:3, 0:3]
-        R2 = T2[0:3, 0:3]
-
-        # Upper Limb
-        c_1 = np.dot(R1, np.array([x, y, z]))
-        c1 = np.zeros_like(c_1)
-        c2 = np.zeros_like(c_1)
-
-        c1 = c_1 + r1.T
-        ax.plot(c1[0], c1[1], c1[2], color=color2, alpha=alph)
-        c2 = c_1 + r2.T
-        ax.plot(c2[0], c2[1], c2[2], color=color2, alpha=alph)
-
-        # Lower Limb
-        c_2 = np.dot(R2, np.array([x, y, z]))
-        c3 = np.zeros_like(c_2)
-        c4 = np.zeros_like(c_2)
-        c3 = c_2 + r2.T
-        ax.plot(c3[0], c3[1], c3[2], color=color2, alpha=alph)
-        c4 = c_2 + r3.T
-        ax.plot(c4[0], c4[1], c4[2], color=color2, alpha=alph)
-
-        for i in [9, 19, 29, 39, 49, 59, 69, 79, 89, 99]:
-            ax.plot([c1[0, i], c2[0, i]], [c1[1, i], c2[1, i]], [c1[2, i], c2[2, i]], color=color1, alpha=alph)
-            ax.plot([c3[0, i], c4[0, i]], [c3[1, i], c4[1, i]], [c3[2, i], c4[2, i]], color=color2, alpha=alph)
-
-        return ax
-
-    def model_overlay(self, j):
-        Ts, Th, Tf, Te = self.IK_trunk(j)
-        Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(j, Ts, Th)
-
-        self.ax = self.plot_upper(j=j, ax=self.ax, T=Ts, scale=[0.1, 0.1, 0.1])
-        self.ax = self.plot_lower(j=j, ax=self.ax, T=Th, scale=[0.1, 0.1, 0.1])
-        self.ax = self.plot_head(j=j, ax=self.ax, T=Te)
-        self.ax = self.plot_limbs(j=j, k=2, ax=self.ax, T1=Ts_ra, T2=Ts_re, radius=0.025)
-        self.ax = self.plot_limbs(j=j, k=5, ax=self.ax, T1=Ts_la, T2=Ts_le, radius=0.025)
-        self.ax = self.plot_limbs(j=j, k=8, ax=self.ax, T1=Ts_rl, T2=Ts_rk, radius=0.035)
-        self.ax = self.plot_limbs(j=j, k=11, ax=self.ax, T1=Ts_ll, T2=Ts_lk, radius=0.035)
-
     def IK_init(self):
 
         ## SHOULDERS
@@ -1286,6 +1084,78 @@ class processpose:
 
         return Tq, W, W_d, Vls_d, Vrs_d
 
+    def inv_dynamics_upper_vec(self, L, i1):
+        dt = 1 / 30
+        T = np.array([self.thet1s, self.thet2s])[:, 0, :]
+        TD = np.gradient(T, dt, axis=1)
+        TDD = np.gradient(TD, dt, axis=1)
+
+        # print(np.shape(TD))
+        ###### FORWARD ITERATION
+        w0 = np.zeros([3, 1])
+        w0_d = np.zeros([3, 1])
+        v0_d = np.zeros([3, 1])
+        v0_d[2] = -9.81
+
+        n = self.frames + 1
+
+        Tq = np.ones((3, n))
+
+        W = np.ones((3, n))
+        W_d = np.ones((3, n))
+        Vls_d = np.ones((3, n))
+        Vrs_d = np.ones((3, n))
+
+        t1, t2 = T[0, :], T[1, :]
+        t1d, t2d = TD[0, :], TD[1, :]
+        t1dd, t2dd = TDD[0, :], TDD[1, :]
+
+        # # initializing paramteres from refrence to first frame
+
+        ## ANGULAR
+        # angular velocity
+
+        Ry1 = R.from_euler("y", t1)
+        Rz2 = R.from_euler("z", t2)
+
+        R01 = Ry1 * Rz2
+
+        p_ls = np.matrix([[L], [0], [0]])
+        p_rs = np.matrix([[-L], [0], [0]])
+
+        w1 = Ry1.inv().apply(w0.T).T + np.matrix([np.zeros_like(t1d), t1d, np.zeros_like(t1d)])
+        w2 = Rz2.inv().apply(w1.T).T + np.matrix([np.zeros_like(t2d), np.zeros_like(t2d), t2d])
+
+        # angular accelearation
+        w1_d = (
+            (Ry1.inv().apply(w0_d.T).T)
+            + np.cross(Ry1.inv().apply(w0.T).T, np.matrix([np.zeros_like(t1d), t1d, np.zeros_like(t1d)]), axis=0)
+            + np.matrix([np.zeros_like(t1dd), t1dd, np.zeros_like(t1dd)])
+        )
+        w2_d = (
+            (Rz2.inv().apply(w1_d.T).T)
+            + np.cross(Rz2.inv().apply(w1.T).T, np.matrix([np.zeros_like(t2d), np.zeros_like(t2d), t2d]), axis=0)
+            + np.matrix([np.zeros_like(t2dd), np.zeros_like(t2dd), t2dd])
+        )
+
+        ## LINEAR
+        # linear accelearation
+        vls_d = np.cross(w2_d, p_ls / 2, axis=0) + np.cross(w2, np.cross(w2, p_ls / 2, axis=0), axis=0) + v0_d
+        vrs_d = np.cross(w2_d, p_rs / 2, axis=0) + np.cross(w2, np.cross(w2, p_rs / 2, axis=0), axis=0) + v0_d
+
+        ##MOMENTS
+        I = np.diag(np.ravel(i1))
+        N = (I @ w2_d) + np.cross(w2, (I @ w2), axis=0)
+
+        Tq = N
+        W = w2
+        W_d = w2_d
+
+        Vls_d = vls_d
+        Vrs_d = vrs_d
+
+        return Tq, W, W_d, Vls_d, Vrs_d
+
     def inv_dynamics_lower(self, L, i1, to_upper=False):
         dt = 1 / 30
         T = np.array([self.thet1h, self.thet2h, self.thet3h])[:, 0, :]
@@ -1307,12 +1177,6 @@ class processpose:
         W_d = np.ones((3, n))
         Vlh_d = np.ones((3, n))
         Vrh_d = np.ones((3, n))
-
-        # plt.plot(np.rad2deg(T[0, :]))
-        # plt.plot(np.rad2deg(T[1, :]))
-        # plt.plot(np.rad2deg(T[2, :]))
-        # plt.legend(["t1", "t2", "t3"])
-        # plt.show()
 
         for i in range(n):
             t1, t2, t3 = T[0, i], T[1, i], T[2, i]
@@ -1384,6 +1248,95 @@ class processpose:
 
         return Tq, W, W_d, Vlh_d, Vrh_d
 
+    def inv_dynamics_lower_vec(self, L, i1, to_upper=False):
+        dt = 1 / 30
+        T = np.array([self.thet1h, self.thet2h, self.thet3h])[:, 0, :]
+        TD = np.gradient(T, dt, axis=1)
+        TDD = np.gradient(TD, dt, axis=1)
+
+        # print(np.shape(TD))
+        ###### FORWARD ITERATION
+        w0 = np.zeros([3, 1])
+        w0_d = np.zeros([3, 1])
+        v0_d = np.zeros([3, 1])
+        v0_d[2] = -9.81
+
+        n = self.frames + 1
+
+        Tq = np.ones((3, n))
+
+        W = np.ones((3, n))
+        W_d = np.ones((3, n))
+        Vlh_d = np.ones((3, n))
+        Vrh_d = np.ones((3, n))
+
+        t1, t2, t3 = T[0, :], T[1, :], T[2, :]
+        t1d, t2d, t3d = TD[0, :], TD[1, :], TD[2, :]
+        t1dd, t2dd, t3dd = TDD[0, :], TDD[1, :], TDD[2, :]
+
+        # # initializing paramteres from refrence to first frame
+
+        ## ANGULAR
+
+        Rx1 = R.from_euler("x", t1)
+        Rz2 = R.from_euler("z", t2)
+        Ry3 = R.from_euler("y", t3)
+
+        R01 = Rx1 * Rz2 * Ry3
+
+        p_lh = np.matrix([[L], [0], [0]])
+        p_rh = np.matrix([[-L], [0], [0]])
+
+        w1 = Rx1.inv().apply(w0.T).T + np.matrix([t1d, np.zeros_like(t1d), np.zeros_like(t1d)])
+        w2 = Rz2.inv().apply(w1.T).T + np.matrix([np.zeros_like(t2d), np.zeros_like(t2d), t2d])
+        w3 = Ry3.inv().apply(w2.T).T + np.matrix([np.zeros_like(t3d), t3d, np.zeros_like(t3d)])
+
+        # angular accelearation
+        w1_d = (
+            Rx1.inv().apply(w0_d.T).T
+            + np.cross(Rx1.inv().apply(w0.T).T, np.matrix([t1d, np.zeros_like(t1d), np.zeros_like(t1d)]), axis=0)
+            + np.matrix([t1dd, np.zeros_like(t1dd), np.zeros_like(t1dd)])
+        )
+        w2_d = (
+            Rz2.inv().apply(w1_d.T).T
+            + np.cross(Rz2.inv().apply(w1.T).T, np.matrix([np.zeros_like(t2d), np.zeros_like(t2d), t2d]), axis=0)
+            + np.matrix([np.zeros_like(t2dd), np.zeros_like(t2dd), t2dd])
+        )
+        w3_d = (
+            Ry3.inv().apply(w2_d.T).T
+            + np.cross(Ry3.inv().apply(w2.T).T, np.matrix([np.zeros_like(t3d), t3d, np.zeros_like(t3d)]), axis=0)
+            + np.matrix([np.zeros_like(t3dd), t3dd, np.zeros_like(t3dd)])
+        )
+
+        ## LINEAR
+        # linear accelearation
+        vlh_d = np.cross(w3_d, p_lh / 2, axis=0) + np.cross(w3, np.cross(w3, p_lh / 2, axis=0), axis=0) + v0_d
+        vrh_d = np.cross(w3_d, p_rh / 2, axis=0) + np.cross(w3, np.cross(w3, p_rh / 2, axis=0), axis=0) + v0_d
+
+        ##MOMENTS
+        I = np.diag(np.ravel(i1))
+        N = (I @ w3_d) + np.cross(w3, (I @ w3), axis=0)
+
+        Tq = N
+        W = w2
+        W_d = w2_d
+
+        # torque from shoulder flextion/extension
+        vlh_d = R01.apply(vlh_d.T).T
+        # forces transformed to base frame
+        vrh_d = R01.apply(vrh_d.T).T
+
+        if to_upper:
+            R0s = R.from_euler("zy", np.stack((self.thet1s, self.thet2s)).T)
+
+            Vlh_d = R0s.inv().apply(vlh_d.T).T
+            Vrh_d = R0s.inv().apply(vrh_d.T).T
+        else:
+            Vlh_d = vlh_d
+            Vrh_d = vrh_d
+
+        return Tq, W, W_d, Vlh_d, Vrh_d
+
     def inv_dynamics(self, T, L, m, I, W0=None, W0_d=None, V0_d=None, to_upper=False, to_lower=False):
 
         # if k == 2 or k == 5:
@@ -1399,7 +1352,7 @@ class processpose:
         # TDD = np.gradient(TD, dt, axis=1)
 
         win = 5
-        order = 1
+        order = self.order
 
         T = scipy.signal.savgol_filter(T, win, order, axis=1)
         TD = scipy.signal.savgol_filter(T, win, order, axis=1, deriv=1, delta=dt)
@@ -1540,6 +1493,133 @@ class processpose:
             Fr[:, [i]] = fr
 
         return Tq, Fr, extra1, extra2
+
+    def inv_dynamics_vec(self, T, L, m, I, W0=None, W0_d=None, V0_d=None, to_upper=False, to_lower=False):
+
+        dt = 1 / 30
+
+        win = 5
+        order = self.order
+
+        T = scipy.signal.savgol_filter(T, win, order, axis=1)
+        TD = scipy.signal.savgol_filter(T, win, order, axis=1, deriv=1, delta=dt)
+        TDD = scipy.signal.savgol_filter(T, win, order, axis=1, deriv=2, delta=dt)
+
+        n = self.frames + 1
+
+        ###### FORWARD ITERATION
+        if W0 is None:
+            W0 = np.zeros((3, n))
+        if W0_d is None:
+            W0_d = np.zeros((3, n))
+        if V0_d is None:
+            V0_d = np.zeros((3, n))
+            V0_d[2, :] = -9.81
+
+        L1, L2 = L[0], L[1]
+        m1, m2 = m[0], m[1]
+        i1, i2 = I[0, :], I[1, :]
+
+        extra1 = np.ones((3, n))
+        extra2 = np.ones((3, n))
+
+        t1, t2, t3, t4 = T[0, :], T[1, :], T[2, :], T[3, :]
+        t1d, t2d, t3d, t4d = TD[0, :], TD[1, :], TD[2, :], TD[3, :]
+        t1dd, t2dd, t3dd, t4dd = TDD[0, :], TDD[1, :], TDD[2, :], TDD[3, :]
+
+        # # initializing paramteres from refrence to first frame
+
+        ## ANGULAR
+        # angular velocity
+        Rz_180 = R.from_matrix(np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]]))
+
+        Rz1 = Rz_180 * R.from_euler("z", t1)
+        Rx2 = R.from_euler("x", t2)
+        Ry3 = R.from_euler("y", t3)
+        Rx4 = R.from_euler("x", t4)
+
+        # R01 = Rz_180 * R.from_euler("zxy", np.stack((t1, t2, t3)).T)
+        R01 = Rz1 * Rx2 * Ry3
+        R12 = Rx4
+
+        p1 = np.matrix([[0], [L1], [0]])
+        p2 = np.matrix([[0], [L2], [0]])
+
+        wz = Rz1.inv().apply(W0.T).T + np.matrix([np.zeros_like(t1d), np.zeros_like(t1d), t1d])
+        wx = Rx2.inv().apply(wz.T).T + np.matrix([t2d, np.zeros_like(t2d), np.zeros_like(t2d)])
+        w1 = Ry3.inv().apply(wx.T).T + np.matrix([np.zeros_like(t3d), t3d, np.zeros_like(t3d)])
+        w2 = Rx4.inv().apply(w1.T).T + np.matrix([t4d, np.zeros_like(t4d), np.zeros_like(t4d)])
+
+        # angular accelearation
+        wz_d = (
+            (Rz1.inv().apply(W0_d.T)).T
+            + np.cross(Rz1.inv().apply(W0.T).T, np.matrix([np.zeros_like(t1d), np.zeros_like(t1d), t1d]), axis=0)
+            + np.matrix([np.zeros_like(t1dd), np.zeros_like(t1dd), t1dd])
+        )
+        wx_d = (
+            (Rx2.inv().apply(wz_d.T)).T
+            + np.cross(Rx2.inv().apply(wz.T).T, np.matrix([t2d, np.zeros_like(t2d), np.zeros_like(t2d)]), axis=0)
+            + np.matrix([t2dd, np.zeros_like(t2dd), np.zeros_like(t2dd)])
+        )
+        w1_d = (
+            (Ry3.inv().apply(wx_d.T)).T
+            + np.cross(Ry3.inv().apply(wx.T).T, np.matrix([np.zeros_like(t3d), t3d, np.zeros_like(t3d)]), axis=0)
+            + np.matrix([np.zeros_like(t3dd), t3dd, np.zeros_like(t3dd)])
+        )
+        w2_d = (
+            (Rx4.inv().apply(w1_d.T)).T
+            + np.cross(Rx4.inv().apply(w1.T).T, np.matrix([t4d, np.zeros_like(t4d), np.zeros_like(t4d)]), axis=0)
+            + np.matrix([t4dd, np.zeros_like(t4dd), np.zeros_like(t4dd)])
+        )
+        ## LINEAR
+
+        # linear accelearation
+        v1_d = R01.inv().apply(V0_d.T).T
+        v2_d = R12.inv().apply((np.cross(w1_d, p1, axis=0) + np.cross(w1, np.cross(w1, p1, axis=0), axis=0) + v1_d).T).T
+
+        # linear acceleration relative to COM
+        vc1_d = np.cross(w1_d, p1 / 2, axis=0) + np.cross(w1, np.cross(w1, p1 / 2, axis=0), axis=0) + v1_d
+        vc2_d = np.cross(w2_d, p2 / 2, axis=0) + np.cross(w2, np.cross(w2, p2 / 2, axis=0), axis=0) + v2_d
+
+        ## FORCES
+        # froces from shoulder frames
+        F1 = m1 * vc1_d
+        # froces from ekbow frame
+        F2 = m2 * vc2_d
+
+        ##MOMENTS
+        I1 = np.diag(np.ravel(i1))
+        N1 = (I1 @ w1_d) + np.cross(w1, (I1 @ w1), axis=0)
+        I2 = np.diag(np.ravel(i2))
+        N2 = (I2 @ w2_d) + np.cross(w2, (I2 @ w2), axis=0)
+
+        ###### BACKWARDS ITERATION
+        # ACCUMULATED FORCES at joints
+        f2 = F2
+        f1 = F1 + (R12.apply(f2.T)).T
+
+        # ACCUMULATED TORQUE at joints
+        n2 = N2 + np.cross(p2 / 2, F2, axis=0)
+        n1 = N1 + (R12.apply(n2.T)).T + np.cross(p1 / 2, F1, axis=0) + np.cross(p1, (R12.apply(f2.T)).T, axis=0)
+
+        # torque from shoulder flextion/extension
+        tq = (R01.apply(n1.T)).T
+        # forces transformed to base frame
+        fr = (R01.apply(f1.T)).T
+
+        if to_upper:
+            R0s = R.from_euler("zy", np.stack((self.thet1s, self.thet2s)).T)
+
+            tq = R0s.inv().apply(tq.T).T
+            fr = R0s.inv().apply(fr.T).T
+
+        if to_lower:
+            R0h = R.from_euler("xzy", np.stack((self.thet1h, self.thet2h, self.thet3h)).T)
+
+            tq = R0h.inv().apply(tq.T).T
+            fr = R0h.inv().apply(fr.T).T
+
+        return tq, fr, extra1, extra2
 
 
 # fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"

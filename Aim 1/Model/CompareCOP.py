@@ -215,7 +215,7 @@ class compareCOP:
         plt.ylabel("COP X (mm)")
         plt.grid()
 
-        plt.ylim(-40, 40)
+        # plt.ylim(-40, 40)
 
         plt.subplot(2, 1, 2)
         plt.plot(t, Y - np.mean(Y[0:15]), color=color_real)
@@ -227,7 +227,7 @@ class compareCOP:
         plt.grid()
 
         # plt.xlim(-40, 40)
-        plt.ylim(-40, 40)
+        # plt.ylim(-40, 40)
 
         plt.tight_layout()
         plt.show()

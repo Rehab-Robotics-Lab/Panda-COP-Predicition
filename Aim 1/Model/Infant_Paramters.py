@@ -6,7 +6,7 @@ import scipy
 from scipy.spatial.transform import Rotation as R
 
 
-class infant_parameters:
+class infant_params:
     def __init__(self):
         self.bodyparts = np.array(
             [
@@ -242,19 +242,20 @@ class infant_parameters:
         # print(mat)
 
         roots = np.roots(mat)
+        # print(roots)
 
         real_roots = roots[np.isreal(roots)]
         real_roots = np.real(real_roots[real_roots > 0])
 
         if np.shape(real_roots) == (1,):
             print("Root Found")
-            print(real_roots[0])
+            # print(real_roots[0])
             return real_roots[0]
 
         else:
             print("No roots found")
 
-    def guess_age(self, mass, lengths):
+    def guess_age_cv(self, mass, lengths):
         up_arm, low_arm, up_leg, low_leg = lengths[0], lengths[1], lengths[2], lengths[3]
 
         mass_age = self.age_from_mass(mass)
@@ -264,4 +265,14 @@ class infant_parameters:
         uleg_age = self.age_from_length(up_leg, "upp leg")
         lleg_age = self.age_from_length(low_leg, "low leg")
 
-        np.mean([mass_age, uarm_age, larm_age, uleg_age, lleg_age])
+        # print(mass_age, uarm_age, larm_age, uleg_age, lleg_age)
+        return np.mean([mass_age, uarm_age, larm_age, uleg_age, lleg_age])
+
+    def guess_age_params(self, mass, forearm_len):
+
+        mass_age = self.age_from_mass(mass)
+
+        larm_age = self.age_from_length(forearm_len, "low arm")
+
+        # print(mass_age, larm_age)
+        return np.mean([mass_age, larm_age])

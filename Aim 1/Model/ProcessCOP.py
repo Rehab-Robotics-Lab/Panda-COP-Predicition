@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class processCOP:
     # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
-    def __init__(self, file, rate):
+    def __init__(self, file, rate, fcut=5):
 
         cop = pd.read_csv(
             file,
@@ -22,7 +22,6 @@ class processCOP:
         self.Rraw = cop.Reaction
 
         order = 3
-        fcut = 5
 
         b, a = signal.butter(order, fcut, fs=rate)
 
@@ -30,5 +29,5 @@ class processCOP:
         self.Yfilt = signal.filtfilt(b, a, self.Yraw)
         self.Rfilt = signal.filtfilt(b, a, self.Rraw)
 
-        self.Xnorm = np.divide(self.Xfilt, self.Rfilt) * np.mean(self.Rfilt)
-        self.Ynorm = np.divide(self.Yfilt, self.Rfilt) * np.mean(self.Rfilt)
+        # self.Xnorm = np.divide(self.Xfilt, self.Rfilt) * np.mean(self.Rfilt)
+        # self.Ynorm = np.divide(self.Yfilt, self.Rfilt) * np.mean(self.Rfilt)
