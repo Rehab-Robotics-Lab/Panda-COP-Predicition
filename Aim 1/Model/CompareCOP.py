@@ -157,41 +157,7 @@ class compareCOP:
         ani2 = animation.FuncAnimation(fig2, self.xy_anim, frames=frms[start:], interval=1)
         plt.show()
 
-    def comp_XY_robo(self, robot_t, off=0):
-
-        n = len(robot_t)
-        t = np.asarray(robot_t).reshape(n, 1)
-
-        X, Y = self.Xreal, self.Yreal
-        t_c = np.linspace(0, (len(X) - 1) / self.rate, num=len(X)) + off
-
-        Xcalc = self.Xcalc.reshape(n, 1)
-        Ycalc = self.Ycalc.reshape(n, 1)
-
-        # fig, ax = plt.subplots(2, 1)
-
-        plt.subplot(2, 1, 1)
-        plt.plot(t_c + t[0], X - np.mean(X[0:5]))
-        plt.plot(t, Xcalc - np.mean(Xcalc[0:5]))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("X COP")
-        plt.xlabel("Time (s)")
-        plt.ylabel("COP X (mm)")
-        plt.grid()
-
-        plt.subplot(2, 1, 2)
-        plt.plot(t_c + t[0], Y - np.mean(Y[0:5]))
-        plt.plot(t, Ycalc - np.mean(Ycalc[0:5]))
-        plt.legend(["Grnd Trth", "Calculated"])
-        plt.title("Y COP")
-        plt.xlabel("Time (s)")
-        plt.ylabel("COP Y (mm)")
-        plt.grid()
-
-        plt.tight_layout()
-        plt.show()
-
-    def comp_XY(self):
+    def comp_XY(self, show=True, save=False, name=None, title=None):
 
         X, Y = self.Xreal, self.Yreal
         n = self.n
@@ -199,6 +165,7 @@ class compareCOP:
 
         Xcalc = self.Xcalc
         Ycalc = self.Ycalc
+        plt.clf()
 
         # print(t.shape, X.shape, Xcalc.shape)
 
@@ -229,8 +196,16 @@ class compareCOP:
         # plt.xlim(-40, 40)
         # plt.ylim(-40, 40)
 
+        plt.suptitle(title)
         plt.tight_layout()
-        plt.show()
+
+        if save:
+
+            plt.savefig(name)
+            print("Saved as: ", name)
+
+        if show:
+            plt.show()
 
     def comp_ellipse(self):
 
@@ -385,6 +360,12 @@ class compareCOP:
 
         plt.show()
 
+    def residual(self):
+        resX = self.Xreal - self.Xcalc
+        resY = self.Yreal - self.Ycalc
+
+        return resX, resY
+
     def mse(self):
         # Xr = self.Xreal - np.mean(self.Xreal)
         # Yr = self.Yreal - np.mean(self.Yreal)
@@ -465,14 +446,27 @@ class compareCOP:
         # mseX, mseY = self.mse()
         val_x, p_x, val_y, p_y = self.pearson_corr()
 
-        data = {
-            "X": [maeX, val_x, p_x],
-            "Y": [maeY, val_y, p_y],
+        metric_x = np.array([maeX, val_x, p_x])
+        metric_y = np.array([maeY, val_y, p_y])
+        metric_avg = (metric_x + metric_y) / 2
+
+        # data = {"X": metric_x, "Y": metric_y, "Mean": (metric_x + metric_y) / 2}
+        # df = pd.DataFrame(data, index=["MAE", "Pearson", "P-value"])
+
+        data2 = {
+            "MAE X": maeX,
+            "MAE Y": maeY,
+            "Corr X": val_x,
+            "Corr Y": val_y,
+            "Mean MAE": metric_avg[0],
+            "Mean Corr": metric_avg[1],
         }
+        df2 = pd.DataFrame(data2, index=[0])
 
-        df = pd.DataFrame(data, index=["MAE", "Pearson", "P-value"])
+        # print(df)
+        # print(df2)
 
-        return df
+        return df2
 
     def metrics(self):
         # n = len(x)

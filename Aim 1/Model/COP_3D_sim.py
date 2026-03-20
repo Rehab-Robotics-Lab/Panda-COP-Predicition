@@ -23,9 +23,9 @@ class sim_COP:
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid6_cams_2_4_both.csv"
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_clothed_vid7_cams_2_4_both.csv"
 
-        # posefile = (
-        #     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs_vid6_cams_2_6_both.csv"
-        # )
+        posefile = (
+            r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs_vid6_cams_2_6_both.csv"
+        )
 
         # LOADING FILE WITH COP VALUES
         cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_cop_vid3_each.csv"
@@ -36,15 +36,15 @@ class sim_COP:
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid6_all.csv"
         # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_clothed_cop_vid7_side_limbs.csv"
 
-        # cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid6_flex.csv"
+        cop_file = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs_cop_vid6_flex.csv"
 
-        # posefile = (
-        #     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs2_vid7_cams_2_4_both.csv"
-        # )
+        posefile = (
+            r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_trunk_limbs2_vid7_cams_2_4_both.csv"
+        )
 
-        # cop_file = (
-        #     r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid7_side_dynamic.csv"
-        # )
+        cop_file = (
+            r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Mat\sim_trunk_limbs2_cop_vid7_side_dynamic.csv"
+        )
 
         # posefile = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid4_reproj_idx.csv"
 
@@ -61,8 +61,8 @@ class sim_COP:
 
         pose.IK_init()
 
-        self.R0h = R.from_euler("xzy", np.stack((pose.thet1h[0, :], pose.thet2h[0, :], pose.thet3h[0, :])).T)
-        self.R0s = R.from_euler("zy", np.stack((pose.thet1s[0, :], pose.thet2s[0, :])).T)
+        self.R0h = R.from_euler("XZY=", np.stack((pose.thet1h[0, :], pose.thet2h[0, :], pose.thet3h[0, :])).T)
+        self.R0s = R.from_euler("ZY", np.stack((pose.thet1s[0, :], pose.thet2s[0, :])).T)
 
         self.frames = pose.frames + 1
 
@@ -610,15 +610,6 @@ class sim_COP:
         Tlarm, Flarm = self.filter_dynamics(Tlarm, Flarm, self.filter_win[1])
         Trleg, Frleg = self.filter_dynamics(Trleg, Frleg, self.filter_win[2])
         Tlleg, Flleg = self.filter_dynamics(Tlleg, Flleg, self.filter_win[3])
-
-        # rarm_check = np.ravel((np.rad2deg(pose.thet3_ra) < -45))
-        # Trarm, Frarm = self.adjust_ID(Trarm, Frarm, rarm_check)
-        # larm_check = np.ravel(np.rad2deg(pose.thet3_la) > 50)
-        # Tlarm, Flarm = self.adjust_ID(Tlarm, Flarm, larm_check)
-        # rleg_check = np.ravel(np.rad2deg(pose.thet3_rl) < 50)
-        # Trleg, Frleg = self.adjust_ID(Trleg, Frleg, rleg_check)
-        # lleg_check = np.ravel(np.rad2deg(pose.thet3_ll) > -50)
-        # Tlleg, Flleg = self.adjust_ID(Tlleg, Flleg, lleg_check)
 
         # Wrinting dynamic terms for right arm
         T1x, T1y = Trarm[0, :], Trarm[1, :]

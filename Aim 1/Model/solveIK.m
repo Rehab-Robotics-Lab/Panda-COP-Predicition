@@ -12,15 +12,71 @@ R2=R1*r4
 %% 
 syms t0 t1 t2 t3 t4
 
-r1=rotz(t0)*rotx(t1)
-% r1=rotx(t1)
+r1=rotx(t1)
 r2=rotz(t2)
 r3=roty(t3)
-r4=rotx(t4)
 
-R1=r1*r2*r3 
-R2=R1*r4
+R1=r1*r2
+R2=R1*r3
 
+%%  solving IK equations for Rzyx
+
+syms c1 s1 c2 s2 c3 s3  X1 Y1 Z1 X2 Y2 Z2 L1 L2
+
+% ex1=s2*L1;
+% ey1= -c1*c2*L1;
+% ez1=-s1*c2*L1;
+
+ex2=(c1*s2*s3-s1*c3)*-L1;
+ey2= (s1*s2*s3+c1*c3)*-L1;
+ez2=c2*s3*-L1;
+
+eqn1=[ey2 ;ez2 ]==[Y;Z]
+eqn2=[ ex2; ez2]==[X;Z]
+eqn3=[ex2 ; ey2]==[X;Y]
+
+solve(eqn1,[c3,s3])
+solve(eqn2,[c3,s3])
+solve(eqn3,[c3,s3])
+
+%%  solving IK equations for Rzxy
+
+syms c1 s1 c2 s2 c3 s3  X1 Y1 Z1 X2 Y2 Z2 L1 L2
+
+ex1=s2*L1;
+ey1= -c1*c2*L1;
+ez1=-s1*c2*L1;
+
+ex2=(-s1*s2*s3+c1*c3)*L2;
+ey2= (c1*s2*s3+s1*c3)*L2;
+ez2=-c2*s3*L2;
+
+eqn1=[ey2 ;ez2 ]==[Y;Z]
+eqn2=[ ex2; ez2]==[X;Z]
+eqn3=[ex2 ; ey2]==[X;Y]
+
+solve(eqn1,[c3,s3])
+solve(eqn2,[c3,s3])
+solve(eqn3,[c3,s3])
+%%  solving IK equations for Rxzy
+
+syms c1 s1 c2 s2 c3 s3  X1 Y1 Z1 X2 Y2 Z2 L1 L2
+
+ex1=s2*L1;
+ey1= -c1*c2*L1;
+ez1=-s1*c2*L1;
+
+ex2=c2*c3*L2;
+ey2= (c1*s2*c3+s1*s3)*L2;
+ez2=(s1*s2*c3-c1*s3)*L2;
+
+eqn1=[ey2 ;ez2 ]==[Y;Z]
+eqn2=[ ex2; ez2]==[X;Z]
+eqn3=[ex2 ; ey2]==[X;Y]
+
+solve(eqn1,[c3,s3])
+solve(eqn2,[c3,s3])
+solve(eqn3,[c3,s3])
 
 %%  solving IK equations for R_04 (static R_z_zxy arms)
 
@@ -49,7 +105,7 @@ ey=-A*s2+(B*(Z/T1));
 eqn_03=[ex;ey]==[X;Y]
 solve(eqn_03,[T1,s2])
 
-%%  solving IK equations for R_04 (static R_z_zxy_x legs)
+%%  solving IK equations for Rxzy
 
 syms A B c1 s0 c0 s1 c2 s2 c4 s4 X Y Z
 ex=-c4*(c0*s2 + s0*c1*c2) + s0*s1*s4;

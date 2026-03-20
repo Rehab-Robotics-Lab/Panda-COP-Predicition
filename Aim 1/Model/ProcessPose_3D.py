@@ -90,9 +90,12 @@ class processpose:
     #     # print(np.shape(rf_proj))
     #     self.X[:, 10], self.Y[:, 10], self.Z[:, 10] = rf_proj[0, :], rf_proj[1, :], rf_proj[2, :]
 
+    def pose_idx(self, i):
+        return np.matrix([self.X[:, i], self.Y[:, i], self.Z[:, i]])
+
     def get_len(self, i, j):
-        p1 = np.matrix([self.X[:, i], self.Y[:, i], self.Z[:, i]])
-        p2 = np.matrix([self.X[:, j], self.Y[:, j], self.Z[:, j]])
+        p1 = self.pose_idx(i)
+        p2 = self.pose_idx(j)
 
         L = np.linalg.norm(p1 - p2, axis=0)
 
@@ -178,20 +181,9 @@ class processpose:
         if show_model == True:
             self.model_overlay(j)
 
-        s1 = "t3l= " + str(int(np.rad2deg(self.thet3_ll[0, j])))
-        s2 = "t4l= " + str(int(np.rad2deg(self.thet4_ll[0, j])))
-
-        s3 = "t3r= " + str(int(np.rad2deg(self.thet3_rl[0, j])))
-        s4 = "t4r= " + str(int(np.rad2deg(self.thet4_rl[0, j])))
         # s2 = "s= " + str(round(j / 30))
-
-        # self.ax.text(0.3, -0.3, 0, "%s" % (s1), size=20, zorder=1, color="k")
-        # self.ax.text(0.3, -0.4, 0, "%s" % (s2), size=20, zorder=1, color="k")
-
-        # self.ax.text(-0.6, -0.3, 0, "%s" % (s3), size=20, zorder=1, color="k")
-        # self.ax.text(-0.6, -0.4, 0, "%s" % (s4), size=20, zorder=1, color="k")
-
         # plt.text(0, 0, s)
+
         self.ax.set_zlim3d(0, 0.6)
         self.ax.set_ylim3d(-0.4, 0.2)
         self.ax.set_xlim3d(-0.3, 0.3)
@@ -305,21 +297,21 @@ class processpose:
         magnitude_q = np.linalg.norm(q, axis=0)
         magnitude_cross = np.linalg.norm(cross_product, axis=0)
 
-        # c4 = [
-        #     np.divide(
-        #         (np.power(L1, 2) + np.power(L2, 2) - np.power(magnitude_q, 2)),
-        #         (2 * np.multiply(L1, L2)),
-        #     )
-        # ]
+        c4 = [
+            np.divide(
+                (np.power(L1, 2) + np.power(L2, 2) - np.power(magnitude_q, 2)),
+                (2 * np.multiply(L1, L2)),
+            )
+        ]
 
-        s4 = np.divide(magnitude_cross, np.multiply(magnitude_u, magnitude_v))
-        c4 = np.divide(dot_product, np.multiply(magnitude_u, magnitude_v))
+        # s4 = np.divide(magnitude_cross, np.multiply(magnitude_u, magnitude_v))
+        # c4 = np.divide(dot_product, np.multiply(magnitude_u, magnitude_v))
 
-        thet4 = np.arctan2(s4, c4)
-        # thet4 = np.arccos(c4)
+        # thet4 = np.arctan2(s4, c4)
+        thet4 = np.arccos(c4)
         thet4 = -(np.pi - thet4)
-        # c4 = np.cos(thet4)
-        # s4 = np.sin(thet4)
+        c4 = np.cos(thet4)
+        s4 = np.sin(thet4)
 
         ##THETA 3
 
@@ -343,12 +335,15 @@ class processpose:
         return thet1, thet2, thet3, thet4
 
     def face_ang(self):
-        reye = np.matrix([self.X[:, 14], self.Y[:, 14], self.Z[:, 14]])
-        leye = np.matrix([self.X[:, 15], self.Y[:, 15], self.Z[:, 15]])
-        nose = np.matrix([self.X[:, 0], self.Y[:, 0], self.Z[:, 0]])
+        reye = np.array([self.X[:, 14], self.Y[:, 14], self.Z[:, 14]])
+        leye = np.array([self.X[:, 15], self.Y[:, 15], self.Z[:, 15]])
+        nose = np.array([self.X[:, 0], self.Y[:, 0], self.Z[:, 0]])
 
         mid = np.add(leye, reye) * 0.5
         self.mid_face = mid
+
+        L1 = np.linalg.norm(nose - mid, axis=0)
+        L2 = np.linalg.norm(leye - mid, axis=0)
 
         s1 = mid[2, :] - nose[2, :]
         c1 = mid[1, :] - nose[1, :]
@@ -356,22 +351,86 @@ class processpose:
         thet1 = np.arctan2(s1, c1)
         c1 = np.cos(thet1)
         s1 = np.sin(thet1)
-        self.thet1f = thet1
 
-        c2 = np.divide((mid[1, :] - nose[1, :]), np.cos(thet1))
+        # c2 = np.divide((mid[1, :] - nose[1, :]), c1)
+        c2 = np.divide((mid[2, :] - nose[2, :]), s1)
         s2 = nose[0, :] - mid[0, :]
 
         thet2 = np.arctan2(s2, c2)
-        self.thet2f = thet2
         c2 = np.cos(thet2)
         s2 = np.sin(thet2)
 
-        c3 = np.divide((leye[0, :] - mid[0, :]), np.cos(thet2))
+        # c3 = np.divide((leye[0, :] - mid[0, :]), c2)
         # t12 = np.multiply(np.divide(s1, c1), np.divide(s2, c2))
-        t12 = np.multiply(np.tan(thet1), np.tan(thet2))
-        s3 = np.multiply(t12, (leye[0, :] - mid[0, :])) + (np.divide((mid[2, :] - leye[2, :]), np.cos(thet2)))
+        # t12 = np.multiply(np.tan(thet1), np.tan(thet2))
+        # s3 = np.multiply(t12, (leye[0, :] - mid[0, :])) + (np.divide((mid[2, :] - leye[2, :]), c1))
+
+        # s3 = np.divide((leye[1, :] - mid[1, :]), (s1 + np.multiply(c1, s2)))
+
+        # print((np.where(c2 == 0)))
+
+        # X1 = np.divide(leye[0, :] - mid[0, :])
+        # Y1 = np.divide(leye[1, :] - mid[1, :])
+        # Z1 = np.divide(leye[2, :] - mid[2, :])
+
+        x_axs = leye - mid
+        y_axs = mid - nose
+        y_axs = np.divide(y_axs, L1)
+
+        # print(np.shape(x_axs), np.shape(y_axs))
+
+        x_axs_orth = x_axs - y_axs * (np.sum(x_axs * y_axs, axis=0))
+        x_axs_orth /= np.linalg.norm(x_axs_orth, axis=0)
+        X = x_axs_orth[0, :]
+        Y = x_axs_orth[1, :]
+        Z = x_axs_orth[2, :]
+
+        s12 = np.multiply(np.sin(thet1), np.sin(thet2))
+        c12 = np.multiply(np.cos(thet1), np.cos(thet2))
+
+        c3 = np.divide(X, c2)
+        s3 = np.divide(-(np.multiply(Z, c2) - np.multiply(X, s12)), c12)
+        # s3 = np.divide((np.multiply(Y, c2) - np.multiply(X, c1, s2)), np.multiply(s1, c2))
+
+        # c3 = np.divide((np.multiply(Y, c1) + np.multiply(Z, s1)), s2)
+        # s3 = -(np.multiply(Z, c1) - np.multiply(Y, s1))
+
+        # c3 = np.sqrt((np.ones_like(s3) - np.power(s3, 2)).T).T
+        # s3 = np.sqrt((np.ones_like(c3) - np.power(c3, 2)).T).T
 
         thet3 = np.arctan2(s3, c3)
+        # thet3 = np.arcsin(c3)
+
+        # idx = 2
+        # R_alg = self.R_xzy(thet1[idx], thet2[idx], thet3[idx])
+        # print("Algebraic", R_alg)
+        # print(np.linalg.norm(R_alg, axis=0))
+
+        # R_alg_r = R.from_euler("XZY", [thet1[idx], thet2[idx], thet3[idx]]).as_matrix()
+        # print("Algebraic R", R_alg_r)
+        # print(np.linalg.norm(R_alg_r, axis=0))
+
+        # Vx = x_axs_orth
+        # Vy = y_axs
+        # Vz = np.cross(Vx.T, Vy.T).T
+
+        # print(np.linalg.norm(vx, axis=0))
+
+        # thet1 = np.arctan2(Vy[2, :], Vy[1, :])
+        # thet2 = np.arctan2(-Vy[0, :], np.sqrt(Vy[2, :] ** 2 + Vy[1, :] ** 2))
+        # thet3 = np.arctan2(Vz[0, :], Vx[0, :])
+
+        # R_orth = np.array([Vx[:, idx], Vy[:, idx], Vz[:, idx]]).T
+        # print("Orthonormal", R_orth)
+        # print(np.linalg.norm(R_orth, axis=0))
+
+        # R_orth_re = self.R_xzy(thet1[idx], thet2[idx], thet3[idx])
+        # print("Re-Orthonormal", R_orth_re)
+        # print(np.linalg.norm(R_orth_re, axis=0))
+        # quit()
+
+        self.thet1f = thet1
+        self.thet2f = thet2
         self.thet3f = thet3
 
     def head_ang(self):
@@ -390,7 +449,7 @@ class processpose:
         s1 = np.sin(thet1)
         self.thet1e = thet1
 
-        c2 = np.divide((mid[1, :] - neck[1, :]), np.cos(thet1))
+        c2 = np.divide((mid[1, :] - neck[1, :]), c1)
         s2 = neck[0, :] - mid[0, :]
 
         thet2 = np.arctan2(s2, c2)
@@ -398,7 +457,7 @@ class processpose:
         s2 = np.sin(thet2)
         self.thet2e = thet2
 
-        c3 = np.divide((lear[0, :] - mid[0, :]), np.cos(thet2))
+        c3 = np.divide((lear[0, :] - mid[0, :]), c2)
         # t12 = np.multiply(np.divide(s1, c1), np.divide(s2, c2))
         t12 = np.multiply(np.tan(thet1), np.tan(thet2))
         s3 = np.multiply(t12, (lear[0, :] - mid[0, :])) + (np.divide((mid[2, :] - lear[2, :]), np.cos(thet2)))
@@ -425,20 +484,22 @@ class processpose:
 
         # c2 = np.divide((lshoulder[0, :] - mid[0, :]), c1)
         s2 = mid[2, :] - lshoulder[2, :]
-        # c2 = lshoulder[0, :] - mid[0, :]
+        c2 = np.divide(lshoulder[0, :] - mid[0, :], c1)
         # s2 = np.multiply((mid[2, :] - lshoulder[2, :]), np.cos(thet1))
-        c2 = np.sqrt(np.ones_like(s2) - np.power(s2, 2))
+        # c2 = np.sqrt(np.ones_like(s2) - np.power(s2, 2))
 
         thet2 = np.arctan2(s2, c2)
         self.thet2s = thet2
 
     def hip_ang(self):
-        rhip = np.matrix([self.X[:, 8], self.Y[:, 8], self.Z[:, 8]])
-        lhip = np.matrix([self.X[:, 11], self.Y[:, 11], self.Z[:, 11]])
-        neck = np.matrix([self.X[:, 1], self.Y[:, 1], self.Z[:, 1]])
+        rhip = np.array([self.X[:, 8], self.Y[:, 8], self.Z[:, 8]])
+        lhip = np.array([self.X[:, 11], self.Y[:, 11], self.Z[:, 11]])
+        neck = np.array([self.X[:, 1], self.Y[:, 1], self.Z[:, 1]])
 
         mid = np.add(lhip, rhip) * 0.5
         self.mid_hip = mid
+
+        L1 = np.linalg.norm(neck - mid, axis=0)
 
         s1 = neck[2, :] - mid[2, :]
         c1 = neck[1, :] - mid[1, :]
@@ -448,18 +509,42 @@ class processpose:
         c1 = np.cos(thet1)
         s1 = np.sin(thet1)
 
-        c2 = np.divide((neck[1, :] - mid[1, :]), c1)
         s2 = mid[0, :] - neck[0, :]
+        c2 = np.divide((neck[1, :] - mid[1, :]), c1)
 
         thet2 = np.arctan2(s2, c2)
         c2 = np.cos(thet2)
         s2 = np.sin(thet2)
         self.thet2h = thet2
 
-        c3 = np.divide((lhip[0, :] - mid[0, :]), np.cos(thet2))
-        # t12 = np.multiply(np.divide(s1, c1), np.divide(s2, c2))
-        t12 = np.multiply(np.tan(thet1), np.tan(thet2))
-        s3 = np.multiply(t12, (lhip[0, :] - mid[0, :])) + (np.divide((mid[2, :] - lhip[2, :]), c2))
+        # c3 = np.divide((lhip[0, :] - mid[0, :]), c2)
+        # # t12 = np.multiply(np.divide(s1, c1), np.divide(s2, c2))
+        # t12 = np.multiply(np.tan(thet1), np.tan(thet2))
+        # s3 = np.multiply(t12, (lhip[0, :] - mid[0, :])) + (np.divide((mid[2, :] - lhip[2, :]), c1))
+
+        x_axs = lhip - mid
+        y_axs = mid - neck
+        y_axs = np.divide(y_axs, L1)
+
+        # print(np.shape(x_axs), np.shape(y_axs))
+
+        x_axs_orth = x_axs - y_axs * (np.sum(x_axs * y_axs, axis=0))
+        x_axs_orth /= np.linalg.norm(x_axs_orth, axis=0)
+        X = x_axs_orth[0, :]
+        Y = x_axs_orth[1, :]
+        Z = x_axs_orth[2, :]
+
+        # X = lhip[0, :] - mid[0, :]
+        # Y = lhip[1, :] - mid[1, :]
+        # Z = lhip[2, :] - mid[2, :]
+
+        s12 = np.multiply(s1, s2)
+        c12 = np.multiply(c1, c2)
+        c3 = np.divide(X, c2)
+        s3 = np.divide(-(np.multiply(Z, c2) - np.multiply(X, s12)), c12)
+
+        # c3 = np.divide((np.multiply(Y, c1) + np.multiply(Z, s1)), s2)
+        # s3 = -(np.multiply(Z, c1) - np.multiply(Y, s1))
 
         thet3 = np.arctan2(s3, c3)
         self.thet3h = thet3
@@ -563,6 +648,46 @@ class processpose:
 
         return R
 
+    def R_yzx(self, t1, t2, t3):
+
+        R = np.matrix(
+            [
+                [
+                    (np.cos(t1) * np.cos(t2)),
+                    (-(np.cos(t1) * np.sin(t2) * np.cos(t3)) + (np.sin(t1) * np.sin(t3))),
+                    ((np.cos(t1) * np.sin(t2) * np.sin(t3)) + (np.sin(t1) * np.cos(t3))),
+                ],
+                [np.sin(t2), (np.cos(t2) * np.cos(t3)), -(np.cos(t2) * np.sin(t3))],
+                [
+                    -(np.sin(t1) * np.cos(t2)),
+                    ((np.sin(t1) * np.sin(t2) * np.cos(t3)) + (np.cos(t1) * np.sin(t3))),
+                    (-(np.sin(t1) * np.sin(t2) * np.sin(t3)) + (np.cos(t1) * np.cos(t3))),
+                ],
+            ]
+        )
+
+        return R
+
+    def R_yxy(self, t1, t2, t3):
+
+        R = np.matrix(
+            [
+                [
+                    (-(np.sin(t1) * np.cos(t2) * np.sin(t3)) + (np.cos(t1) * np.cos(t3))),
+                    (np.sin(t1) * np.sin(t2)),
+                    ((np.sin(t1) * np.cos(t2) * np.cos(t3)) + (np.cos(t1) * np.sin(t3))),
+                ],
+                [(np.sin(t2) * np.sin(t3)), np.cos(t2), -(np.sin(t2) * np.cos(t3))],
+                [
+                    (-(np.cos(t1) * np.cos(t2) * np.sin(t3)) - (np.sin(t1) * np.cos(t3))),
+                    (np.cos(t1) * np.sin(t2)),
+                    ((np.cos(t1) * np.cos(t2) * np.cos(t3)) - (np.sin(t1) * np.sin(t3))),
+                ],
+            ]
+        )
+
+        return R
+
     def reproj_IK(self, axis, T, i, P1, P2, mid=0):
         if mid == 0:
             p1 = np.matrix([self.X[i, P1], self.Y[i, P1], self.Z[i, P1]])
@@ -574,8 +699,7 @@ class processpose:
             p1 = (k1 + k2) * 0.5
             p2 = k2
 
-        # print(p1,p2)
-        L = np.linalg.norm(p1 - p2, axis=1)[0]
+        L = np.linalg.norm(p1 - p2, axis=0)[0]
 
         # print(L)
 
@@ -586,7 +710,8 @@ class processpose:
 
         p2_proj = np.zeros_like(p2)
         p2_proj = (T @ vec)[0:3, 0]
-        diff = np.linalg.norm(p2 - p2_proj.T)
+
+        diff = np.linalg.norm(p2[0:2] - p2_proj.T)
 
         thresh = 0.01
 
@@ -617,21 +742,21 @@ class processpose:
             diff_S[i], check_S[i] = self.reproj_IK(axis="x", T=Ts, i=i, P1=2, P2=5, mid=1)
             diff_H[i], check_H[i] = self.reproj_IK(axis="x", T=Th, i=i, P1=8, P2=11, mid=1)
             diff_F[i], check_F[i] = self.reproj_IK(axis="x", T=Tf, i=i, P1=14, P2=15, mid=1)
-            diff_Rf[i], check_Rf[i] = self.reproj_IK(axis="y", T=Ts_rk, i=i, P1=3, P2=4, mid=0)
+            diff_Rf[i], check_Rf[i] = self.reproj_IK(axis="y", T=Ts_la, i=i, P1=2, P2=3, mid=0)
 
         print("Shoulders: ", sum(check_S))
         print("Hips: ", sum(check_H))
         print("Face: ", sum(check_F))
-        print("RFoot: ", sum(diff_Rf))
+        print("Limb: ", sum(check_Rf))
 
         plt.plot(diff_S)
         plt.plot(diff_H)
         plt.plot(diff_F)
         plt.plot(diff_Rf)
-        plt.legend(["Shoulders", "Hips", "Face", "RFoot"])
+        plt.legend(["Shoulders", "Hips", "Face", "Limb"])
         plt.show()
 
-    def check_IK_legs(self, k=2):
+    def check_IK_limbs(self, k, name=None):
         lh = np.matrix([self.X[:, k + 3], self.Y[:, k + 3], self.Z[:, k + 3]])
         lk = np.matrix([self.X[:, k + 4], self.Y[:, k + 4], self.Z[:, k + 4]])
         lf = np.matrix([self.X[:, k + 5], self.Y[:, k + 5], self.Z[:, k + 5]])
@@ -647,10 +772,6 @@ class processpose:
 
         L1R = np.linalg.norm(rk - rh, axis=0)
         L2R = np.linalg.norm(rk - rf, axis=0)
-
-        # origin = np.matrix([[0], [0], [0], [1]])
-        # origin = Ti @ origin
-        # dx, dy, dz = origin[0, 0], origin[1, 0], origin[2, 0]
 
         rf_proj = np.zeros_like(rf)
         lf_proj = np.zeros_like(lf)
@@ -700,21 +821,68 @@ class processpose:
 
         check_lf = np.linalg.norm(diffLf, axis=0) >= thresh
         check_rf = np.linalg.norm(diffRf, axis=0) >= thresh
-        check_lk = np.linalg.norm(diffLk, axis=0) >= thresh
-        check_rk = np.linalg.norm(diffRk, axis=0) >= thresh
+        # check_lk = np.linalg.norm(diffLk, axis=0) >= thresh
+        # check_rk = np.linalg.norm(diffRk, axis=0) >= thresh
 
-        idxl3, idxl4 = (self.thet3_ll.T[check_lf], self.thet4_ll.T[check_lf])
-        idxr3, idxr4 = (self.thet3_rl.T[check_rf], self.thet4_rl.T[check_rf])
+        # idxl3, idxl4 = (self.thet3_ll.T[check_lf], self.thet4_ll.T[check_lf])
+        # idxr3, idxr4 = (self.thet3_rl.T[check_rf], self.thet4_rl.T[check_rf])
 
-        # idxl3n, idxl4n = (self.thet3_ll.T[check_l], self.thet4_ll.T[check_l])
-        # idxr3n, idxr4n = (self.thet3_rl.T[check], self.thet4_rl.T[check])
+        print("Left " + name + ": ", sum(check_lf))
+        print("Right " + name + ": ", sum(check_rf))
 
-        print("Left foot: ", sum(check_lf))
-        print("Right foot: ", sum(check_rf))
-        #   , sum(check_lk), sum(check_rk))
+    def check_IK_trunk(self, k1, k2, name=None):
+        right = np.matrix([self.X[:, k1], self.Y[:, k1], self.Z[:, k1]])
+        left = np.matrix([self.X[:, k2], self.Y[:, k2], self.Z[:, k2]])
+        mid = (right + left) / 2
 
-        # print(np.rad2deg(np.max(idxl4)), np.rad2deg(np.min(idxl4)))
-        # print(np.rad2deg(np.max(idxr4)), np.rad2deg(np.min(idxr4)))
+        if k1 == 14:
+            no = np.matrix([self.X[:, 0], self.Y[:, 0], self.Z[:, 0]])
+            L2 = np.linalg.norm(no - mid, axis=0)
+        elif k1 == 8:
+            no = np.matrix([self.X[:, 1], self.Y[:, 1], self.Z[:, 1]])
+            L2 = np.linalg.norm(no - mid, axis=0)
+
+        L = np.linalg.norm(left - mid, axis=0)
+
+        re_proj = np.zeros_like(mid)
+        re_proj2 = np.zeros_like(mid)
+
+        for i in range(self.frames + 1):
+            Ts, Th, Tf, Te = self.IK_trunk(i)
+
+            if k1 == 14:
+                T = Tf
+                y_proj = np.matrix([[0], [-L2[i]], [0], [1]])
+                re_proj2[:, i] = (T @ y_proj)[0:3, 0]
+            elif k1 == 2:
+                T = Ts
+            elif k1 == 8:
+                T = Th
+                y_proj = np.matrix([[0], [L2[i]], [0], [1]])
+                re_proj2[:, i] = (T @ y_proj)[0:3, 0]
+
+            # feet
+            x_proj = np.matrix([[L[i]], [0], [0], [1]])
+            re_proj[:, i] = (T @ x_proj)[0:3, 0]
+
+        diff = left - re_proj
+
+        plt.plot(np.linalg.norm(diff, axis=0).T)
+        if (k1 == 14) or (k1 == 8):
+            diff2 = no - re_proj2
+            plt.plot(np.linalg.norm(diff2, axis=0).T)
+
+        plt.legend(["x proj", "y proj"])
+        plt.show()
+
+        thresh = 0.001
+
+        check_lf = np.linalg.norm(diff, axis=0) >= thresh
+
+        print("Check x " + name + ": ", sum(check_lf))
+        if (k1 == 14) or (k1 == 8):
+            check_y = np.linalg.norm(diff2, axis=0) >= thresh
+            print("Check y " + name + ": ", sum(check_y))
 
     def show_T(self, j):
         # dx, dy, dz = self.mid_shoulder[0, j], self.mid_shoulder[1, j], self.mid_shoulder[2, j]
@@ -829,7 +997,7 @@ class processpose:
         Th = T0s @ Tsh
 
         ## FACE
-        Rf = self.R_xzy(self.thet1f[0, j], self.thet2f[0, j], self.thet3f[0, j])
+        Rf = self.R_xzy(self.thet1f[j], self.thet2f[j], self.thet3f[j])
         T0f = self.get_T(Rf, [self.mid_face[0, j], self.mid_face[1, j], self.mid_face[2, j]])
 
         Tsf = np.linalg.inv(T0s) @ T0f
@@ -1005,84 +1173,84 @@ class processpose:
         T_rl = np.array([self.thet1_rl, self.thet2_rl, self.thet3_rl, self.thet4_rl])[:, 0, :]
         T_ll = np.array([self.thet1_ll, self.thet2_ll, self.thet3_ll, self.thet4_ll])[:, 0, :]
 
-    def inv_dynamics_upper(self, L, i1):
-        dt = 1 / 30
-        T = np.array([self.thet1s, self.thet2s])[:, 0, :]
-        TD = np.gradient(T, dt, axis=1)
-        TDD = np.gradient(TD, dt, axis=1)
+    # def inv_dynamics_upper(self, L, i1):
+    #     dt = 1 / 30
+    #     T = np.array([self.thet1s, self.thet2s])[:, 0, :]
+    #     TD = np.gradient(T, dt, axis=1)
+    #     TDD = np.gradient(TD, dt, axis=1)
 
-        # print(np.shape(TD))
-        ###### FORWARD ITERATION
-        w0 = np.zeros([3, 1])
-        w0_d = np.zeros([3, 1])
-        v0_d = np.zeros([3, 1])
-        v0_d[2] = -9.81
+    #     # print(np.shape(TD))
+    #     ###### FORWARD ITERATION
+    #     w0 = np.zeros([3, 1])
+    #     w0_d = np.zeros([3, 1])
+    #     v0_d = np.zeros([3, 1])
+    #     v0_d[2] = -9.81
 
-        n = self.frames + 1
+    #     n = self.frames + 1
 
-        Tq = np.ones((3, n))
+    #     Tq = np.ones((3, n))
 
-        W = np.ones((3, n))
-        W_d = np.ones((3, n))
-        Vls_d = np.ones((3, n))
-        Vrs_d = np.ones((3, n))
+    #     W = np.ones((3, n))
+    #     W_d = np.ones((3, n))
+    #     Vls_d = np.ones((3, n))
+    #     Vrs_d = np.ones((3, n))
 
-        # plt.plot(np.rad2deg(T[0, :]))
-        # plt.plot(np.rad2deg(T[1, :]))
-        # plt.legend(["t1", "t2"])
-        # plt.show()
+    #     # plt.plot(np.rad2deg(T[0, :]))
+    #     # plt.plot(np.rad2deg(T[1, :]))
+    #     # plt.legend(["t1", "t2"])
+    #     # plt.show()
 
-        for i in range(n):
-            t1, t2 = T[0, i], T[1, i]
-            t1d, t2d = TD[0, i], TD[1, i]
-            t1dd, t2dd = TDD[0, i], TDD[1, i]
+    #     for i in range(n):
+    #         t1, t2 = T[0, i], T[1, i]
+    #         t1d, t2d = TD[0, i], TD[1, i]
+    #         t1dd, t2dd = TDD[0, i], TDD[1, i]
 
-            # # initializing paramteres from refrence to first frame
+    #         # # initializing paramteres from refrence to first frame
 
-            ## ANGULAR
-            # angular velocity
+    #         ## ANGULAR
+    #         # angular velocity
 
-            Ry1 = self.R_y(t1)
-            Rz2 = self.R_z(t2)
+    #         Ry1 = self.R_y(t1)
+    #         Rz2 = self.R_z(t2)
 
-            R01 = Ry1 @ Rz2
+    #         R01 = Ry1 @ Rz2
 
-            p_ls = np.matrix([[L], [0], [0]])
-            p_rs = np.matrix([[-L], [0], [0]])
+    #         p_ls = np.matrix([[L], [0], [0]])
+    #         p_rs = np.matrix([[-L], [0], [0]])
 
-            w1 = Ry1.T @ w0 + np.matrix([[0], [t1d], [0]])
-            w2 = Rz2.T @ w1 + np.matrix([[0], [0], [t2d]])
+    #         w1 = Ry1.T @ w0 + np.matrix([[0], [t1d], [0]])
+    #         w2 = Rz2.T @ w1 + np.matrix([[0], [0], [t2d]])
 
-            # angular accelearation
-            w1_d = (
-                (Ry1.T @ w0_d)
-                + np.cross(Ry1.T @ w0, np.matrix([[0], [t1d], [0]]), axis=0)
-                + np.matrix([[0], [t1dd], [0]])
-            )
-            w2_d = (
-                (Rz2.T @ w1_d)
-                + np.cross(Rz2.T @ w1, np.matrix([[0], [0], [t2d]]), axis=0)
-                + np.matrix([[0], [0], [t2dd]])
-            )
+    #         # angular accelearation
+    #         w1_d = (
+    #             (Ry1.T @ w0_d)
+    #             + np.cross(Ry1.T @ w0, np.matrix([[0], [t1d], [0]]), axis=0)
+    #             + np.matrix([[0], [t1dd], [0]])
+    #         )
+    #         w2_d = (
+    #             (Rz2.T @ w1_d)
+    #             + np.cross(Rz2.T @ w1, np.matrix([[0], [0], [t2d]]), axis=0)
+    #             + np.matrix([[0], [0], [t2dd]])
+    #         )
 
-            ## LINEAR
-            # linear accelearation
-            vls_d = np.cross(w2_d, p_ls / 2, axis=0) + np.cross(w2, np.cross(w2, p_ls / 2, axis=0), axis=0) + v0_d
-            vrs_d = np.cross(w2_d, p_rs / 2, axis=0) + np.cross(w2, np.cross(w2, p_rs / 2, axis=0), axis=0) + v0_d
+    #         ## LINEAR
+    #         # linear accelearation
+    #         vls_d = np.cross(w2_d, p_ls / 2, axis=0) + np.cross(w2, np.cross(w2, p_ls / 2, axis=0), axis=0) + v0_d
+    #         vrs_d = np.cross(w2_d, p_rs / 2, axis=0) + np.cross(w2, np.cross(w2, p_rs / 2, axis=0), axis=0) + v0_d
 
-            ##MOMENTS
-            I = np.diag(np.ravel(i1))
-            N = (I @ w2_d) + np.cross(w2, (I @ w2), axis=0)
+    #         ##MOMENTS
+    #         I = np.diag(np.ravel(i1))
+    #         N = (I @ w2_d) + np.cross(w2, (I @ w2), axis=0)
 
-            Tq[:, [i]] = (N)[:, 0]
+    #         Tq[:, [i]] = (N)[:, 0]
 
-            W[:, [i]] = (w2)[:, 0]
-            W_d[:, [i]] = (w2_d)[:, 0]
+    #         W[:, [i]] = (w2)[:, 0]
+    #         W_d[:, [i]] = (w2_d)[:, 0]
 
-            Vls_d[:, [i]] = vls_d
-            Vrs_d[:, [i]] = vrs_d
+    #         Vls_d[:, [i]] = vls_d
+    #         Vrs_d[:, [i]] = vrs_d
 
-        return Tq, W, W_d, Vls_d, Vrs_d
+    #     return Tq, W, W_d, Vls_d, Vrs_d
 
     def inv_dynamics_upper_vec(self, L, i1):
         dt = 1 / 30
@@ -1156,101 +1324,9 @@ class processpose:
 
         return Tq, W, W_d, Vls_d, Vrs_d
 
-    def inv_dynamics_lower(self, L, i1, to_upper=False):
-        dt = 1 / 30
-        T = np.array([self.thet1h, self.thet2h, self.thet3h])[:, 0, :]
-        TD = np.gradient(T, dt, axis=1)
-        TDD = np.gradient(TD, dt, axis=1)
-
-        # print(np.shape(TD))
-        ###### FORWARD ITERATION
-        w0 = np.zeros([3, 1])
-        w0_d = np.zeros([3, 1])
-        v0_d = np.zeros([3, 1])
-        v0_d[2] = -9.81
-
-        n = self.frames + 1
-
-        Tq = np.ones((3, n))
-
-        W = np.ones((3, n))
-        W_d = np.ones((3, n))
-        Vlh_d = np.ones((3, n))
-        Vrh_d = np.ones((3, n))
-
-        for i in range(n):
-            t1, t2, t3 = T[0, i], T[1, i], T[2, i]
-            t1d, t2d, t3d = TD[0, i], TD[1, i], TD[2, i]
-            t1dd, t2dd, t3dd = TDD[0, i], TDD[1, i], TDD[2, i]
-
-            # # initializing paramteres from refrence to first frame
-
-            ## ANGULAR
-            # angular velocity
-
-            Rx1 = self.R_x(t1)
-            Rz2 = self.R_z(t2)
-            Ry3 = self.R_y(t3)
-
-            R01 = Rx1 @ Rz2 @ Ry3
-
-            p_lh = np.matrix([[L], [0], [0]])
-            p_rh = np.matrix([[-L], [0], [0]])
-
-            w1 = Rx1.T @ w0 + np.matrix([[t1d], [0], [0]])
-            w2 = Rz2.T @ w1 + np.matrix([[0], [0], [t2d]])
-            w3 = Ry3.T @ w2 + np.matrix([[0], [t3d], [0]])
-
-            # angular accelearation
-            w1_d = (
-                (Rx1.T @ w0_d)
-                + np.cross(Rx1.T @ w0, np.matrix([[t1d], [0], [0]]), axis=0)
-                + np.matrix([[t1dd], [0], [0]])
-            )
-            w2_d = (
-                (Rz2.T @ w1_d)
-                + np.cross(Rz2.T @ w1, np.matrix([[0], [0], [t2d]]), axis=0)
-                + np.matrix([[0], [0], [t2dd]])
-            )
-            w3_d = (
-                (Ry3.T @ w2_d)
-                + np.cross(Ry3.T @ w2, np.matrix([[0], [t3d], [0]]), axis=0)
-                + np.matrix([[0], [t3dd], [0]])
-            )
-
-            ## LINEAR
-            # linear accelearation
-            vlh_d = np.cross(w3_d, p_lh / 2, axis=0) + np.cross(w3, np.cross(w3, p_lh / 2, axis=0), axis=0) + v0_d
-            vrh_d = np.cross(w3_d, p_rh / 2, axis=0) + np.cross(w3, np.cross(w3, p_rh / 2, axis=0), axis=0) + v0_d
-
-            ##MOMENTS
-            I = np.diag(np.ravel(i1))
-            N = (I @ w3_d) + np.cross(w3, (I @ w3), axis=0)
-
-            Tq[:, [i]] = (N)[:, 0]
-
-            W[:, [i]] = (w2)[:, 0]
-            W_d[:, [i]] = (w2_d)[:, 0]
-
-            # torque from shoulder flextion/extension
-            vlh_d = R01 @ vlh_d
-            # forces transformed to base frame
-            vrh_d = R01 @ vrh_d
-
-            if to_upper:
-                T0s, T0h, T0f, T0e = self.IK_trunk(i)
-
-                Vlh_d[:, [i]] = T0s[0:3, 0:3].T @ vlh_d
-                Vrh_d[:, [i]] = T0s[0:3, 0:3].T @ vrh_d
-            else:
-                Vlh_d[:, [i]] = vlh_d
-                Vrh_d[:, [i]] = vrh_d
-
-        return Tq, W, W_d, Vlh_d, Vrh_d
-
     def inv_dynamics_lower_vec(self, L, i1, to_upper=False):
         dt = 1 / 30
-        T = np.array([self.thet1h, self.thet2h, self.thet3h])[:, 0, :]
+        T = np.array([self.thet1h, self.thet2h, self.thet3h])
         TD = np.gradient(T, dt, axis=1)
         TDD = np.gradient(TD, dt, axis=1)
 
@@ -1608,13 +1684,13 @@ class processpose:
         fr = (R01.apply(f1.T)).T
 
         if to_upper:
-            R0s = R.from_euler("zy", np.stack((self.thet1s, self.thet2s)).T)
+            R0s = R.from_euler("ZY", np.stack((self.thet1s, self.thet2s)).T)
 
             tq = R0s.inv().apply(tq.T).T
             fr = R0s.inv().apply(fr.T).T
 
         if to_lower:
-            R0h = R.from_euler("xzy", np.stack((self.thet1h, self.thet2h, self.thet3h)).T)
+            R0h = R.from_euler("XZY", np.stack((self.thet1h, self.thet2h, self.thet3h)).T)
 
             tq = R0h.inv().apply(tq.T).T
             fr = R0h.inv().apply(fr.T).T
@@ -1622,18 +1698,21 @@ class processpose:
         return tq, fr, extra1, extra2
 
 
-# fi = r"C:\\Users\\franc\Documents\\GitHub\\PANDA-Gym-Data-Proceeing\\Calibration\\3D_vid_2_6.csv"
-# fi = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\Cameras\sim_cam_2_3_vid_3.csv"
+# fi = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_016\08-11-2022\Cameras\3D\2022_08_11_833180_016_vid6_3D.csv"
+# # fi = r"C:\Users\franc\Documents\Infant_Sim_data\passive sim\3D Pose Test\sim_vid3_reproj_idx.csv"
 
 
 # tt = processpose(fi)
 
-# tt.IK_init_static()
+# # tt.IK_init_static()
 
 # tt.IK_init()
-# tt.ID_init()
+# # tt.ID_init()
 
-# tt.plotskel_loop(start=0 * 30)
-# tt.check_IK_legs(k=2)
-# tt.check_IK_legs(k=8)
-# tt.check_IK_all()
+# # tt.plotskel_loop(start=0 * 30)
+# # tt.check_IK_limbs(k=2, name="Arm")
+# tt.check_IK_trunk(k1=14, k2=15, name="Face")
+# tt.check_IK_trunk(k1=2, k2=5, name="Shoulder")
+# tt.check_IK_trunk(k1=8, k2=11, name="Hip")
+# # tt.check_IK_limbs(k=8, name="Leg")
+# # tt.check_IK_all()
