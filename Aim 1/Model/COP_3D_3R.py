@@ -10,17 +10,14 @@ import scipy
 from scipy import stats
 from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Slerp
+
 
 from ProcessPose_3D import processpose
 
 
-class calculate_COP:
-    def __init__(
-        self,
-        posefile,
-        cop_file,
-        head="face",
-    ):
+class calculate_COP_3s:
+    def __init__(self, posefile, cop_file, head="face"):
         # # cop object
         self.COP = processCOP(cop_file, 60, fcut=1)
         self.Fn_mat = self.COP.Rfilt[::2]
@@ -34,6 +31,16 @@ class calculate_COP:
 
         self.R0h = R.from_euler("XZY", np.stack((pose.thet1h[:], pose.thet2h[:], pose.thet3h[:])).T)
         self.R0s = R.from_euler("ZY", np.stack((pose.thet1s[0, :], pose.thet2s[0, :])).T)
+
+        # R0m = R.from_rotvec([0, 0, 0])
+        R0m = R.random(len(self.R0s))
+        for i in range(len(R0m)):
+            rots = R.from_quat([self.R0s[i].as_quat(), self.R0h[i].as_quat()])
+            slerp = Slerp([0, 1], rots)
+            interp = slerp([0, 0.5, 1])
+            R0m[i] = interp[2]
+
+        self.R0m = R0m
 
         if head == "face":
             self.R0f = R.from_euler("XZY", np.stack((pose.thet1f[:], pose.thet2f[:], pose.thet3f[:])).T)
@@ -57,14 +64,12 @@ class calculate_COP:
         # self.pose.ID_init()
 
         ##INITIALIZING PARAMETERS
-
         self.head_h_ratio_chest = 1.5
         self.r_head_ratio = 0.5
 
         self.r_trunk_ratio = 1
         self.trunk_h_ratio = 0.75
         self.deg_trunk = np.deg2rad(0)
-        self.utrunk_com_ratio = 0.35
 
         self.a_head = 0.1
         self.b_head = 0.1
@@ -88,24 +93,39 @@ class calculate_COP:
         # Ma = Ma / Ma.loc["total"]
         # print(Ma)\
         self.tot_mass = 10
+
+        mtrunk = 0.187610 + 0.233627 + 0.012891
         m = np.array(
-            [0.243552 + 0.012891, 0.187610, 0.233627, 0.021043, 0.021359 + 0.007581, 0.065917, 0.033411 + 0.011849]
+            [
+                0.243552,
+                mtrunk * 0.3,
+                mtrunk * 0.4,
+                mtrunk * 0.3,
+                0.021043,
+                0.021359 + 0.007581,
+                0.065917,
+                0.033411 + 0.011849,
+            ]
         )
+        self.utrunk_com_ratio = 0.15
+        self.utrunk_com_ratio = -0.05
+
         # m = np.array([0.2, 0.18, 0.35, 0.021043, 0.021359 + 0.007581, 0.065917, 0.033411 + 0.011849])
         # m = np.array([0.2, 0.15, 0.45, 0.021043, 0.021359 + 0.007581, 0.065917, 0.033411 + 0.011849])
         self.m_dist = m
         Ma = m * self.tot_mass
 
-        uarm_m = Ma[3]
-        larm_m = Ma[4]
-        uleg_m = Ma[5]
-        lleg_m = Ma[6]
+        uarm_m = Ma[4]
+        larm_m = Ma[5]
+        uleg_m = Ma[6]
+        lleg_m = Ma[7]
 
         # storing arm parameters
         self.arm_m = np.array([uarm_m, larm_m])
         self.leg_m = np.array([uleg_m, lleg_m])
         self.utrunk_m = Ma[1]
-        self.ltrunk_m = Ma[2]
+        self.mtrunk_m = Ma[2]
+        self.ltrunk_m = Ma[3]
         self.m_head = Ma[0]
 
         Ra = param.get_radius(age)
@@ -192,16 +212,17 @@ class calculate_COP:
     def update_mass(self, m):
         Ma = m * self.tot_mass
 
-        uarm_m = Ma[3]
-        larm_m = Ma[4]
-        uleg_m = Ma[5]
-        lleg_m = Ma[6]
+        uarm_m = Ma[4]
+        larm_m = Ma[5]
+        uleg_m = Ma[6]
+        lleg_m = Ma[7]
 
         # storing arm parameters
         self.arm_m = np.array([uarm_m, larm_m])
         self.leg_m = np.array([uleg_m, lleg_m])
         self.utrunk_m = Ma[1]
-        self.ltrunk_m = Ma[2]
+        self.mtrunk_m = Ma[2]
+        self.ltrunk_m = Ma[3]
         self.m_head = Ma[0]
 
     def view_limb_len(self):
@@ -320,6 +341,7 @@ class calculate_COP:
         R0f = R0f * R.from_euler("x", self.deg_face)
         R0s = self.R0s[j]
         R0h = self.R0h[j]
+        R0m = self.R0m[j]
 
         T0f = np.zeros((4, 4))
         T0f[0:3, 0:3] = R0f.as_matrix()
@@ -390,6 +412,13 @@ class calculate_COP:
         T0s[3, 3] = 1
 
         self.ax = self.show_Ti(self.ax, T0s, scale=50)
+
+        mid_trunk = (mid_hip + mid_shoulder) / 2
+        T0m = np.zeros((4, 4))
+        T0m[0:3, 0:3] = R0m.as_matrix()
+        T0m[0:3, 3] = mid_trunk.reshape(3)
+        T0m[3, 3] = 1
+        self.ax = self.show_Ti(self.ax, T0m, scale=50)
 
         contact_point_low = mid_hip.ravel() + R0h.apply(np.array([0, 0, (center_low - Rtrunk) * 1000]))
 
@@ -714,13 +743,14 @@ class calculate_COP:
         g = 9.81
 
         # lower trunk parameters
-        w1, w2 = self.utrunk_w, self.ltrunk_w
-        l1, l2 = self.utrunk_l, self.ltrunk_l
-        h1, h2 = self.utrunk_h, self.ltrunk_h
-        M1, M2 = self.utrunk_m, self.ltrunk_m
+        w1, w2, w3 = self.utrunk_w, np.mean([self.utrunk_w, self.ltrunk_w]), self.ltrunk_w
+        l1, l2, l3 = self.utrunk_l, np.mean([self.utrunk_l, self.ltrunk_l]), self.ltrunk_l
+        h1, h2, h3 = self.utrunk_h, np.mean([self.utrunk_h, self.ltrunk_h]), self.ltrunk_h
+        M1, M2, M3 = self.utrunk_m, self.mtrunk_m, self.ltrunk_m
 
         dx_up, dy_up, dz_up = w1 / 2, l1 / 2, h1 / 2
-        dx_low, dy_low, dz_low = w2 / 2, l2 / 4, h2 / 2
+        dx_mid, dy_mid, dz_mid = w2 / 2, l2 / 4, h2 / 2
+        dx_low, dy_low, dz_low = w3 / 2, l3 / 4, h3 / 2
 
         Iup = self.Iup
         Ilow = self.Ilow
@@ -728,7 +758,8 @@ class calculate_COP:
         Llow = np.mean(pose.get_len(8, 11)) / 2
 
         mg_up = g * M1
-        mg_low = g * M2
+        mg_mid = g * M2
+        mg_low = g * M3
 
         Tqlow, w_low, w_d_low, Vlh_d, Vrh_d = pose.inv_dynamics_lower_vec(Llow, Ilow, to_upper=True)
         Tqup, w_up, w_d_up, Vls_d, Vrs_d = pose.inv_dynamics_upper_vec(Lup, Iup)
@@ -811,9 +842,11 @@ class calculate_COP:
 
         # Getting Fn for upper and lower trunk
         M_up = M1 * np.ones_like(F1z)
-        M_low = M2 * np.ones_like(F3z)
+        M_mid = M2 * np.ones_like(F3z)
+        M_low = M3 * np.ones_like(F3z)
 
         Fn_up = (M_up[0 : self.frames] * g) - F1z[0 : self.frames] - F2z[0 : self.frames]
+        Fn_mid = M_mid[0 : self.frames] * g
         Fn_low = (M_low[0 : self.frames] * g) - F3z[0 : self.frames] - F4z[0 : self.frames]
         # Fn_low = M_low[0 : self.frames] * g
 
@@ -837,12 +870,18 @@ class calculate_COP:
         Ty_low = Tlow_cor[1, :]
 
         # Getting Lower Trunk torque
-        Tx_up = (T12_x) + Tx_low - Tqup[0, :]
-        Ty_up = (T12_y) + Ty_low - Tqup[1, :]
+        Tx_up = (T12_x) - Tqup[0, :]
+        Ty_up = (T12_y) - Tqup[1, :]
 
         # # calculating COP change from upper limbs on upper trunk
+        X_calc_mid = np.divide((Ty_low), (mg_mid))
+        Y_calc_mid = -np.divide((Tx_low), (mg_mid))
+
         X_calc_upper = np.divide((Ty_up + ((F1z - F2z) * dx_up) + (F12_x * dz_up)), (mg_up - F12_z))
         Y_calc_upper = np.divide((Tx_up - (F12_y * dz_up) + (F12_z * dy_up)), (F12_z - mg_up))
+
+        # X_calc_upper = np.divide((Ty_up + ((F1z - F2z) * dx_up) + (F12_x * dz_up)), (mg_up - F12_z))
+        # Y_calc_upper = np.divide((Tx_up - (F12_y * dz_up) + (F12_z * dy_up)), (F12_z - mg_up))
 
         if self.to_world:
             # Converting Lower Trunk Torque into Upper Trunk ref. frame
@@ -873,23 +912,33 @@ class calculate_COP:
 
         # print("Center Up: ", center_up)
         # print("Center Low: ", center_low)
+        center_mid = L_trunk * self.utrunk_com_ratio
+        mid_trunk = (pose.mid_shoulder + pose.mid_hip) / 2
 
         # deg_trunk = np.deg2rad(30)
 
         # Calculating Projection of COM offest
         mid_proj_up = self.R0s.apply(np.array([0, center_up, -self.center_up_z]))
+        mid_proj_mid = self.R0m.apply(np.array([0, 0, center_mid]))
         mid_proj_low = self.R0h.apply(np.array([0, 0, center_low]))
 
         # Getting Full COM location by adding offset
         COM_up = (pose.mid_shoulder.T + mid_proj_up).T
+        COM_mid = (mid_trunk.T + mid_proj_mid).T
         COM_low = (pose.mid_hip.T + mid_proj_low).T
 
         # Calculating unweighted upper trunk COP
-        X_COM_dCOP = (COM_up[0, :] + (X_calc_up * int(self.include_limbs)))[:, 0 : self.frames]
-        Y_COM_dCOP = (COM_up[1, :] + (Y_calc_up * int(self.include_limbs)))[:, 0 : self.frames]
+        X_COM_dCOP_up = (COM_up[0, :] + (X_calc_up * int(self.include_limbs)))[:, 0 : self.frames]
+        Y_COM_dCOP_up = (COM_up[1, :] + (Y_calc_up * int(self.include_limbs)))[:, 0 : self.frames]
 
-        COP_Xup = np.multiply(X_COM_dCOP, Fn_up)
-        COP_Yup = np.multiply(Y_COM_dCOP, Fn_up)
+        X_COM_dCOP_mid = (COM_mid[0, :] + (X_calc_mid * int(self.include_limbs)))[:, 0 : self.frames]
+        Y_COM_dCOP_mid = (COM_mid[1, :] + (Y_calc_mid * int(self.include_limbs)))[:, 0 : self.frames]
+
+        COP_Xup = np.multiply(X_COM_dCOP_up, Fn_up)
+        COP_Yup = np.multiply(Y_COM_dCOP_up, Fn_up)
+
+        COP_Xmid = np.multiply(X_COM_dCOP_mid, Fn_mid)
+        COP_Ymid = np.multiply(Y_COM_dCOP_mid, Fn_mid)
 
         COP_Xlow = np.multiply(COM_low[0, 0 : self.frames], Fn_low)
         COP_Ylow = np.multiply(COM_low[1, 0 : self.frames], Fn_low)
@@ -898,7 +947,7 @@ class calculate_COP:
             self.plot_ID_LR(Tlarm, Flarm, Trarm, Frarm, title="Arm Dynamics")
             self.plot_ID_LR(Tlleg, Flleg, Trleg, Frleg, title="Leg Dynamics")
 
-        return COP_Xup, COP_Yup, Fn_up, COP_Xlow, COP_Ylow, Fn_low
+        return COP_Xup, COP_Yup, Fn_up, COP_Xmid, COP_Ymid, Fn_mid, COP_Xlow, COP_Ylow, Fn_low
 
     def COP_head(self):
         pose = self.pose
@@ -1007,15 +1056,15 @@ class calculate_COP:
         return np.multiply(mag, contact.T).T
 
     def calc_COP(self):
-        X_up, Y_up, Fn_up, X_low, Y_low, Fn_low = self.COP_trunk()
+        X_up, Y_up, Fn_up, X_mid, Y_mid, Fn_mid, X_low, Y_low, Fn_low = self.COP_trunk()
 
         X_head, Y_head, Fn_head = self.COP_head()
 
         ##UPPER/LOWER TRUNK
-        Fn_tot = Fn_up + Fn_low + Fn_head
+        Fn_tot = Fn_up + Fn_mid + Fn_low + Fn_head
 
-        self.Xcalc = (X_low + X_up + X_head) / Fn_tot * 1000
-        self.Ycalc = (Y_low + Y_up + Y_head) / Fn_tot * 1000
+        self.Xcalc = (X_low + X_up + X_mid + X_head) / Fn_tot * 1000
+        self.Ycalc = (Y_low + Y_up + Y_mid + Y_head) / Fn_tot * 1000
 
         # self.Xcalc = X_low / Fn_tot * 1000
         # self.Fn = np.array([Fn_low.ravel(), Fn_up.ravel(), Fn_head.ravel()])
@@ -1383,33 +1432,3 @@ class calculate_COP:
         # print(res.x - x0)
 
         self.compare_COP()
-
-
-# posenone = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_094\09-17-2024\Cameras\3D\2024_09_17_833180_094_vid4_3D.csv"
-# posefeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_094\09-17-2024\Cameras\3D\2024_09_17_833180_094_vid5_3D.csv"
-
-# copnone = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_094\09-17-2024\Mat\2024_09_17_833180_094_mat_session2.csv"
-# copfeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_094\09-17-2024\Mat\2024_09_17_833180_094_mat_session3_toy_at_feet.csv"
-# coparms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_094\09-17-2024\Mat\2024_09_17_833180_094_mat_session4_toy_at_arms.csv"
-
-
-# posenone = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_095\09-17-2024\Cameras\3D\2024_09_17_833180_095_vid4_3D.csv"
-# posefeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_095\09-17-2024\Cameras\3D\2024_09_17_833180_095_vid6_3D.csv"
-# posearms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_095\09-17-2024\Cameras\3D\2024_09_17_833180_095_vid5_3D.csv"
-
-# copnone = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_095\09-17-2024\Mat\2024_09_17_833180_095_mat_session2.csv"
-# copfeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_095\09-17-2024\Mat\2024_09_17_833180_095_mat_session4_toy_at_feet.csv"
-# coparms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_095\09-17-2024\Mat\2024_09_17_833180_095_mat_session3_toy_at_arms.csv"
-
-
-# posefeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_070\06-06-2023\Cameras\3D\2023_06_06_833180_070_vid5_3D.csv"
-# posearms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_070\06-06-2023\Cameras\3D\2023_06_06_833180_070_vid6_3D.csv"
-
-# copfeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_070\06-06-2023\Mat\2023_06_06_833180_070_mat_session3_toy_at_feet.csv"
-# coparms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_070\06-06-2023\Mat\2023_06_06_833180_070_mat_session4_toy_at_arms.csv"
-
-# c = calculate_COP(posefeet, copfeet)
-# c.calc_COP()
-# c.compare_COP()
-# # c.optim_COP()
-# c.plot_cop_anim()

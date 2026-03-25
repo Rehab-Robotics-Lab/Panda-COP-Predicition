@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib as plt
 from CompareCOP import compareCOP
 from COP_3D import calculate_COP
+from COP_3D_3R import calculate_COP_3s
 
 # sys.path.insert(0, "../PANDA-Data-Processing")
 sys.path.insert(0, r"C:\Users\franc\Documents\GitHub\PANDA-Data-Processing")
@@ -13,7 +14,7 @@ from Cmanage_PANDA import c_manage
 
 
 class run_model:
-    def __init__(self, aim, subID, month, day, year):
+    def __init__(self, aim, subID, month, day, year, segment=2, head="face"):
         userdirect = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials"
 
         self.year = year
@@ -28,8 +29,11 @@ class run_model:
         posefile = self.cmanage.load_3D(vidnum=4)
 
         # print(copfile)
+        if segment == 2:
+            calc = calculate_COP(posefile, copfile, head=head)
+        elif segment == 3:
+            calc = calculate_COP_3s(posefile, copfile, head=head)
 
-        calc = calculate_COP(posefile, copfile)
         calc.calc_COP()
         self.calc = calc
         # self.comp()
@@ -99,23 +103,24 @@ class run_model:
         self.compare.comp_XY(save=True, name=save_name, title=Title, show=False)
 
 
-aim = 1
-sub = 70
-m = 6
-d = 6
-y = 2023
-# sub = 21
-# m = 8
-# d = 16
-# y = 2022
-# sub = 39
-# m = 9
-# d = 9
+# aim = 1
+# sub = 70
+# m = 6
+# d = 6
+# y = 2023
+# sub = 109
+# m = 3
+# d = 19
+# y = 2025
+# sub = 11
+# m = 3
+# d = 10
 # y = 2022
 
-m = run_model(aim, sub, m, d, y)
-print(m.comp(start=0))
-m.compare.comp_XY(save=False, show=True)
+# m = run_model(aim, sub, m, d, y, segment=3, head="face")
+# print(m.comp(start=30))
+# m.compare.comp_XY(save=False, show=True)
+# m.calc.compare_COP(start=30)
 
 # print(m.calc.rad_metrics())
 # m.calc.plot_cop_anim()
