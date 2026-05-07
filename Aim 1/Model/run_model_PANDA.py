@@ -1,3 +1,4 @@
+import os
 import sys
 import glob
 import scipy
@@ -14,7 +15,7 @@ from Cmanage_PANDA import c_manage
 
 
 class run_model:
-    def __init__(self, aim, subID, month, day, year, segment=2, head="face"):
+    def __init__(self, aim, subID, month, day, year, segment=2, head="face", cond="None"):
         userdirect = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials"
 
         self.year = year
@@ -25,8 +26,13 @@ class run_model:
 
         self.cmanage = c_manage(userdirect, aim, subID, month, day, year)
 
-        copfile = self.get_cop()
-        posefile = self.cmanage.load_3D(vidnum=4)
+        vnum = self.vnum_from_cond(cond)
+
+        copfile = self.get_cop(cond)
+        posefile = self.cmanage.load_3D(vidnum=vnum)
+        # print(posefile)
+        # quit()
+        self.posefile = posefile
 
         # print(copfile)
         if segment == 2:
@@ -38,10 +44,39 @@ class run_model:
         self.calc = calc
         # self.comp()
 
-    def get_cop(self):
+    def vnum_from_cond(self, condition):
+        if condition == "None":
+            vnum = 4
+        else:
+            cond_file = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Camera Calibration\Video Number List.xlsx"
+            df = pd.read_excel(cond_file)
+            df["Date"] = pd.to_datetime(df["Date"], format="mixed")
+            subdate = pd.to_datetime(str(self.year) + "-" + str(self.month) + "-" + str(self.day))
+
+            vnum = df.loc[(df["subjectID"] == self.subID) & ((df["Date"]) == subdate), condition].item()
+
+        print(vnum)
+        return vnum
+
+    def get_cop(self, cond):
         cop_direct = self.cmanage.subdirect + "Mat\\"
 
-        return glob.glob(cop_direct + "\\*session2.csv")[0]
+        if cond == "None":
+            ends = ["session2.csv"]
+        elif cond == "Arms":
+            ends = ["arms.csv", "arm.csv", "hand.csv", "hands.csv"]
+        elif cond == "Feet":
+            ends = ["feet.csv", "legs.csv"]
+
+        for entry in os.scandir(cop_direct):
+            if entry.is_file():  # check if it's a file
+                for ed in ends:
+                    if entry.name.endswith(ed):
+                        copfile = entry.name
+
+        # print(cop_direct + "\\" + copfile)
+
+        return cop_direct + "\\" + copfile
 
     def comp(self, start=60, stop=-1, all_metrics=False):
         # comparing COP
@@ -63,16 +98,11 @@ class run_model:
         comp_metrics = compare.diff_metric()
         self.compare = compare
 
+        self.nframes = compare.n
+
         # print(comp_metrics)
 
-        if all_metrics:
-
-            path_metrics = self.calc.path_len()
-            corr_metrics = self.calc.corr_COP()
-
-            return comp_metrics, corr_metrics, path_metrics
-        else:
-            return comp_metrics
+        return comp_metrics
 
     def save_XY(self, folder, vidnum=4, suffix=None):
 
@@ -112,14 +142,13 @@ class run_model:
 # m = 3
 # d = 19
 # y = 2025
-# sub = 11
+# sub = 109
 # m = 3
-# d = 10
-# y = 2022
+# d = 19
+# y = 2025
 
-# m = run_model(aim, sub, m, d, y, segment=3, head="face")
-# print(m.comp(start=30))
-# m.compare.comp_XY(save=False, show=True)
+
+# m = run_model(aim, sub, m, d, y, segment=2, head="ears", cond="None")
 # m.calc.compare_COP(start=30)
 
 # print(m.calc.rad_metrics())

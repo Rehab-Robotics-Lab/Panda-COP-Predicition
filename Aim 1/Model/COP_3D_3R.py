@@ -1,4 +1,3 @@
-# from Inv_dynamics import inv_dynamics
 from ProcessCOP import processCOP
 from CompareCOP import compareCOP
 from Infant_Paramters import infant_params

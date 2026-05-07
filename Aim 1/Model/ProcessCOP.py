@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from scipy import signal
+from scipy import stats
 import pandas as pd
 from numpy import radians as radians
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ import matplotlib.pyplot as plt
 
 class processCOP:
     # mass=[2X1], length=[2x1], I=[2x3], theta=[4,t]
-    def __init__(self, file, rate, fcut=5):
+    def __init__(self, file, rate=60, fcut=5):
 
         cop = pd.read_csv(
             file,
@@ -17,11 +18,15 @@ class processCOP:
             names=["UL_raw", "UR_raw", "LL_raw", "LR_raw", "X_scaled", "Y_scaled", "Reaction"],
         )
 
-        # params = pd.read_csv(file, on_bad_lines="skip")
+        # tare = pd.read_csv(file, on_bad_lines="skip")
+
+        self.file = file
 
         self.Xraw = cop.X_scaled
         self.Yraw = cop.Y_scaled
         self.Rraw = cop.Reaction
+
+        self.mat_raw = np.array([cop.UL_raw, cop.UR_raw, cop.LL_raw, cop.LR_raw])
 
         order = 3
 
@@ -31,37 +36,41 @@ class processCOP:
         self.Yfilt = signal.filtfilt(b, a, self.Yraw)
         self.Rfilt = signal.filtfilt(b, a, self.Rraw)
 
-        # self.Xnorm = np.divide(self.Xfilt, self.Rfilt) * np.mean(self.Rfilt)
-        # self.Ynorm = np.divide(self.Yfilt, self.Rfilt) * np.mean(self.Rfilt)
         self.cop = cop
 
-    def switch_load_cells(self):
-        cop = self.cop
+        self.order = order
+        self.fcut = fcut
+        self.rate = rate
 
-        UL_raw = cop["UL_raw"]
-        UR_raw = cop["UR_raw"]
-        LL_raw = cop["LL_raw"]
-        LR_raw = cop["LR_raw"]
+    def switch_load_cells(self, ul=1, ur=2, ll=3, lr=4):
+        file = self.file
 
-        UL_tare = 4
-        UR_tare = 4
-        LL_tare = 4
-        LR_tare = 4.05
+        Tare = pd.read_csv(file, parse_dates=True, header=2, nrows=1)
+        Scale = pd.read_csv(file, parse_dates=True, header=5, nrows=1)
 
-        UL_scale = 3902.367
-        UR_scale = 3709.567
-        LL_scale = 3721.4
-        LR_scale = 3817.883
+        tare = Tare.to_numpy()[0, 0:4]
+        scale = Scale.to_numpy()[0, 0:4]
+
+        load_raw = self.mat_raw
+
+        UL_raw = load_raw[ul - 1, :]
+        UR_raw = load_raw[ur - 1, :]
+        LL_raw = load_raw[ll - 1, :]
+        LR_raw = load_raw[lr - 1, :]
+
+        UL_tare = tare[ul - 1]
+        UR_tare = tare[ur - 1]
+        LL_tare = tare[ll - 1]
+        LR_tare = tare[lr - 1]
+
+        UL_scale = scale[ul - 1]
+        UR_scale = scale[ur - 1]
+        LL_scale = scale[ll - 1]
+        LR_scale = scale[lr - 1]
 
         refwt = 1.055
         xreflength = 563.9562
         yreflength = 560.7812
-
-        x_scale = cop["X_scaled"]
-        y_scale = cop["Y_scaled"]
-
-        y = cop["y"]
-        x = cop["x"]
 
         UL = refwt * (UL_raw - UL_tare) / (UL_scale - UL_tare)
         UR = refwt * (UR_raw - UR_tare) / (UR_scale - UR_tare)
@@ -78,3 +87,37 @@ class processCOP:
 
         x_manual = 0.5 * xreflength * ((UR - UR_o + LR - LR_o) - (UL - UL_o + LL - LL_o)) / (sum - plate_wt)
         y_manual = 0.5 * yreflength * ((UL - UL_o + UR - UR_o) - (LL - LL_o + LR - LR_o)) / (sum - plate_wt)
+
+        # b, a = signal.butter(self.order, self.fcut, fs=self.rate)
+
+        # X = signal.filtfilt(b, a, x_manual)
+        # Y = signal.filtfilt(b, a, y_manual)
+
+        # n = len(self.Xfilt)
+
+        # print(np.shape(x_manual))
+
+        # xmanual = x_manual.reshape(n)
+        # ymanual = y_manual.reshape(n)
+
+        # print(np.shape(xmanual))
+
+        return x_manual, y_manual
+
+    def save_switch(self, ul=1, ur=2, ll=3, lr=4):
+        xswitch, yswitch = cc.switch_load_cells(ul=ul, ur=ur, ll=ll, lr=lr)
+        data = {
+            "X_scaled": xswitch.ravel(),
+            "Y_scaled": yswitch.ravel(),
+        }
+
+        full_name = self.file[0:-4] + "_mod.csv"
+        df = pd.DataFrame(data)
+        df.to_csv(full_name, index=False)
+
+        print("Saved As:" + full_name)
+
+
+# file = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_039\09-09-2022\Mat\2022_09_09_833180_039_mat_session3_toy_at_arms.csv"
+# cc = processCOP(file)
+# cc.save_switch(ul=2, ur=1)

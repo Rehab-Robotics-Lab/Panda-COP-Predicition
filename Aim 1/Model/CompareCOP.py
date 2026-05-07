@@ -408,6 +408,18 @@ class compareCOP:
 
         return val_X[0], p_X[0], val_Y[0], p_Y[0]
 
+    def spearmanr_corr(self):
+        Xr = self.Xreal - np.mean(self.Xreal[0:15])
+        Yr = self.Yreal - np.mean(self.Yreal[0:15])
+
+        dX = self.Xcalc - np.mean(self.Xcalc[0:15])
+        dY = self.Ycalc - np.mean(self.Ycalc[0:15])
+
+        val_X = stats.spearmanr(Xr, dX, axis=0)
+        val_Y = stats.spearmanr(Yr, dY, axis=0)
+
+        return val_X[0], 0, val_Y[0], 0
+
     def excursion(self, x):
         excur = np.max(x) - np.min(x)
 
@@ -445,6 +457,7 @@ class compareCOP:
         maeX, maeY = self.mae()
         # mseX, mseY = self.mse()
         val_x, p_x, val_y, p_y = self.pearson_corr()
+        val_x, p_x, val_y, p_y = self.spearmanr_corr()
 
         metric_x = np.array([maeX, val_x, p_x])
         metric_y = np.array([maeY, val_y, p_y])

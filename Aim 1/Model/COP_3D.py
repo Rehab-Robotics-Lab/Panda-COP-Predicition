@@ -1218,12 +1218,13 @@ class calculate_COP:
 
         return df
 
-    def load_compare(self, start=0, stop=-1):
+    def load_compare(self, start=0, stop=-1, Xreal=[], Yreal=[]):
         Xcalc = self.Xcalc.T
         Ycalc = self.Ycalc.T
-
-        Xreal = self.COP.Xfilt[::2]
-        Yreal = self.COP.Yfilt[::2]
+        if len(Xreal) == 0:
+            Xreal = self.COP.Xfilt[::2]
+        if len(Yreal) == 0:
+            Yreal = self.COP.Yfilt[::2]
 
         ##side limbs static
 
@@ -1383,33 +1384,3 @@ class calculate_COP:
         # print(res.x - x0)
 
         self.compare_COP()
-
-
-# posenone = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_094\09-17-2024\Cameras\3D\2024_09_17_833180_094_vid4_3D.csv"
-# posefeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_094\09-17-2024\Cameras\3D\2024_09_17_833180_094_vid5_3D.csv"
-
-# copnone = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_094\09-17-2024\Mat\2024_09_17_833180_094_mat_session2.csv"
-# copfeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_094\09-17-2024\Mat\2024_09_17_833180_094_mat_session3_toy_at_feet.csv"
-# coparms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_094\09-17-2024\Mat\2024_09_17_833180_094_mat_session4_toy_at_arms.csv"
-
-
-# posenone = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_095\09-17-2024\Cameras\3D\2024_09_17_833180_095_vid4_3D.csv"
-# posefeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_095\09-17-2024\Cameras\3D\2024_09_17_833180_095_vid6_3D.csv"
-# posearms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_095\09-17-2024\Cameras\3D\2024_09_17_833180_095_vid5_3D.csv"
-
-# copnone = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_095\09-17-2024\Mat\2024_09_17_833180_095_mat_session2.csv"
-# copfeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_095\09-17-2024\Mat\2024_09_17_833180_095_mat_session4_toy_at_feet.csv"
-# coparms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_095\09-17-2024\Mat\2024_09_17_833180_095_mat_session3_toy_at_arms.csv"
-
-
-# posefeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_070\06-06-2023\Cameras\3D\2023_06_06_833180_070_vid5_3D.csv"
-# posearms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Results\Aim I\833180_070\06-06-2023\Cameras\3D\2023_06_06_833180_070_vid6_3D.csv"
-
-# copfeet = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_070\06-06-2023\Mat\2023_06_06_833180_070_mat_session3_toy_at_feet.csv"
-# coparms = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_070\06-06-2023\Mat\2023_06_06_833180_070_mat_session4_toy_at_arms.csv"
-
-# c = calculate_COP(posefeet, copfeet)
-# c.calc_COP()
-# c.compare_COP()
-# # c.optim_COP()
-# c.plot_cop_anim()
