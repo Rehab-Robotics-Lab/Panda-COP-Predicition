@@ -18,7 +18,10 @@ class processCOP:
             names=["UL_raw", "UR_raw", "LL_raw", "LR_raw", "X_scaled", "Y_scaled", "Reaction"],
         )
 
-        # tare = pd.read_csv(file, on_bad_lines="skip")
+        # For cases where "offset" values are included in COP file
+        if cop.iloc[0, 0] == "UL_raw":
+            cop = cop.iloc[1:-1, :]
+            cop = cop.astype(float)
 
         self.file = file
 
@@ -88,28 +91,30 @@ class processCOP:
         x_manual = 0.5 * xreflength * ((UR - UR_o + LR - LR_o) - (UL - UL_o + LL - LL_o)) / (sum - plate_wt)
         y_manual = 0.5 * yreflength * ((UL - UL_o + UR - UR_o) - (LL - LL_o + LR - LR_o)) / (sum - plate_wt)
 
-        # b, a = signal.butter(self.order, self.fcut, fs=self.rate)
+        b, a = signal.butter(self.order, self.fcut, fs=self.rate)
 
-        # X = signal.filtfilt(b, a, x_manual)
-        # Y = signal.filtfilt(b, a, y_manual)
+        X = signal.filtfilt(b, a, x_manual)
+        Y = signal.filtfilt(b, a, y_manual)
 
-        # n = len(self.Xfilt)
+        n = len(self.Xfilt)
 
         # print(np.shape(x_manual))
 
-        # xmanual = x_manual.reshape(n)
-        # ymanual = y_manual.reshape(n)
+        self.Xfilt = X.reshape(n)
+        self.Yfilt = Y.reshape(n)
 
-        # print(np.shape(xmanual))
+        # # print(np.shape(xmanual))
+        # self.Xraw = x_manual
+        # self.Yraw = cop.Y_scaled
 
         return x_manual, y_manual
 
     def save_switch(self, ul=1, ur=2, ll=3, lr=4):
-        xswitch, yswitch = cc.switch_load_cells(ul=ul, ur=ur, ll=ll, lr=lr)
-        data = {
-            "X_scaled": xswitch.ravel(),
-            "Y_scaled": yswitch.ravel(),
-        }
+        xswitch, yswitch = self.switch_load_cells(ul=ul, ur=ur, ll=ll, lr=lr)
+        data = self.cop
+
+        data.X_scaled = xswitch.ravel()
+        data.Y_scaled = yswitch.ravel()
 
         full_name = self.file[0:-4] + "_mod.csv"
         df = pd.DataFrame(data)
@@ -118,6 +123,6 @@ class processCOP:
         print("Saved As:" + full_name)
 
 
-# file = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim I\833180_039\09-09-2022\Mat\2022_09_09_833180_039_mat_session3_toy_at_arms.csv"
+# file = r"C:\Users\franc\Box\Rehab Robotics Lab\Projects\PANDA Gym (# 834084)\Data\Trials\Aim III\833180_212\10-26-2022\Mat\2022_10_26_833180_212_mat_session4_toy_at_arms - original.csv"
 # cc = processCOP(file)
 # cc.save_switch(ul=2, ur=1)

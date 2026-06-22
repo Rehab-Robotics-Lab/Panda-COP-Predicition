@@ -50,15 +50,15 @@ class processpose:
 
         # Sgolay Filter
 
-        # win = 10
-        # order = 5
+        win = 5
+        order = self.order
 
-        # X = scipy.signal.savgol_filter(X, win, order, axis=0)
-        # Y = scipy.signal.savgol_filter(Y, win, order, axis=0)
-        # Z = scipy.signal.savgol_filter(Z, win, order, axis=0)
+        X = scipy.signal.savgol_filter(X, win, order, axis=0)
+        Y = scipy.signal.savgol_filter(Y, win, order, axis=0)
+        Z = scipy.signal.savgol_filter(Z, win, order, axis=0)
 
         # creating global variables
-        win = 5
+        # win = 5
 
         X_init, Y_init, Z_init = np.mean(X[0:win, 1]), np.mean(Y[0:win, 1]), np.mean(Z[0:win, 1])
 
@@ -66,29 +66,6 @@ class processpose:
         self.Y = Y - Y_init
         self.Z = Z
         self.idx = idx
-
-    # def adjust_rleg_len(self):
-    #     rk = np.matrix([self.X[:, 9], self.Y[:, 9], self.Z[:, 9]])
-    #     rf = np.matrix([self.X[:, 10], self.Y[:, 10], self.Z[:, 10]])
-
-    #     left_len = self.get_len(12, 13)
-    #     right_len = self.get_len(9, 10)
-
-    #     rf_proj = np.zeros_like(rf)
-
-    #     # for i in range(self.frames + 1):
-    #     #     Ts, Th, Tf, Te = self.IK_trunk(i)
-    #     #     Ts_ra, Ts_re, Ts_la, Ts_le, Ts_rl, Ts_rk, Ts_ll, Ts_lk = self.IK_limbs(i, Ts, Th)
-    #     #     # feet
-
-    #     #     yfR = np.matrix([[0], [left_len[i]], [0], [1]])
-
-    #     #     rf_proj[:, i] = (Ts_rk @ yfR)[0:3, 0]
-    #     low_leg_norm = np.divide((rf - rk), right_len)
-    #     rf_proj = np.multiply(low_leg_norm, left_len) + rk
-
-    #     # print(np.shape(rf_proj))
-    #     self.X[:, 10], self.Y[:, 10], self.Z[:, 10] = rf_proj[0, :], rf_proj[1, :], rf_proj[2, :]
 
     def pose_idx(self, i):
         return np.matrix([self.X[:, i], self.Y[:, i], self.Z[:, i]])
@@ -1574,10 +1551,10 @@ class processpose:
 
         dt = 1 / 30
 
-        win = 5
+        win = 2
         order = self.order
 
-        T = scipy.signal.savgol_filter(T, win, order, axis=1)
+        # T = scipy.signal.savgol_filter(T, win, order, axis=1)
         TD = scipy.signal.savgol_filter(T, win, order, axis=1, deriv=1, delta=dt)
         TDD = scipy.signal.savgol_filter(T, win, order, axis=1, deriv=2, delta=dt)
 

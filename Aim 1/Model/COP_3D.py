@@ -1218,18 +1218,24 @@ class calculate_COP:
 
         return df
 
-    def load_compare(self, start=0, stop=-1, Xreal=[], Yreal=[]):
+    def load_compare(self, start=0, stop=-1, Xreal=[], Yreal=[], offset=0):
         Xcalc = self.Xcalc.T
         Ycalc = self.Ycalc.T
+
         if len(Xreal) == 0:
             Xreal = self.COP.Xfilt[::2]
         if len(Yreal) == 0:
             Yreal = self.COP.Yfilt[::2]
 
-        ##side limbs static
-
-        Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
-        Xcalc, Ycalc = Xcalc[start:stop], Ycalc[start:stop]
+        # Offset
+        if offset == 0:
+            Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
+            Xcalc, Ycalc = Xcalc[start:stop], Ycalc[start:stop]
+        elif offset > 0:
+            Xreal, Yreal = Xreal[start + offset : stop], Yreal[start + offset : stop]
+        elif offset < 0:
+            # print(start, start - offset)
+            Xcalc, Ycalc = Xcalc[start - offset : stop], Ycalc[start - offset : stop]
 
         win = 2
 
@@ -1240,8 +1246,8 @@ class calculate_COP:
 
         return compare_object
 
-    def compare_COP(self, start=60, stop=-1):
-        compare_object = self.load_compare(start=start, stop=stop)
+    def compare_COP(self, start=60, stop=-1, offset=0):
+        compare_object = self.load_compare(start=start, stop=stop, offset=offset)
 
         compare_object.comp_XY()
         compare_object.comp_ellipse()

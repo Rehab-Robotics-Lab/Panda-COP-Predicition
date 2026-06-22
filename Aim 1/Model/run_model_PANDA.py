@@ -42,6 +42,13 @@ class run_model:
 
         calc.calc_COP()
         self.calc = calc
+        self.vnum = vnum
+
+        p1 = self.calc.pose.pose_idx(1)
+        p2 = (self.calc.pose.pose_idx(8) + self.calc.pose.pose_idx(11)) / 2
+
+        L = np.linalg.norm(p1 - p2, axis=0)
+        self.scale = np.mean(L)
         # self.comp()
 
     def vnum_from_cond(self, condition):
@@ -78,7 +85,7 @@ class run_model:
 
         return cop_direct + "\\" + copfile
 
-    def comp(self, start=60, stop=-1, all_metrics=False):
+    def comp(self, start=60, stop=-1, offset=0):
         # comparing COP
         Xcalc = self.calc.Xcalc.T
         Ycalc = self.calc.Ycalc.T
@@ -86,8 +93,20 @@ class run_model:
         Xreal = self.calc.COP.Xfilt[::2]
         Yreal = self.calc.COP.Yfilt[::2]
 
-        Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
-        Xcalc, Ycalc = Xcalc[start:stop], Ycalc[start:stop]
+        if len(Xreal) == 0:
+            Xreal = self.COP.Xfilt[::2]
+        if len(Yreal) == 0:
+            Yreal = self.COP.Yfilt[::2]
+
+        # Offset
+        if offset == 0:
+            Xreal, Yreal = Xreal[start:stop], Yreal[start:stop]
+            Xcalc, Ycalc = Xcalc[start:stop], Ycalc[start:stop]
+        elif offset > 0:
+            Xreal, Yreal = Xreal[start + offset : stop], Yreal[start + offset : stop]
+        elif offset < 0:
+            # print(start, start - offset)
+            Xcalc, Ycalc = Xcalc[start - offset : stop], Ycalc[start - offset : stop]
 
         win = 2
 
@@ -133,23 +152,21 @@ class run_model:
         self.compare.comp_XY(save=True, name=save_name, title=Title, show=False)
 
 
-# aim = 1
-# sub = 70
-# m = 6
-# d = 6
-# y = 2023
-# sub = 109
-# m = 3
-# d = 19
-# y = 2025
-# sub = 109
-# m = 3
-# d = 19
-# y = 2025
+# aim = 3
+# sub = 258
+# m = 8
+# d = 21
+# y = 2024
+
+# m = run_model(aim, sub, m, d, y, segment=2)
+# print(m.scale)
+# # m.calc.compare_COP(start=60, offset=200)
+
+# print(m.comp(start=60, offset=200))
+# m.compare.comp_XY()
 
 
-# m = run_model(aim, sub, m, d, y, segment=2, head="ears", cond="None")
-# m.calc.compare_COP(start=30)
+# m.cmanage.overlay_reproj(4, load=True, compare=False, exclude=[1, 2, 3])
 
 # print(m.calc.rad_metrics())
 # m.calc.plot_cop_anim()

@@ -15,6 +15,7 @@ class compareCOP:
     def __init__(self, Xcalc, Ycalc, Xreal, Yreal, cam=None):
         if cam == 1:
             n = min(Xcalc.shape[0], Xreal.shape[0])
+            print("Cam n: ", Xcalc.shape[0] / 30, " COP n: ", Xreal.shape[0] / 30)
             self.n = n
             self.Xcalc = Xcalc[0:n].reshape((n, 1))
             self.Ycalc = Ycalc[0:n].reshape((n, 1))
@@ -231,14 +232,14 @@ class compareCOP:
         ##Ellpise plot for ground truth data
         self.confidence_ellipse(Xr, Yr, ax1, edgecolor="red")
         ax1.scatter(Xr, Yr, s=0.5)
-        ax1.grid()
+        # ax1.grid()
         ax1.set_title("Ground Truth")
         ax1.set(xlabel="COP X (mm)", ylabel="COP Y (mm)")
 
         ##Ellpise plot for model data
         self.confidence_ellipse(Xc, Yc, ax2, edgecolor="red")
         ax2.scatter(Xc, Yc, s=0.5)
-        ax2.grid()
+        # ax2.grid()
         # plt.xlabel("COP X (mm)")
         # plt.ylabel("COP Y (mm)")
         ax2.set_title("Model")
@@ -457,7 +458,7 @@ class compareCOP:
         maeX, maeY = self.mae()
         # mseX, mseY = self.mse()
         val_x, p_x, val_y, p_y = self.pearson_corr()
-        val_x, p_x, val_y, p_y = self.spearmanr_corr()
+        # val_x, p_x, val_y, p_y = self.spearmanr_corr()
 
         metric_x = np.array([maeX, val_x, p_x])
         metric_y = np.array([maeY, val_y, p_y])
