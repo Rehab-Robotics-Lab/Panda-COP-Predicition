@@ -1,13 +1,17 @@
 import scipy
 import seaborn as sns
 from scipy import stats
+from scipy.signal import detrend
 import pandas as pd
 import numpy as np 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.patches import Ellipse
+import matplotlib.transforms as transforms
+import EntropyHub as EH
 
 class process_model_data:
-    def __init__(self,model_data,grnd_truth_data,sub_info):
+    def __init__(self,model_data,grnd_truth_data,sub_info,exclude_list=[],show_include=True):
         #Model COP
         self.model_cop=np.load(model_data)
         #Ground Truth COP
@@ -21,7 +25,23 @@ class process_model_data:
         self.months=self.info.month
 
         #Table with all metrics
-        self.table=self.iterate_id()
+        table=self.iterate_id()
+
+        if len(exclude_list)>0:
+            if show_include:
+                table = table[~pd.MultiIndex.from_frame(table[['ID', 'Month']]).isin(exclude_list)]
+                print("Showing table WITHOUT specifed exlections, New Length: ",len(table))
+            else:
+                table = table[pd.MultiIndex.from_frame(table[['ID', 'Month']]).isin(exclude_list)]
+                print("Showing table WITH ONLY specifed exlections, New Length: ",len(table))
+
+        #table with all varibales (included or excluded)
+        self.table=table
+
+        #saving list of excluded variables
+        self.exclude_list=exclude_list
+        self.show_include=show_include
+
 
     #Function to pull data for based on subject ID and month
     def subject_data(self,id,month=None):
@@ -64,7 +84,7 @@ class process_model_data:
         Ymodel=Ymodel-np.mean(Ymodel[0])
 
         return Xreal,Yreal,Xmodel,Ymodel,sub_info
-        
+  
     #MSE per subject
     def mse_fun(self,id,month=None):
         xreal,yreal,xmodel,ymodel,_=self.subject_data(id,month)
@@ -129,7 +149,19 @@ class process_model_data:
 
       return df
 
+    def gen_panda_metrics(self,id=0,month=None):
+        xreal,yreal,xmodel,ymodel,_=self.subject_data(id,month)
 
+        mtr=generate_metric([xmodel,ymodel])
+        metric_table=mtr.metrics()
+
+        _,_,_,_,sub_info=self.subject_data(id,month)
+
+        metric_table["ID"] = id
+        metric_table["Month"] = sub_info.month.item()
+
+        return metric_table
+    
     def plot_xy(self,id,month=None):
         xreal,yreal,xmodel,ymodel,_=self.subject_data(id,month)
 
@@ -173,6 +205,20 @@ class process_model_data:
         for i in range(len(self.ids)):
             # Appending new data to table
             df=pd.concat([df,self.metrics(self.ids[i],self.months[i])])
+        
+
+        return df
+    
+    def iterate_panda_metrics(self):
+        #Empty datafraem
+        df = pd.DataFrame()
+
+        #Iterate through IDs
+        for i in range(len(self.ids)):
+            print("--ID: ",self.ids[i]," Month: ",self.months[i])
+            metrics=self.gen_panda_metrics(self.ids[i],self.months[i])
+            # Appending new data to table
+            df=pd.concat([df,metrics])
 
         return df
 
@@ -195,8 +241,125 @@ class process_model_data:
 
 
 
+class generate_metric:
+    def __init__(self,cop,win=5,order=2):
+        self.x=cop[0]
+        self.y=cop[1]
 
+        dt = 1 / 30
 
+        self.dx = scipy.signal.savgol_filter(self.x, win, order, deriv=1, delta=dt)
+        self.dy = scipy.signal.savgol_filter(self.y, win, order, deriv=1, delta=dt)
 
+        self.n=len(self.x)
+    
+    #Return X and Y pos. or vel. depending on specified derivative
+    def get_xy(self,deriv=0):
+        if deriv==0:
+            return self.x, self.y
+        elif deriv==1:
+            return self.dx,self.dy
 
+    # COP standard deviation
+    def cop_std(self,deriv=0):
+        x,y=self.get_xy(deriv)
+
+        return np.std(x), np.std(y)
+    
+    # COP Root means squared
+    def cop_rms(self,deriv=0):
+        x,y=self.get_xy(deriv)
+        #Finding sum of distances
+        distances = np.sum(x**2 + y**2)
+    
+        return np.sqrt(distances /self.n)
+
+    # COP Excursion 
+    def cop_excusrion(self,deriv=0):
+        x,y=self.get_xy(deriv)
+
+        return (np.max(x)-np.min(x)),  (np.max(y)-np.min(y))
+
+    #COP Entropy
+    def cop_entropy(self,deriv=0,dim=2,r=0.2):
+        x,y=self.get_xy(deriv)
+
+        x_proc = detrend(x)
+        x_norm = (x_proc - np.mean(x_proc)) / np.std(x_proc)
+        
+        y_proc = detrend(y)
+        y_norm = (y_proc - np.mean(y_proc)) / np.std(y_proc)
+
+        Ex,_, _ = EH.SampEn(detrend(x_norm), m = dim)
+        Ey,_, _ = EH.SampEn(detrend(y_norm), m = dim)
+
+        return Ex[-1],Ey[-1]
+
+    #Mean COP
+    def cop_mean(self,deriv=0): 
+        x,y=self.get_xy(deriv)
+
+        return np.mean(x), np.mean(y)
+    
+    # Mean Median
+    def cop_median(self): 
+        x,y=self.x,self.y
+
+        return np.median(x), np.median(y)
+
+    #Average path length
+    def path_len(self): 
+        x,y=self.x,self.y
+    
+        # Calculate Euclidean distance for each step and sum them up
+        distances = np.sqrt(np.diff(x)**2 + np.diff(y)**2)
+        return (np.sum(distances)/self.n)
+
+    # COP Area
+    def cop_area(self,n_std=2):
+        x,y=self.x,self.y
+
+        cov = np.cov(x, y)
+
+        area = np.pi * (n_std ** 2) * np.sqrt(np.linalg.det(cov))
+        return area
+
+    
+    def metrics(self):
+        # Standard Deviation (pos. and vel.)
+        stdx,stdy=self.cop_std(deriv=0)
+        stdx_v,stdy_v=self.cop_std(deriv=1)
+
+        # RMS (pos. and vel.)
+        rms=self.cop_rms(deriv=0)
+        rms_v=self.cop_rms(deriv=1)
+
+        # Path length and area
+        area=self.cop_area()
+        path_len=self.path_len()
+
+        # Excursion (pos. and vel.)
+        exrx,exry=self.cop_excusrion(deriv=0)
+        exrx_v,exry_v=self.cop_excusrion(deriv=1)
+
+        # Entropy (pos. and vel.)
+        entx,enty=self.cop_entropy(deriv=0)
+        entx_v,enty_v=self.cop_entropy(deriv=1)
+
+        # Mean (pos. and vel.)
+        meanx,meany=self.cop_mean(deriv=0)
+        meanx_v,meany_v=self.cop_mean(deriv=1)
+
+        # Median (pos.)
+        medx,medy=self.cop_median()
+
+        cols=['COP Std X','COP Std Y','COP Std vX','COP Std vY', 'COP excursion X','COP excursion Y','COP excursion vX','COP excursion vY',
+              'COP entropy X','COP entropy Y','COP entropy vX','COP entropy vY','COPMeanX','COPMeanY','COP mean vX','COP mean vY' ,
+              'COPMedianX', 'COPMedianY','COP RMS','COP vRMS', 'COP Path Length', 'COP area']
+
+        df=pd.DataFrame([[stdx,stdy,stdx_v,stdy_v,exrx,exry,exrx_v,exry_v,
+                         entx,enty,entx_v,enty_v,meanx,meany,meanx_v,meany_v,
+                         medx,medy,rms,rms_v,path_len,area]],columns=cols)
+        
+        return df
         

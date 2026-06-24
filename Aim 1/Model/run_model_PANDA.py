@@ -152,15 +152,15 @@ class run_model:
         self.compare.comp_XY(save=True, name=save_name, title=Title, show=False)
 
 
-# aim = 3
-# sub = 258
-# m = 8
-# d = 21
-# y = 2024
+aim = 3
+sub = 224
+m = 11
+d = 22
+y = 2022
 
-# m = run_model(aim, sub, m, d, y, segment=2)
+m = run_model(aim, sub, m, d, y, segment=2, cond="None")
 # print(m.scale)
-# # m.calc.compare_COP(start=60, offset=200)
+m.calc.compare_COP(start=60)
 
 # print(m.comp(start=60, offset=200))
 # m.compare.comp_XY()
